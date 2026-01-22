@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\AvinyaAICRM.Domain\AvinyaAICRM.Domain.csproj" />
+		<ProjectReference Include="..\AvinyaAICRM.Shared\AvinyaAICRM.Shared.csproj" />
+		<!-- REMOVE THIS LINE BELOW -->
+		<!-- <ProjectReference Include="..\AvinyaAICRM.Infrastructure\AvinyaAICRM.Infrastructure.csproj" /> -->
+	</ItemGroup>
+
+	<ItemGroup>
+		<Folder Include="Features\" />
+		<Folder Include="Validators\" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.12" />
+		<PackageReference Include="Microsoft.IdentityModel.Tokens" Version="6.35.0" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="6.35.0" />
+	</ItemGroup>
+</Project>

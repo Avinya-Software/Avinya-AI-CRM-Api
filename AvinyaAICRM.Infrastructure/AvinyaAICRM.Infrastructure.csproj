@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+	</PropertyGroup>
+	<ItemGroup>
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+	</ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.23" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.23" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.23" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.23">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Identity.Core" Version="8.0.23" />
+	</ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\AvinyaAICRM.Application\AvinyaAICRM.Application.csproj" />
+		<ProjectReference Include="..\AvinyaAICRM.Domain\AvinyaAICRM.Domain.csproj" />
+		<ProjectReference Include="..\AvinyaAICRM.Shared\AvinyaAICRM.Shared.csproj" />
+	</ItemGroup>
+	<ItemGroup>
+		<Folder Include="Configurations\" />
+		<Folder Include="Identity\" />
+	</ItemGroup>
+</Project>
