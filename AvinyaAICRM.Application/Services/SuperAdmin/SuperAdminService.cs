@@ -35,8 +35,6 @@ public class SuperAdminService : ISuperAdminService
         tenant.IsActive = true;
         tenant.ApprovedAt = DateTime.UtcNow;
 
-        await _tenantRepository.UpdateAsync(tenant);
-
         // Activate Admin user linked to tenant
         var adminUser = await _userRepository.GetAdminByTenantIdAsync(tenantId);
         if (adminUser == null)
@@ -45,6 +43,9 @@ public class SuperAdminService : ISuperAdminService
         }
 
         adminUser.IsActive = true;
+        tenant.ApprovedBySuperAdminId = adminUser.Id;
+
+        await _tenantRepository.UpdateAsync(tenant);
         await _userRepository.UpdateAsync(adminUser);
 
         return CommonHelper.SuccessResponseMessage("Admin approved successfully",null);

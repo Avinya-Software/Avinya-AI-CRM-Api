@@ -3,9 +3,13 @@ using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Tenant;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.User;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Auth;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.Permission;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.SuperAdmin;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.User;
 using AvinyaAICRM.Application.Services.Auth;
 using AvinyaAICRM.Application.Services.ErrorLog;
+using AvinyaAICRM.Application.Services.Permission;
+using AvinyaAICRM.Application.Services.User;
 using AvinyaAICRM.Infrastructure.Identity;
 using AvinyaAICRM.Infrastructure.Services;
 using Microsoft.AspNetCore.Identity;
@@ -27,6 +31,8 @@ namespace AvinyaAICRM.Application
             services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
             services.AddScoped<IErrorLogService, ErrorLogService>();
             services.AddScoped<ISuperAdminService, SuperAdminService>();
+            services.AddScoped<IUserManagementService, UserManagementService>();
+            services.AddScoped<IPermissionService, PermissionService>();
             return services;
         }
     }

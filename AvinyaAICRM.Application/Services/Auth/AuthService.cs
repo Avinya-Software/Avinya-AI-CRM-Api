@@ -41,9 +41,13 @@ namespace AvinyaAICRM.Application.Services.Auth
                 IsActive = false
             };
 
-            var created = await _userRepo.CreateUserAsync(user, request.Password);
-            if (!created)
-                return CommonHelper.BadRequestResponseMessage("User creation failed");
+            var result = await _userRepo.CreateUserAsync(user, request.Password);
+            if (result.Errors.Any())
+            {
+                var error = result.Errors.First();
+                return CommonHelper.BadRequestResponseMessage(error);
+            }
+            
 
             await _userRepo.AddToRoleAsync(user, "Admin");
 
@@ -76,7 +80,7 @@ namespace AvinyaAICRM.Application.Services.Auth
                 return CommonHelper.UnauthorizedResponseMessage(ResponseType.Unauthorized.ToString(), "Invalid credentials");
 
             var roles = await _userRepo.GetRolesAsync(user);
-            if (!roles.Contains("SuperAdmin"))
+            if (roles.Contains("Admin"))
             {
                 var tenant = await _tenantRepo.GetByIdAsync(user.TenantId);
                 if (tenant == null || !tenant.IsApproved)

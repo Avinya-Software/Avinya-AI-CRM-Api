@@ -14,9 +14,17 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tenant
 
         public async Task<AvinyaAICRM.Domain.Entities.Tenant.Tenant> CreateTenantAsync(AvinyaAICRM.Domain.Entities.Tenant.Tenant tenant)
         {
-            _context.Tenants.Add(tenant);
-            await _context.SaveChangesAsync();
-            return tenant;
+            try
+            {
+                _context.Tenants.Add(tenant);
+                await _context.SaveChangesAsync();
+                return tenant;
+            }
+            catch (Exception ex)
+            {
+                return new AvinyaAICRM.Domain.Entities.Tenant.Tenant();
+            }
+            
         }
 
         public async Task<AvinyaAICRM.Domain.Entities.Tenant.Tenant?> GetByIdAsync(Guid tenantId)

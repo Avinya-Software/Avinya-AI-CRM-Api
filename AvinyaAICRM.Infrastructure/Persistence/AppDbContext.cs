@@ -1,13 +1,12 @@
-﻿using AvinyaAICRM.Domain.Entities.ErrorLogs;
+﻿using AvinyaAICRM.Domain.Entities.Action;
+using AvinyaAICRM.Domain.Entities.ErrorLogs;
+using AvinyaAICRM.Domain.Entities.Module;
+using AvinyaAICRM.Domain.Entities.Permission;
 using AvinyaAICRM.Domain.Entities.Tenant;
+using AvinyaAICRM.Domain.Entities.User;
 using AvinyaAICRM.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace AvinyaAICRM.Infrastructure.Persistence
 {
@@ -18,5 +17,11 @@ namespace AvinyaAICRM.Infrastructure.Persistence
 
         public DbSet<ErrorLogs> ErrorLogs { get; set; }
         public DbSet<Tenant> Tenants { get; set; }
+
+        public DbSet<UserPermission> UserPermissions { get; set; }
+        public DbSet<Permission> Permissions { get; set; }
+        public DbSet<Module> Modules { get; set; }
+        public DbSet<ActionMaster> Actions { get; set; }
+
     }
 }
