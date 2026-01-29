@@ -2,6 +2,7 @@
 using AvinyaAICRM.Domain.Entities.ErrorLogs;
 using AvinyaAICRM.Domain.Entities.Module;
 using AvinyaAICRM.Domain.Entities.Permission;
+using AvinyaAICRM.Domain.Entities.Tasks;
 using AvinyaAICRM.Domain.Entities.Tenant;
 using AvinyaAICRM.Domain.Entities.User;
 using AvinyaAICRM.Infrastructure.Identity;
@@ -22,6 +23,11 @@ namespace AvinyaAICRM.Infrastructure.Persistence
         public DbSet<Permission> Permissions { get; set; }
         public DbSet<Module> Modules { get; set; }
         public DbSet<ActionMaster> Actions { get; set; }
+        public DbSet<TaskList> TaskLists { get; set; }
+        public DbSet<TaskSeries> TaskSeries { get; set; }
+        public DbSet<TaskOccurrence> TaskOccurrences { get; set; }
+        public DbSet<NotificationRule> NotificationRules { get; set; }
+
 
     }
 }

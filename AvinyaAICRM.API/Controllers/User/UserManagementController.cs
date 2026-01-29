@@ -42,7 +42,6 @@ namespace AvinyaAICRM.API.Controllers.User
             return new JsonResult(result) { StatusCode = result.StatusCode };
         }
 
-
         [Authorize]
         [HttpGet("me/menu")]
         public async Task<IActionResult> GetMenu()

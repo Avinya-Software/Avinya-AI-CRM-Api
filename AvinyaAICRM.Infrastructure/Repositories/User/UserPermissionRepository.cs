@@ -11,11 +11,13 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
     {
         private readonly AppDbContext _context;
         private readonly IMemoryCache _cache;
+        private readonly IUserRepository _userRepository;
 
-        public UserPermissionRepository(AppDbContext context, IMemoryCache cache)
+        public UserPermissionRepository(AppDbContext context, IMemoryCache cache, IUserRepository userRepo)
         {
             _context = context;
             _cache = cache;
+            _userRepository = userRepo;
         }
         private string CacheKey(string userId) => $"PERMS_{userId}";
 
@@ -51,6 +53,17 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
 
         public async Task<List<string>> GetUserPermissionsAsync(string userId)
         {
+            if (await _userRepository.IsInRoleAsync(userId, "SuperAdmin"))
+            {
+                return await (
+                    from p in _context.Permissions
+                    join m in _context.Modules on p.ModuleId equals m.ModuleId
+                    join a in _context.Actions on p.ActionId equals a.ActionId
+                    select m.ModuleKey + ":" + a.ActionKey
+                ).ToListAsync();
+            }
+
+            // 🔹 Cached normal users
             if (_cache.TryGetValue(CacheKey(userId), out List<string> cached))
                 return cached;
 
@@ -75,21 +88,38 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
 
         public async Task<List<MenuItemDto>> GetMenuAsync(string userId)
         {
-            var menu = await (
-               from up in _context.UserPermissions
-               join p in _context.Permissions on up.PermissionId equals p.PermissionId
-               join m in _context.Modules on p.ModuleId equals m.ModuleId
-               join a in _context.Actions on p.ActionId equals a.ActionId
-               where up.UserId == userId
-               group a.ActionKey by new { m.ModuleKey, m.ModuleName } into g
-               select new MenuItemDto
-               {
-                   ModuleKey = g.Key.ModuleKey,
-                   ModuleName = g.Key.ModuleName,
-                   Actions = g.ToList()
-               }
-           ).ToListAsync();
-            return menu;
+            if (await _userRepository.IsInRoleAsync(userId, "SuperAdmin"))
+            {
+                return await (
+                    from p in _context.Permissions
+                    join m in _context.Modules on p.ModuleId equals m.ModuleId
+                    join a in _context.Actions on p.ActionId equals a.ActionId
+                    where m.IsActive
+                    group a.ActionKey by new { m.ModuleKey, m.ModuleName } into g
+                    select new MenuItemDto
+                    {
+                        ModuleKey = g.Key.ModuleKey,
+                        ModuleName = g.Key.ModuleName,
+                        Actions = g.ToList()
+                    }
+                ).ToListAsync();
+            }
+
+            // 🔹 Normal users (existing logic)
+            return await (
+                from up in _context.UserPermissions
+                join p in _context.Permissions on up.PermissionId equals p.PermissionId
+                join m in _context.Modules on p.ModuleId equals m.ModuleId
+                join a in _context.Actions on p.ActionId equals a.ActionId
+                where up.UserId == userId
+                group a.ActionKey by new { m.ModuleKey, m.ModuleName } into g
+                select new MenuItemDto
+                {
+                    ModuleKey = g.Key.ModuleKey,
+                    ModuleName = g.Key.ModuleName,
+                    Actions = g.ToList()
+                }
+            ).ToListAsync();
         }
 
     }

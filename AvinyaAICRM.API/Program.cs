@@ -1,8 +1,6 @@
 ﻿using AvinyaAICRM.API.Filters;
 using AvinyaAICRM.Application;
-using AvinyaAICRM.Application.Interfaces.RepositoryInterface;
 using AvinyaAICRM.Infrastructure;
-using AvinyaAICRM.Infrastructure.Repositories.ErrorLog;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -50,7 +48,7 @@ builder.Services.AddSwaggerGen(c =>
 var app = builder.Build();
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
-
+app.UseCors("AllowAll");
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

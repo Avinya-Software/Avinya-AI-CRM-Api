@@ -1,5 +1,6 @@
 ﻿using AvinyaAICRM.Application.Interfaces.RepositoryInterface;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Permission;
+using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Tasks;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Tenant;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.User;
 using AvinyaAICRM.Infrastructure.Authorization;
@@ -7,6 +8,7 @@ using AvinyaAICRM.Infrastructure.Identity;
 using AvinyaAICRM.Infrastructure.Persistence;
 using AvinyaAICRM.Infrastructure.Repositories.ErrorLog;
 using AvinyaAICRM.Infrastructure.Repositories.Permission;
+using AvinyaAICRM.Infrastructure.Repositories.Tasks;
 using AvinyaAICRM.Infrastructure.Repositories.Tenant;
 using AvinyaAICRM.Infrastructure.Repositories.User;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -17,6 +19,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+using System.ComponentModel;
 using System.Text;
 
 namespace AvinyaAICRM.Infrastructure
@@ -37,6 +40,12 @@ namespace AvinyaAICRM.Infrastructure
             // ---------------- JWT SETTINGS ----------------
             var jwtSettings = configuration.GetSection("JwtSettings");
             var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]);
+
+            services.AddCors(options =>
+            {
+                options.AddPolicy("AllowAll", policy =>
+                    policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+            });
 
             // ---------------- Authentication ----------------
             services.AddAuthentication(options =>
@@ -95,7 +104,7 @@ namespace AvinyaAICRM.Infrastructure
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IUserPermissionRepository, UserPermissionRepository>();
             services.AddScoped<IPermissionRepository, PermissionRepository>();
-
+            services.AddScoped<ITaskRepository, TaskRepository>();
 
             // ---------------- Permission System ----------------
             services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();

@@ -1,4 +1,6 @@
-﻿using AvinyaAICRM.Application.Interfaces.ServiceInterface.SuperAdmin;
+﻿using AvinyaAICRM.Application.DTOs.User;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.SuperAdmin;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.User;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,10 +12,12 @@ namespace AvinyaAICRM.API.Controllers.SuperAdmin
     public class SuperAdminController : ControllerBase
     {
         private readonly ISuperAdminService _superAdminService;
+        private readonly IUserManagementService _userService;
 
-        public SuperAdminController(ISuperAdminService superAdminService)
+        public SuperAdminController(ISuperAdminService superAdminService, IUserManagementService userService)
         {
             _superAdminService = superAdminService;
+            _userService = userService;
         }
 
         [HttpPost("approve-admin")]
@@ -22,5 +26,14 @@ namespace AvinyaAICRM.API.Controllers.SuperAdmin
             var result = await _superAdminService.ApproveAdminAsync(tenantId);
             return new JsonResult(result) { StatusCode = result.StatusCode };
         }
+
+        [Authorize(Roles = "SuperAdmin")]
+        [HttpPost("users")]
+        public async Task<IActionResult> GetUsers([FromBody] UserListFilterRequest request)
+        {
+            var result = await _userService.GetUsersForSuperAdminAsync(request);
+            return new JsonResult(result) { StatusCode = result.StatusCode };
+        }
+
     }
 }

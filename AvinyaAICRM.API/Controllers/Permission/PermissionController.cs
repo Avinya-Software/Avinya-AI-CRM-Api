@@ -17,7 +17,7 @@ namespace AvinyaAICRM.API.Controllers.Permission
             _permissionService = permissionService;
         }
 
-        [Authorize(Roles = "")]
+        
         [HttpGet("me/permissions")]
         public async Task<IActionResult> GetMyPermissions()
         {

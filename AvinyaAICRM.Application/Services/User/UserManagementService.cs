@@ -1,4 +1,5 @@
 ﻿using AvinyaAICRM.Application.DTOs.Auth;
+using AvinyaAICRM.Application.DTOs.User;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.User;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.User;
 using AvinyaAICRM.Domain.Entities.User;
@@ -110,6 +111,13 @@ namespace AvinyaAICRM.Application.Services.User
             var menu = await _permissionRepo.GetMenuAsync(userId);
             return CommonHelper.GetResponseMessage(menu);
         }
+
+        public async Task<ResponseModel> GetUsersForSuperAdminAsync(UserListFilterRequest request)
+        {
+            var result = await _userRepo.GetUsersForSuperAdminAsync(request);
+            return CommonHelper.GetResponseMessage(result);
+        }
+
     }
 
 }
