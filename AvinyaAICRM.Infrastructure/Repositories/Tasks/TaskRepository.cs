@@ -17,41 +17,95 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
 
         public async Task<long> CreateTaskAsync(CreateTaskDto dto, string userId)
         {
+            using var tx = await _context.Database.BeginTransactionAsync();
+
             try
             {
-                var listId = dto.ListId <= 0 ? await GetOrCreateDefaultListAsync(userId)  : dto.ListId;
+                var listId = dto.ListId <= 0
+                    ? await GetOrCreateDefaultListAsync(userId)
+                    : dto.ListId;
 
+                // 🧠 Normalize dates
+                var dueDateUtc = dto.DueDateTime?.ToUniversalTime();
+                var recurrenceStartUtc = dto.RecurrenceStartDate?.ToUniversalTime();
+                var recurrenceEndUtc = dto.RecurrenceEndDate?.ToUniversalTime(); // NULL = Never Ends
+
+                // 1️⃣ Create TaskSeries
                 var series = new TaskSeries
                 {
                     Title = dto.Title,
                     Description = dto.Description,
                     Notes = dto.Notes,
                     ListId = listId,
+
                     IsRecurring = dto.IsRecurring,
-                    RecurrenceRule = dto.RecurrenceRule,
-                    CreatedBy = userId
+                    RecurrenceRule = dto.IsRecurring ? dto.RecurrenceRule : null,
+
+                    // If recurring → use recurrence start
+                    // Else → keep null (single task)
+                    StartDate = dto.IsRecurring
+                        ? (recurrenceStartUtc ?? dueDateUtc)
+                        : null,
+
+                    // NULL means "Never Ends"
+                    EndDate = dto.IsRecurring ? recurrenceEndUtc : null,
+
+                    CreatedBy = userId,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow
                 };
 
                 _context.TaskSeries.Add(series);
                 await _context.SaveChangesAsync();
 
+                // 2️⃣ Create FIRST TaskOccurrence
                 var occurrence = new TaskOccurrence
                 {
                     TaskSeriesId = series.Id,
-                    DueDateTime = dto.DueDateTime
+                    DueDateTime = dueDateUtc,
+                    Status = "Pending",
+                    CreatedAt = DateTime.UtcNow
                 };
 
                 _context.TaskOccurrences.Add(occurrence);
                 await _context.SaveChangesAsync();
 
+                // 3️⃣ Create Reminder (NotificationRules)
+                if (dto.ReminderAt.HasValue && dueDateUtc.HasValue)
+                {
+                    var reminderUtc = dto.ReminderAt.Value.ToUniversalTime();
+
+                   // Safety check
+                    if (reminderUtc < dueDateUtc.Value)
+                    {
+                        var offsetMinutes =
+                            (int)(dueDateUtc.Value - reminderUtc).TotalMinutes;
+
+                        var reminder = new NotificationRule
+                        {
+                            TaskOccurrenceId = occurrence.Id,
+                            TriggerType = "BeforeDue",
+                            OffsetMinutes = offsetMinutes,
+                            Channel = dto.ReminderChannel ?? "InApp",
+                            CreatedAt = DateTime.UtcNow
+                        };
+
+                        _context.NotificationRules.Add(reminder);
+                        await _context.SaveChangesAsync();
+                    }
+                }
+
+                await tx.CommitAsync();
                 return occurrence.Id;
             }
-            catch (Exception ex)
+            catch
             {
-                return 123;
+                await tx.RollbackAsync();
+                throw;
             }
-            
         }
+
+
 
         public async Task<List<TaskDto>> GetTasksAsync(string userId, DateTime? from, DateTime? to)
         {
@@ -187,7 +241,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
         private async Task<long> GetOrCreateDefaultListAsync(string userId)
         {
             var list = await _context.TaskLists
-                .FirstOrDefaultAsync(x => x.OwnerId == Guid.Parse(userId));
+                .FirstOrDefaultAsync(x => x.OwnerId == Guid.Parse(userId)); 
 
             if (list != null)
                 return list.Id;

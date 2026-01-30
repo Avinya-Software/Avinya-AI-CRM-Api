@@ -25,6 +25,7 @@
 		<ProjectReference Include="..\AvinyaAICRM.Shared\AvinyaAICRM.Shared.csproj" />
 	</ItemGroup>
 	<ItemGroup>
+		<Folder Include="AI\Models\" />
 		<Folder Include="Configurations\" />
 		<Folder Include="Identity\" />
 	</ItemGroup>

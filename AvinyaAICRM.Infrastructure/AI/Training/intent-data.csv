@@ -1,0 +1,80 @@
+﻿Text,Label
+
+# =======================
+# 1️⃣ SIMPLE TASK
+# =======================
+
+Manish ko payment karna hai,CreateTask
+Manish ka payment pending hai,CreateTask
+Manish ko paisa dena hai,CreateTask
+Manish ka bill clear karna hai,CreateTask
+Vendor ko payment karna hai,CreateTask
+
+Rahul ko call karna hai,CreateTask
+Rahul ko phone kar dena,CreateTask
+Client ko email bhejna hai,CreateTask
+Boss ko report bhejni hai,CreateTask
+Manager ko update dena hai,CreateTask
+
+Ek task create karo payment ka,CreateTask
+Mujhe ek task add karna hai,CreateTask
+Task bana do Manish ke liye,CreateTask
+Please create a task to pay Manish,CreateTask
+Add a task for client follow up,CreateTask
+
+Office ka kaam complete karna hai,CreateTask
+Invoice prepare karna hai,CreateTask
+Meeting ke notes likhne hain,CreateTask
+
+# =======================
+# 2️⃣ TASK + REMINDER
+# =======================
+
+Kal Manish ko payment karna hai yaad dila dena,CreateTaskWithReminder
+Aaj shaam Rahul ko call karna hai reminder ke saath,CreateTaskWithReminder
+Client ko kal mail bhejna hai yaad dilana,CreateTaskWithReminder
+Boss ko report bhejni hai kal subah reminder lagana,CreateTaskWithReminder
+
+Manish ko payment karna hai aur mujhe remind karna,CreateTaskWithReminder
+Payment ka task bana do aur reminder set karo,CreateTaskWithReminder
+Call ka task add karo aur reminder bhi lagao,CreateTaskWithReminder
+
+Tomorrow client ko follow up karna hai remind me,CreateTaskWithReminder
+Remind me to pay Manish tomorrow,CreateTaskWithReminder
+Set a reminder to call Rahul today evening,CreateTaskWithReminder
+
+Aaj Ankit ko paisa dena hai yaad dila dena,CreateTaskWithReminder
+Vendor ka payment kal hai reminder lagao,CreateTaskWithReminder
+
+# =======================
+# 3️⃣ TASK + RECURRING
+# =======================
+
+Har friday report bhejni hai,CreateRecurringTask
+Roz client ko follow up karna hai,CreateRecurringTask
+Daily status update bhejna hai,CreateRecurringTask
+Every monday team meeting ka task,CreateRecurringTask
+
+Har mahine salary process karna hai,CreateRecurringTask
+Weekly invoice generate karna hai,CreateRecurringTask
+Monthly bill payment ka task,CreateRecurringTask
+
+Roz Manish ko payment check karna,CreateRecurringTask
+Daily customer follow up task,CreateRecurringTask
+Every day call the sales team,CreateRecurringTask
+
+Har friday reminder ke saath report bhejni hai,CreateRecurringTask
+Weekly task create karo report ke liye,CreateRecurringTask
+
+# =======================
+# 4️⃣ UNKNOWN / NOISE
+# =======================
+
+Weather kaisa hai,Unknown
+Aaj ka weather batao,Unknown
+News dikhao,Unknown
+Tum kaun ho,Unknown
+Joke sunao,Unknown
+Time kya ho raha hai,Unknown
+Calculator open karo,Unknown
+Google khol do,Unknown

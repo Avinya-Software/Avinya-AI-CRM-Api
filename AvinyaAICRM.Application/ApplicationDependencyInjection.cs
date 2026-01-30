@@ -1,10 +1,12 @@
 ﻿
 using AvinyaAICRM.Application.Interfaces.ServiceInterface;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.AI;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Auth;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Permission;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.SuperAdmin;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Tasks;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.User;
+using AvinyaAICRM.Application.Services.AI;
 using AvinyaAICRM.Application.Services.Auth;
 using AvinyaAICRM.Application.Services.ErrorLog;
 using AvinyaAICRM.Application.Services.Permission;
@@ -26,6 +28,20 @@ namespace AvinyaAICRM.Application
             services.AddScoped<IUserManagementService, UserManagementService>();
             services.AddScoped<IPermissionService, PermissionService>();
             services.AddScoped<ITaskService, TaskService>();
+            var solutionRoot = Directory.GetParent(Directory.GetCurrentDirectory())!.FullName;
+
+            var modelPath = Path.Combine(
+                solutionRoot,
+                "AvinyaAICRM.Infrastructure",
+                "AI",
+                "Models",
+                "intent-model.zip"
+            );
+
+            services.AddSingleton<IIntentService>(
+                _ => new IntentService(modelPath)
+            );
+
             return services;
         }
     }

@@ -14,6 +14,7 @@ namespace AvinyaAICRM.Application.Interfaces.ServiceInterface.Tasks
         Task<ResponseModel> UpdateReminderAsync(long occurrenceId, CreateReminderDto dto);
         Task<ResponseModel> DeleteReminderAsync(long occurrenceId);
         Task<ResponseModel> GetTaskDetailsAsync(long occurrenceId, string userId);
+        Task<ResponseModel> CreateTaskUsingVoiceAsync(string userId, string intent, string text);
 
     }
 
