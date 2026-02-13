@@ -11,8 +11,9 @@ namespace AvinyaAICRM.Application.DTOs.Auth
         public string FullName { get; set; }
         public string Email { get; set; }
         public string Password { get; set; }
-
+        public string TenantId { get; set; }
         public string Role { get; set; } // Manager / Supervisor / Staff
+        public List<int> PermissionIds { get; set; }
     }
 
 }

@@ -13,6 +13,8 @@ namespace AvinyaAICRM.Application.DTOs.User
 
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
+
+        public List<int> PermissionIds { get; set; } = new();
     }
 
 }

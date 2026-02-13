@@ -12,11 +12,12 @@ namespace AvinyaAICRM.Application.Interfaces.ServiceInterface.User
     public interface IUserManagementService
     {
         Task<ResponseModel> CreateUserAsync(CreateUserRequestModel request, string createdByUserId);
-        Task<ResponseModel> UpdateUserAsync(UpdateUserRequestModel request);
+        Task<ResponseModel> UpdateUserAsync(UpdateUserRequestModel request, string grantedByUserId);
         Task<ResponseModel> AssignPermissionsAsync(AssignPermissionsRequestModel request,string grantedByUserId);
         Task<ResponseModel> GetMyPermissionsAsync(string userId);
         Task<ResponseModel> GetMenuAsync(string userId);
         Task<ResponseModel> GetUsersForSuperAdminAsync(UserListFilterRequest request);
+        Task<ResponseModel> GetMyCompaniesAsync();
     }
 
 }

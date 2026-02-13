@@ -29,7 +29,8 @@ namespace AvinyaAICRM.API.Controllers.User
         [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> UpdateUser(UpdateUserRequestModel request)
         {
-            var result = await _service.UpdateUserAsync(request);
+            var userId = User.FindFirst("userId")?.Value;
+            var result = await _service.UpdateUserAsync(request, userId);
             return new JsonResult(result) { StatusCode = result.StatusCode };
         }
 
@@ -51,5 +52,12 @@ namespace AvinyaAICRM.API.Controllers.User
             return new JsonResult(result) { StatusCode = result.StatusCode };
         }
 
+        [Authorize]
+        [HttpGet("companies")]
+        public async Task<IActionResult> GetMyCompanies()
+        {
+            var result = await _service.GetMyCompaniesAsync();
+            return new JsonResult(result) { StatusCode = result.StatusCode };
+        }
     }
 }

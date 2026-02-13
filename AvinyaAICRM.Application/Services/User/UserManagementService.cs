@@ -45,16 +45,41 @@ namespace AvinyaAICRM.Application.Services.User
                 FullName = request.FullName,
                 Email = request.Email,
                 UserName = request.Email,
-                TenantId = creator.TenantId,
-                IsActive = true
+                TenantId = Guid.Parse(request.TenantId),
+                IsActive = true,
+                CreatedAt = DateTime.Now,
+                CreatedByUserId = createdByUserId
             };
 
-            await _userRepo.CreateUserAsync(user, request.Password);
+            var created = await _userRepo.CreateUserAsync(user, request.Password);
+            if (!created.Succeeded)
+            {
+                var errors = string.Join(", ", created.Errors.Select(e => e.Description));
+                return CommonHelper.BadRequestResponseMessage(errors);
+            }
             await _userRepo.AddToRoleAsync(user, request.Role);
+
+            if (!creatorRoles.Contains("Admin") && !creatorRoles.Contains("SuperAdmin"))
+                return CommonHelper.ForbiddenResponseMessage("Not allowed to assign permissions");
+
+            // Assign new permissions
+            if (request.PermissionIds != null && request.PermissionIds.Any())
+            {
+                foreach (var permissionId in request.PermissionIds)
+                {
+                    await _permissionRepo.AddAsync(new UserPermission
+                    {
+                        UserId = user.Id, 
+                        PermissionId = permissionId,
+                        GrantedByUserId = createdByUserId
+                    });
+                }
+                await _permissionRepo.InvalidateCacheAsync(user.Id);
+            }
             return CommonHelper.CreatedResponseMessage("User",null);
         }
 
-        public async Task<ResponseModel> UpdateUserAsync(UpdateUserRequestModel request)
+        public async Task<ResponseModel> UpdateUserAsync(UpdateUserRequestModel request , string grantedByUserId)
         {
             var user = await _userRepo.GetByIdAsync(request.UserId);
             if (user == null)
@@ -62,8 +87,33 @@ namespace AvinyaAICRM.Application.Services.User
 
             user.FullName = request.FullName;
             user.IsActive = request.IsActive;
+            user.Email = request.Email;
 
             await _userRepo.UpdateAsync(user);
+
+            var granter = await _userRepo.GetByIdAsync(grantedByUserId);
+            if (granter == null)
+                return CommonHelper.UnauthorizedResponseMessage(string.Empty, "Not allowed to create users ");
+
+            var granterRoles = await _userRepo.GetRolesAsync(granter);
+            if (!granterRoles.Contains("Admin") && !granterRoles.Contains("SuperAdmin"))
+                return CommonHelper.ForbiddenResponseMessage("Not allowed to assign permissions");
+
+            // Remove old permissions
+            await _permissionRepo.RemoveAllAsync(request.UserId);
+
+            // Assign new permissions
+            foreach (var permissionId in request.PermissionIds)
+            {
+                await _permissionRepo.AddAsync(new UserPermission
+                {
+                    UserId = request.UserId,
+                    PermissionId = permissionId,
+                    GrantedByUserId = grantedByUserId
+                });
+            }
+
+            await _permissionRepo.InvalidateCacheAsync(request.UserId);
 
             return CommonHelper.UpdatedResponseMessage("User", null);
         }
@@ -116,6 +166,12 @@ namespace AvinyaAICRM.Application.Services.User
         {
             var result = await _userRepo.GetUsersForSuperAdminAsync(request);
             return CommonHelper.GetResponseMessage(result);
+        }
+
+        public async Task<ResponseModel> GetMyCompaniesAsync()
+        {
+            var companies = await _userRepo.GetMyCompaniesAsync();
+            return CommonHelper.GetResponseMessage(companies);
         }
 
     }

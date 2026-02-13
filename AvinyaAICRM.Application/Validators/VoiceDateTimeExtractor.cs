@@ -23,7 +23,7 @@ namespace AvinyaAICRM.Application.Validators
             if (text.Contains("raat") || text.Contains("night"))
                 return now.Date.AddHours(21);
 
-            return null; // user didn't specify
+            return now.Date; // user didn't specify
         }
     }
 

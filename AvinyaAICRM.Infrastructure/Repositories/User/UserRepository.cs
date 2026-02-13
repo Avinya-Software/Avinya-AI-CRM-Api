@@ -92,40 +92,51 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
                 join r in _context.Roles on ur.RoleId equals r.Id
                 join t in _context.Tenants on u.TenantId equals t.TenantId into tenantJoin
                 from t in tenantJoin.DefaultIfEmpty()
-                select new UserListDto
+                select new
                 {
-                    UserId = u.Id,
-                    FullName = u.FullName,
-                    Email = u.Email,
-                    Role = r.Name,
-                    TenantId = u.TenantId,
-                    TenantName = t != null ? t.CompanyName : "System",
-                    IsActive = u.IsActive,
-                    CreatedAt = u.CreatedAt
+                    User = u,
+                    RoleName = r.Name,
+                    TenantName = t != null ? t.CompanyName : "System"
                 };
 
             // 🔎 Filters
             if (!string.IsNullOrEmpty(request.Role))
-                query = query.Where(x => x.Role == request.Role);
+                query = query.Where(x => x.RoleName == request.Role);
 
             if (request.TenantId.HasValue)
-                query = query.Where(x => x.TenantId == request.TenantId);
+                query = query.Where(x => x.User.TenantId == request.TenantId);
 
             if (request.IsActive.HasValue)
-                query = query.Where(x => x.IsActive == request.IsActive);
+                query = query.Where(x => x.User.IsActive == request.IsActive);
 
             if (!string.IsNullOrEmpty(request.Search))
                 query = query.Where(x =>
-                    x.FullName.Contains(request.Search) ||
-                    x.Email.Contains(request.Search));
+                    x.User.FullName.Contains(request.Search) ||
+                    x.User.Email.Contains(request.Search));
 
-            // 📊 Pagination
             var totalRecords = await query.CountAsync();
 
             var users = await query
-                .OrderByDescending(x => x.CreatedAt)
+                .OrderByDescending(x => x.User.CreatedAt)
                 .Skip((request.PageNumber - 1) * request.PageSize)
                 .Take(request.PageSize)
+                .Select(x => new UserListDto
+                {
+                    UserId = x.User.Id,
+                    FullName = x.User.FullName,
+                    Email = x.User.Email,
+                    Role = x.RoleName,
+                    TenantId = x.User.TenantId,
+                    TenantName = x.TenantName,
+                    IsActive = x.User.IsActive,
+                    CreatedAt = x.User.CreatedAt,
+
+                    // ✅ Include Permissions
+                    PermissionIds = _context.UserPermissions
+                        .Where(up => up.UserId == x.User.Id)
+                        .Select(up => up.PermissionId)
+                        .ToList()
+                })
                 .ToListAsync();
 
             return new PagedResult<UserListDto>
@@ -138,6 +149,12 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
             };
         }
 
+
+        public async Task<List<AvinyaAICRM.Domain.Entities.Tenant.Tenant>> GetMyCompaniesAsync()
+        {
+            var tenants = await _context.Tenants.ToListAsync();
+            return tenants;
+        }
 
     }
 

@@ -10,7 +10,9 @@ namespace AvinyaAICRM.Application.DTOs.Auth
     {
         public string UserId { get; set; }
         public string FullName { get; set; }
+        public string Email { get; set; }
         public bool IsActive { get; set; }
+        public List<int> PermissionIds { get; set; }
     }
 
 }

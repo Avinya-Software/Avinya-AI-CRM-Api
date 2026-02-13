@@ -26,7 +26,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
                     : dto.ListId;
 
                 // 🧠 Normalize dates
-                var dueDateUtc = dto.DueDateTime?.ToUniversalTime();
+                var dueDateUtc = dto.DueDateTime;
                 var recurrenceStartUtc = dto.RecurrenceStartDate?.ToUniversalTime();
                 var recurrenceEndUtc = dto.RecurrenceEndDate?.ToUniversalTime(); // NULL = Never Ends
 
