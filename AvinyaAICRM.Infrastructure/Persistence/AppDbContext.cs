@@ -3,6 +3,8 @@ using AvinyaAICRM.Domain.Entities.ErrorLogs;
 using AvinyaAICRM.Domain.Entities.Module;
 using AvinyaAICRM.Domain.Entities.Permission;
 using AvinyaAICRM.Domain.Entities.Tasks;
+using AvinyaAICRM.Domain.Entities.Team;
+using AvinyaAICRM.Domain.Entities.TeamMember;
 using AvinyaAICRM.Domain.Entities.Tenant;
 using AvinyaAICRM.Domain.Entities.User;
 using AvinyaAICRM.Infrastructure.Identity;
@@ -27,7 +29,7 @@ namespace AvinyaAICRM.Infrastructure.Persistence
         public DbSet<TaskSeries> TaskSeries { get; set; }
         public DbSet<TaskOccurrence> TaskOccurrences { get; set; }
         public DbSet<NotificationRule> NotificationRules { get; set; }
-
-
+        public DbSet<Team> Teams { get; set; }
+        public DbSet<TeamMember> TeamMembers { get; set; }
     }
 }

@@ -26,6 +26,10 @@ namespace AvinyaAICRM.Domain.Entities.Tasks
         public bool IsActive { get; set; } = true;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+        public string? TaskScope { get; set; }
+
+        public string? Priority { get; set; }
+
         public ICollection<TaskOccurrence> Occurrences { get; set; }
     }
 

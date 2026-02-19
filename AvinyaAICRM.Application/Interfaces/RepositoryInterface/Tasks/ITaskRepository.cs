@@ -5,7 +5,7 @@ namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.Tasks
     public interface ITaskRepository
     {
         Task<long> CreateTaskAsync(CreateTaskDto dto, string userId);
-        Task<List<TaskDto>> GetTasksAsync(string userId, DateTime? from, DateTime? to);
+        Task<List<TaskDto>> GetTasksAsync(string userId, DateTime? from, DateTime? to, string? scope);
         Task<bool> UpdateTaskAsync(long occurrenceId, UpdateTaskDto dto);
         Task<bool> DeleteTaskAsync(long occurrenceId);
         Task<bool> UpdateRecurringAsync(long taskSeriesId, UpdateRecurringDto dto);

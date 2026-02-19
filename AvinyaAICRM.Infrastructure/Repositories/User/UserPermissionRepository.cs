@@ -63,8 +63,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
                 ).ToListAsync();
             }
 
-            // 🔹 Cached normal users
-            if (_cache.TryGetValue(CacheKey(userId), out List<string> cached))
+            if ((_cache.TryGetValue(CacheKey(userId), out List<string> cached) && cached?.Count > 0))
                 return cached;
 
             var permissions = await (

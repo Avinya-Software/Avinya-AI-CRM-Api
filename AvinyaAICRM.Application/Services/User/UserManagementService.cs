@@ -174,6 +174,12 @@ namespace AvinyaAICRM.Application.Services.User
             return CommonHelper.GetResponseMessage(companies);
         }
 
+        public async Task<ResponseModel> GetUsersDropdown(string userId)
+        {
+            var users = await _userRepo.GetUsersDropdown(userId);
+            return CommonHelper.GetResponseMessage(users);
+        }
+
     }
 
 }

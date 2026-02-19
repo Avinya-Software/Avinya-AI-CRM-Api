@@ -28,10 +28,10 @@ namespace AvinyaAICRM.API.Controllers.Task
 
         [Authorize]
         [HttpGet("get")]
-        public async Task<IActionResult> GetTasks(DateTime? from, DateTime? to)
+        public async Task<IActionResult> GetTasks(DateTime? from, DateTime? to, string? scope)
         {
             var userId = User.FindFirst("userId")?.Value!;
-            var result = await _service.GetTasksAsync(userId, from, to);
+            var result = await _service.GetTasksAsync(userId, from, to, scope);
             return new JsonResult(result) { StatusCode = result.StatusCode };
         }
 
@@ -91,8 +91,6 @@ namespace AvinyaAICRM.API.Controllers.Task
             var result = await _service.GetTaskDetailsAsync(occurrenceId, userId);
             return new JsonResult(result) { StatusCode = result.StatusCode };
         }
-
-
     }
 
 }

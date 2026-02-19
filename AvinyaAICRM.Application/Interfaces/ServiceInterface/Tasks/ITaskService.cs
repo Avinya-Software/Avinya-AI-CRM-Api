@@ -6,7 +6,7 @@ namespace AvinyaAICRM.Application.Interfaces.ServiceInterface.Tasks
     public interface ITaskService
     {
         Task<ResponseModel> CreateTaskAsync(CreateTaskDto dto, string userId);
-        Task<ResponseModel> GetTasksAsync(string userId, DateTime? from, DateTime? to);
+        Task<ResponseModel> GetTasksAsync(string userId, DateTime? from, DateTime? to, string? scope);
         Task<ResponseModel> UpdateTaskAsync(long occurrenceId, UpdateTaskDto dto);
         Task<ResponseModel> DeleteTaskAsync(long occurrenceId);
         Task<ResponseModel> UpdateRecurringAsync(long taskSeriesId, UpdateRecurringDto dto);

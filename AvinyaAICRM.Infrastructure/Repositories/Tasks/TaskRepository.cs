@@ -30,7 +30,6 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
                 var recurrenceStartUtc = dto.RecurrenceStartDate?.ToUniversalTime();
                 var recurrenceEndUtc = dto.RecurrenceEndDate?.ToUniversalTime(); // NULL = Never Ends
 
-                // 1️⃣ Create TaskSeries
                 var series = new TaskSeries
                 {
                     Title = dto.Title,
@@ -40,16 +39,13 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
 
                     IsRecurring = dto.IsRecurring,
                     RecurrenceRule = dto.IsRecurring ? dto.RecurrenceRule : null,
-
-                    // If recurring → use recurrence start
-                    // Else → keep null (single task)
                     StartDate = dto.IsRecurring
                         ? (recurrenceStartUtc ?? dueDateUtc)
                         : null,
 
-                    // NULL means "Never Ends"
                     EndDate = dto.IsRecurring ? recurrenceEndUtc : null,
-
+                    TeamId = dto.TeamId,
+                    TaskScope = dto.TeamId > 0 ? "Team" : "Personal",
                     CreatedBy = userId,
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow
@@ -58,19 +54,18 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
                 _context.TaskSeries.Add(series);
                 await _context.SaveChangesAsync();
 
-                // 2️⃣ Create FIRST TaskOccurrence
                 var occurrence = new TaskOccurrence
                 {
                     TaskSeriesId = series.Id,
                     DueDateTime = dueDateUtc,
                     Status = "Pending",
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    AssignedTo = dto.AssignToId
                 };
 
                 _context.TaskOccurrences.Add(occurrence);
                 await _context.SaveChangesAsync();
 
-                // 3️⃣ Create Reminder (NotificationRules)
                 if (dto.ReminderAt.HasValue && dueDateUtc.HasValue)
                 {
                     var reminderUtc = dto.ReminderAt.Value.ToUniversalTime();
@@ -106,12 +101,33 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
         }
 
 
-
-        public async Task<List<TaskDto>> GetTasksAsync(string userId, DateTime? from, DateTime? to)
+        public async Task<List<TaskDto>> GetTasksAsync(
+     string userId,
+     DateTime? from,
+     DateTime? to,
+     string? scope)
         {
+            var userGuid = Guid.Parse(userId);
+
             var query = _context.TaskOccurrences
                 .Include(x => x.TaskSeries)
-                .Where(x => x.TaskSeries.CreatedBy == userId);
+                .Where(x =>
+                    x.TaskSeries.CreatedBy == userId
+
+                    ||
+
+                    x.AssignedTo == userId
+
+                    ||
+
+                    (
+                        x.TaskSeries.TeamId != null &&
+                        _context.TeamMembers.Any(tm =>
+                            tm.TeamId == x.TaskSeries.TeamId &&
+                            tm.UserId == userGuid
+                        )
+                    )
+                );
 
             if (from.HasValue && to.HasValue)
             {
@@ -120,8 +136,13 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
 
                 query = query.Where(x =>
                     x.DueDateTime >= fromDate &&
-                    x.DueDateTime <= toDate
-                );
+                    x.DueDateTime <= toDate);
+            }
+
+            if (!string.IsNullOrWhiteSpace(scope))
+            {
+                query = query.Where(x =>
+                    x.TaskSeries.TaskScope.ToLower() == scope.ToLower());
             }
 
             return await query
@@ -130,9 +151,11 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
                 {
                     OccurrenceId = x.Id,
                     Title = x.TaskSeries.Title,
+                    TeamId = x.TaskSeries.TeamId,
                     DueDateTime = x.DueDateTime,
                     Status = x.Status,
-                    IsRecurring = x.TaskSeries.IsRecurring
+                    IsRecurring = x.TaskSeries.IsRecurring,
+                    AssignedTo = x.AssignedTo
                 })
                 .ToListAsync();
         }
@@ -142,10 +165,14 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
             try
             {
                 var task = await _context.TaskOccurrences.FindAsync(occurrenceId);
+                var taskSeries = await _context.TaskSeries.FindAsync(task.TaskSeriesId);
                 if (task == null) return false;
 
                 task.DueDateTime = dto.DueDateTime;
                 task.Status = dto.Status ?? task.Status;
+                task.AssignedTo = dto.AssignToId;
+
+                taskSeries.TeamId = dto.TeamId;
 
                 await _context.SaveChangesAsync();
                 return true;

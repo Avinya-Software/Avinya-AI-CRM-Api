@@ -23,6 +23,7 @@ namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.User
         Task<bool> IsInRoleAsync(string userId, string roleName);
         Task<PagedResult<UserListDto>> GetUsersForSuperAdminAsync(UserListFilterRequest request);
         Task<List<AvinyaAICRM.Domain.Entities.Tenant.Tenant>> GetMyCompaniesAsync();
+        Task<List<UserDropdownDto>> GetUsersDropdown(string userId);
 
     }
 }

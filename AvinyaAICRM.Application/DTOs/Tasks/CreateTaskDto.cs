@@ -19,6 +19,10 @@ namespace AvinyaAICRM.Application.DTOs.Tasks
         // Reminder
         public DateTime? ReminderAt { get; set; }
         public string? ReminderChannel { get; set; } // Email / Push etc
+        public long? TeamId  { get; set; }
+
+        public string? AssignToId { get; set; }
+
     }
 
 

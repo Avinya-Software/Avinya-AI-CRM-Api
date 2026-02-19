@@ -1,6 +1,8 @@
 ﻿using AvinyaAICRM.Application.Interfaces.RepositoryInterface;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Permission;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Tasks;
+using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Team;
+using AvinyaAICRM.Application.Interfaces.RepositoryInterface.TeamMember;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Tenant;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.User;
 using AvinyaAICRM.Infrastructure.Authorization;
@@ -9,6 +11,8 @@ using AvinyaAICRM.Infrastructure.Persistence;
 using AvinyaAICRM.Infrastructure.Repositories.ErrorLog;
 using AvinyaAICRM.Infrastructure.Repositories.Permission;
 using AvinyaAICRM.Infrastructure.Repositories.Tasks;
+using AvinyaAICRM.Infrastructure.Repositories.Team;
+using AvinyaAICRM.Infrastructure.Repositories.TeamMember;
 using AvinyaAICRM.Infrastructure.Repositories.Tenant;
 using AvinyaAICRM.Infrastructure.Repositories.User;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -105,6 +109,8 @@ namespace AvinyaAICRM.Infrastructure
             services.AddScoped<IUserPermissionRepository, UserPermissionRepository>();
             services.AddScoped<IPermissionRepository, PermissionRepository>();
             services.AddScoped<ITaskRepository, TaskRepository>();
+            services.AddScoped<ITeamRepository, TeamRepository>();
+            services.AddScoped<ITeamMemberRepository, TeamMemberRepository>();
 
             // ---------------- Permission System ----------------
             services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();

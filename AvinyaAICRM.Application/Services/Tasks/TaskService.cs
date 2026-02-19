@@ -22,9 +22,9 @@ namespace AvinyaAICRM.Application.Services.Tasks
             return CommonHelper.GetResponseMessage(task);
         }
 
-        public async Task<ResponseModel> GetTasksAsync(string userId, DateTime? from, DateTime? to)
+        public async Task<ResponseModel> GetTasksAsync(string userId, DateTime? from, DateTime? to, string? scope)
         {
-            var tasks = await _taskRepo.GetTasksAsync(userId, from, to);
+            var tasks = await _taskRepo.GetTasksAsync(userId, from, to, scope);
             return CommonHelper.GetResponseMessage(tasks);
         }
 

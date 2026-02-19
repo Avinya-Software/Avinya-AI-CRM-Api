@@ -156,6 +156,27 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
             return tenants;
         }
 
+        public async Task<List<UserDropdownDto>> GetUsersDropdown(string userId)
+        {
+            var tenantId = await _context.Users
+               .Where(u => u.Id == userId)
+               .Select(u => u.TenantId)
+               .FirstOrDefaultAsync();
+
+            if (tenantId == null)
+                return new List<UserDropdownDto>();
+
+            return await _context.Users
+                .Where(u => u.TenantId == tenantId && u.IsActive)
+                .Select(u => new UserDropdownDto
+                {
+                    Id = u.Id,
+                    FullName = u.FullName,
+                    Email = u.Email
+                })
+                .OrderBy(u => u.FullName)
+                .ToListAsync();
+        }
     }
 
 }
