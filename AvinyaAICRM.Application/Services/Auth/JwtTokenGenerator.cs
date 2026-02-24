@@ -25,7 +25,7 @@ namespace AvinyaAICRM.Infrastructure.Services
         public async Task<string> GenerateToken(AppUser user)
         {
             var jwtSettings = _configuration.GetSection("JwtSettings");
-            var key = new SymmetricSecurityKey(
+            var key = new SymmetricSecurityKey(                                 
                 Encoding.UTF8.GetBytes(jwtSettings["Key"])
             );
 

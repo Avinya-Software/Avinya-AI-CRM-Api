@@ -11,6 +11,7 @@ namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.Team
         Task<TeamDto?> UpdateAsync(long id, UpdateTeamDto dto, string userId);
         Task<bool> DeleteAsync(long id, string userId);
         Task<List<TeamDropdownDto>> GetDropdownAsync(string userId);
+        Task<long?> ResolveTeamId(string userId, string? teamName);
     }
 
 }

@@ -211,6 +211,22 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Team
                 })
                 .ToListAsync();
         }
+
+        public async Task<long?> ResolveTeamId(string userId, string? teamName)
+        {
+            if (string.IsNullOrEmpty(teamName))
+                return null;
+
+            var team = await _context.Teams
+                .Where(t =>
+                    t.Name.ToLower().Contains(teamName.ToLower()))
+                .FirstOrDefaultAsync();
+
+            return team?.Id;
+        }
+
+
+
     }
 
 }

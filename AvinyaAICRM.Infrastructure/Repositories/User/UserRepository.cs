@@ -99,7 +99,6 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
                     TenantName = t != null ? t.CompanyName : "System"
                 };
 
-            // 🔎 Filters
             if (!string.IsNullOrEmpty(request.Role))
                 query = query.Where(x => x.RoleName == request.Role);
 
@@ -131,7 +130,6 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
                     IsActive = x.User.IsActive,
                     CreatedAt = x.User.CreatedAt,
 
-                    // ✅ Include Permissions
                     PermissionIds = _context.UserPermissions
                         .Where(up => up.UserId == x.User.Id)
                         .Select(up => up.PermissionId)
@@ -176,6 +174,12 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
                 })
                 .OrderBy(u => u.FullName)
                 .ToListAsync();
+        }
+
+        public async Task<AppUser> GetUserName(string name)
+        {
+            var user = await _userManager.Users.FirstOrDefaultAsync(u => u.UserName == name);
+            return user;
         }
     }
 

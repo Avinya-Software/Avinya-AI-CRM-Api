@@ -24,6 +24,7 @@ namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.User
         Task<PagedResult<UserListDto>> GetUsersForSuperAdminAsync(UserListFilterRequest request);
         Task<List<AvinyaAICRM.Domain.Entities.Tenant.Tenant>> GetMyCompaniesAsync();
         Task<List<UserDropdownDto>> GetUsersDropdown(string userId);
+        Task<AppUser> GetUserName(string name);
 
     }
 }

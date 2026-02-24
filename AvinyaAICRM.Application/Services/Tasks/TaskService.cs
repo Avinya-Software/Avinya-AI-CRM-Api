@@ -1,5 +1,7 @@
 ﻿using AvinyaAICRM.Application.DTOs.Tasks;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Tasks;
+using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Team;
+using AvinyaAICRM.Application.Interfaces.RepositoryInterface.User;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Tasks;
 using AvinyaAICRM.Application.Validators;
 using AvinyaAICRM.Shared.Helper;
@@ -10,10 +12,14 @@ namespace AvinyaAICRM.Application.Services.Tasks
     public class TaskService : ITaskService
     {
         private readonly ITaskRepository _taskRepo;
+        private readonly ITeamRepository _teamRepo;
+        private readonly IUserRepository _userRepo;
 
-        public TaskService(ITaskRepository taskRepo)
+        public TaskService(ITaskRepository taskRepo, ITeamRepository teamRepo, IUserRepository userRepo)
         {
             _taskRepo = taskRepo;
+            _teamRepo = teamRepo;
+            _userRepo = userRepo;
         }
 
         public async Task<ResponseModel> CreateTaskAsync(CreateTaskDto dto, string userId)
@@ -79,6 +85,26 @@ namespace AvinyaAICRM.Application.Services.Tasks
             var reminder = VoiceReminderResolver.ResolveReminder(text, dueDate);
             var (isRecurring, rule) = VoiceRecurrenceParser.Parse(text);
 
+            var entities = VoiceEntityExtractor.Extract(text);
+
+            string? assignToId = null;
+            long? teamId = null;
+
+            // Resolve assignee
+            if (!string.IsNullOrEmpty(entities.AssigneeName))
+            {
+                var user = await _userRepo.GetUserName(entities.AssigneeName);
+
+                assignToId = user?.Id;
+            }
+
+            // Resolve team
+            if (entities.IsTeamTask)
+            {
+                teamId = await _teamRepo.ResolveTeamId(userId, entities.TeamName);
+            }
+
+
             var taskDto = new CreateTaskDto
             {
                 Title = text,
@@ -87,7 +113,8 @@ namespace AvinyaAICRM.Application.Services.Tasks
 
                 DueDateTime = dueDate,
                 ReminderAt = reminder,
-
+                AssignToId = assignToId,
+                TeamId = teamId,
                 IsRecurring = isRecurring,
                 RecurrenceRule = rule
             };

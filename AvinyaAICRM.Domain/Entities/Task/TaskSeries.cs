@@ -12,11 +12,11 @@ namespace AvinyaAICRM.Domain.Entities.Tasks
         public TaskList List { get; set; }
 
         public string Title { get; set; }
-        public string Description { get; set; }
-        public string Notes { get; set; }
+        public string? Description { get; set; }
+        public string? Notes { get; set; }
 
         public bool IsRecurring { get; set; }
-        public string RecurrenceRule { get; set; }
+        public string? RecurrenceRule { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
 

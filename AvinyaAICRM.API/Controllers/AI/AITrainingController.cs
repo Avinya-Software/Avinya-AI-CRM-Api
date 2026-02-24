@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Hosting;
 
 namespace AvinyaAICRM.API.Controllers.AI
 {
@@ -6,25 +7,32 @@ namespace AvinyaAICRM.API.Controllers.AI
     [Route("api/ai")]
     public class AITrainingController : ControllerBase
     {
+        private readonly IWebHostEnvironment _env;
+
+        public AITrainingController(IWebHostEnvironment env)
+        {
+            _env = env;
+        }
+
         [HttpPost("train-intent")]
         public IActionResult TrainIntentModel()
         {
-            var solutionRoot =
-                Directory.GetParent(Directory.GetCurrentDirectory())!.FullName;
+            // wwwroot path
+            var webRoot = _env.WebRootPath;
 
+            // Training data
             var dataPath = Path.Combine(
-                solutionRoot,
-                "AvinyaAICRM.Infrastructure",
+                webRoot,
                 "AI",
-                "Training",
+                "training",
                 "intent-data.csv"
             );
 
+            // Model directory
             var modelDir = Path.Combine(
-                solutionRoot,
-                "AvinyaAICRM.Infrastructure",
+                webRoot,
                 "AI",
-                "Models"
+                "Model"
             );
 
             if (!Directory.Exists(modelDir))
@@ -32,6 +40,7 @@ namespace AvinyaAICRM.API.Controllers.AI
 
             var modelPath = Path.Combine(modelDir, "intent-model.zip");
 
+            // Train model
             IntentTrainer.Train(dataPath, modelPath);
 
             return Ok("Intent model trained successfully ✅");

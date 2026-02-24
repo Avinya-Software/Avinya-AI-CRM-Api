@@ -1,9 +1,28 @@
 ﻿using AvinyaAICRM.API.Filters;
 using AvinyaAICRM.Application;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.AI;
+using AvinyaAICRM.Application.Services.AI;
 using AvinyaAICRM.Infrastructure;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddSingleton<IIntentService>(sp =>
+{
+    var env = sp.GetRequiredService<IWebHostEnvironment>();
+
+    var modelPath = Path.Combine(
+        env.WebRootPath,
+        "AI",
+        "Model",
+        "intent-model.zip"
+    );
+
+    if (!File.Exists(modelPath))
+        throw new Exception($"Intent model not found: {modelPath}");
+
+    return new IntentService(modelPath);
+});
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -53,7 +72,7 @@ app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
-
+app.UseStaticFiles();
 /* 🔥 MUST COME FIRST */
 app.UseAuthentication();
 

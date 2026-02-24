@@ -113,13 +113,9 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
                 .Include(x => x.TaskSeries)
                 .Where(x =>
                     x.TaskSeries.CreatedBy == userId
-
                     ||
-
                     x.AssignedTo == userId
-
                     ||
-
                     (
                         x.TaskSeries.TeamId != null &&
                         _context.TeamMembers.Any(tm =>
@@ -170,7 +166,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
 
                 task.DueDateTime = dto.DueDateTime;
                 task.Status = dto.Status ?? task.Status;
-                task.AssignedTo = dto.AssignToId;
+                if (dto.AssignToId is not null)
+                {
+                  task.AssignedTo = dto.AssignToId;
+                }
 
                 taskSeries.TeamId = dto.TeamId;
 

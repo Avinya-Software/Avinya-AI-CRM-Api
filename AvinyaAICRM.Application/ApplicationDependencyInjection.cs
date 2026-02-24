@@ -1,17 +1,28 @@
 ﻿
+using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Client;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.AI;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Auth;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.Leads;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.Orders;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Permission;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.Products;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.Quotations;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.SuperAdmin;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Tasks;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Team;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.TeamMember;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.User;
+using AvinyaAICRM.Application.Services;
 using AvinyaAICRM.Application.Services.AI;
 using AvinyaAICRM.Application.Services.Auth;
+using AvinyaAICRM.Application.Services.Client;
 using AvinyaAICRM.Application.Services.ErrorLog;
+using AvinyaAICRM.Application.Services.Leads;
+using AvinyaAICRM.Application.Services.Orders;
 using AvinyaAICRM.Application.Services.Permission;
+using AvinyaAICRM.Application.Services.Products;
+using AvinyaAICRM.Application.Services.Quotations;
 using AvinyaAICRM.Application.Services.Tasks;
 using AvinyaAICRM.Application.Services.Team;
 using AvinyaAICRM.Application.Services.TeamMember;
@@ -34,19 +45,15 @@ namespace AvinyaAICRM.Application
             services.AddScoped<ITaskService, TaskService>();
             services.AddScoped<ITeamService, TeamService>();
             services.AddScoped<ITeamMemberService, TeamMemberService>();
-            var solutionRoot = Directory.GetParent(Directory.GetCurrentDirectory())!.FullName;
-
-            var modelPath = Path.Combine(
-                solutionRoot,
-                "AvinyaAICRM.Infrastructure",
-                "AI",
-                "Models",
-                "intent-model.zip"
-            );
-
-            services.AddSingleton<IIntentService>(
-                _ => new IntentService(modelPath)
-            );
+            services.AddScoped<IClientService, ClientService>();
+            services.AddScoped<ILeadFollowupService, LeadFollowupService>();
+            services.AddScoped<ILeadService, LeadService>();
+            services.AddScoped<IOrderItemService, OrderItemService>();
+            services.AddScoped<IOrderService, OrderService>();
+            services.AddScoped<IStatusDropDownServices, StatusDropDownServices>();
+            services.AddScoped<IProductService, ProductService>();
+            services.AddScoped<IQuotationItemService, QuotationItemService>();
+            services.AddScoped<IQuotationService, QuotationService>();
 
             return services;
         }

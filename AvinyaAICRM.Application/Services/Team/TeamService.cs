@@ -51,7 +51,5 @@ namespace AvinyaAICRM.Application.Services.Team
 
             return CommonHelper.GetResponseMessage(teams);
         }
-
     }
-
 }
