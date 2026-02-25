@@ -5,7 +5,7 @@ namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.Quotations
 {
     public interface IQuotationRepository
     {
-        Task<(QuotationResponseDto Quotation, bool IsNew)> PostOrPutAsync(QuotationRequestDto dto);
+        Task<(QuotationResponseDto Quotation, bool IsNew)> PostOrPutAsync(QuotationRequestDto dto, string userId);
         Task<bool> SoftDeleteAsync(Guid id);
         Task<QuotationResponseDto?> GetByIdAsync(Guid id);
         Task<PagedResult<QuotationResponseDto>> FilterAsync(

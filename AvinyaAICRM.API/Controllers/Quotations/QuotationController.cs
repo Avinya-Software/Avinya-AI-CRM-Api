@@ -36,7 +36,8 @@ namespace AvinyaAICRM.Api.Controllers.Quotations
         [HttpPost("addOrUpdate")]
         public async Task<IActionResult> AddOrUpdate([FromBody] QuotationRequestDto dto)
         {
-            var result = await _quotationService.AddOrUpdateAsync(dto);
+            var userId = User.FindFirst("userId")?.Value!;
+            var result = await _quotationService.AddOrUpdateAsync(dto, userId);
             return new JsonResult(result) { StatusCode = result.StatusCode };
         }
 

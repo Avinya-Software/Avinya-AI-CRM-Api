@@ -90,8 +90,6 @@ namespace AvinyaAICRM.Application.Services.Leads
         {
             try
             {
-                GetUserId();
-
                 var updatedEntity = await _repository.UpdateAsync(dto);
 
                 if (updatedEntity == null)

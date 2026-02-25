@@ -30,13 +30,12 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
 
         }
 
-        public async Task<(QuotationResponseDto Quotation, bool IsNew)> PostOrPutAsync(QuotationRequestDto dto)
+        public async Task<(QuotationResponseDto Quotation, bool IsNew)> PostOrPutAsync(QuotationRequestDto dto, string userId)
         {
             try
             {
                 bool isNew = false;
-                var userId = _httpContextAccessor.HttpContext?.User?
-                    .FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                
                 if (string.IsNullOrEmpty(userId))
                 {
                     throw new Exception("Session expired. Please login again.");
@@ -471,9 +470,15 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
 
                 query = query.Where(q =>
                     EF.Functions.Like(q.QuotationNo, likeSearch) ||
+
                     _context.Clients.Any(c =>
                         c.ClientID == q.ClientID &&
-                        EF.Functions.Like(c.ContactPerson, likeSearch)));
+                        (
+                            EF.Functions.Like(c.ContactPerson, likeSearch) ||
+                            EF.Functions.Like(c.CompanyName, likeSearch)
+                        )
+                    )
+                );
             }
 
             #endregion

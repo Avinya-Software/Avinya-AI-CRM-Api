@@ -69,14 +69,12 @@ namespace AvinyaAICRM.Application.Services
         }
 
         // ✅ Add / Update
-        public async Task<ResponseModel> AddOrUpdateAsync(QuotationRequestDto dto)
+        public async Task<ResponseModel> AddOrUpdateAsync(QuotationRequestDto dto, string userId)
         {
             try
             {
-                GetUserId();
-
                 var (result, isNew) =
-                    await _quotationRepository.PostOrPutAsync(dto);
+                    await _quotationRepository.PostOrPutAsync(dto,userId);
 
                 string message = isNew
                     ? "Quotation created successfully."
