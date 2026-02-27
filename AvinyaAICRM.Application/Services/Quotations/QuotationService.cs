@@ -117,12 +117,13 @@ namespace AvinyaAICRM.Application.Services
             DateTime? startDate,
             DateTime? endDate,
             int page,
-            int pageSize)
+            int pageSize,
+            string userId)
         {
             try
             {
                 var result = await _quotationRepository
-                    .FilterAsync(search, statusFilter, startDate, endDate, page, pageSize);
+                    .FilterAsync(search, statusFilter, startDate, endDate, page, pageSize, userId);
 
                 return CommonHelper.GetResponseMessage(result);
             }

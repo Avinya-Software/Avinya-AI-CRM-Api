@@ -52,6 +52,7 @@ namespace AvinyaAICRM.Domain.Entities.Product
         public DateTime? DeletedDate { get; set; }
         [JsonIgnore]
         public string? DeletedBy { get; set; }
+        public Guid? TenantId { get; set; }
 
     }
 }

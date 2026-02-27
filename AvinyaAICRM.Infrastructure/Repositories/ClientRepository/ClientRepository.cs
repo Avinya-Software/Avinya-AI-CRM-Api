@@ -1,6 +1,8 @@
 ﻿using AvinyaAICRM.Application.DTOs.Client;
 using AvinyaAICRM.Application.Interfaces.Clients;
 using AvinyaAICRM.Domain.Entities.Client;
+using AvinyaAICRM.Domain.Entities.Tenant;
+using AvinyaAICRM.Domain.Entities.User;
 using AvinyaAICRM.Domain.Enums.Clients;
 using AvinyaAICRM.Infrastructure.Persistence;
 using AvinyaAICRM.Shared.Model;
@@ -17,9 +19,11 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ClientRepository
         {
             _context = context;
         }
-        public async Task<IEnumerable<ClientDropDownDto>> GetAllAsync(bool getAll = false)
+        public async Task<IEnumerable<ClientDropDownDto>> GetAllAsync(string tenantId, bool getAll = false)
         {
-            var query = _context.Clients.AsQueryable();
+            var query = _context.Clients
+                .Where(c => c.TenantId.ToString() == tenantId)
+                .AsQueryable();
 
             if (!getAll)
             {
@@ -27,29 +31,29 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ClientRepository
             }
 
             return await query
-             .OrderByDescending(c => c.CreatedDate)
-             .Select(c => new ClientDropDownDto
-             {
-                 ClientID = c.ClientID,
-                 ContactPerson = c.ContactPerson,
-                 Email = c.Email,
-                 MobileNumber = c.Mobile,
-                 StateID = c.StateID,
-                 CityID = c.CityID,
-                 GstNo = c.GSTNo,
-                 BillAddress = c.BillingAddress,
-                 CompanyName = c.CompanyName,
-                 ClientTypeName = ((ClientTypeEnum)c.ClientType).ToString(),
-                 ClientType = c.ClientType
-             })
-             .ToListAsync();
+                .OrderByDescending(c => c.CreatedDate)
+                .Select(c => new ClientDropDownDto
+                {
+                    ClientID = c.ClientID,
+                    CompanyName = c.CompanyName,
+                    ContactPerson = c.ContactPerson,
+                    Email = c.Email,
+                    MobileNumber = c.Mobile,
+                    StateID = c.StateID,
+                    CityID = c.CityID,
+                    GstNo = c.GSTNo,
+                    BillAddress = c.BillingAddress,
+                    ClientTypeName = ((ClientTypeEnum)c.ClientType).ToString(),
+                    ClientType = c.ClientType
+                })
+                .ToListAsync();
         }
 
-        public async Task<ClientDto?> GetByIdAsync(Guid? ClientID)
+        public async Task<ClientDto?> GetByIdAsync(Guid? ClientID, string tenantId)
         {
             return await (
                 from c in _context.Clients
-                where !c.IsDeleted && c.ClientID == ClientID
+                where !c.IsDeleted && c.ClientID == ClientID && c.TenantId.ToString() == tenantId
                 join u in _context.Users on c.CreatedBy equals u.Id into users
                 from user in users.DefaultIfEmpty()
                 join s in _context.States on c.StateID equals s.StateID into states
@@ -87,6 +91,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ClientRepository
 
         public async Task<Client> AddAsync(Client client)
         {
+            var userData = await _context.Users.FindAsync(client.CreatedBy);
+            client.TenantId = userData.TenantId;
             client.CreatedDate = DateTime.Now;
 
             _context.Clients.Add(client);
@@ -96,10 +102,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ClientRepository
             return client;
         }
 
-        public async Task<Client?> UpdateAsync(ClientRequestDto clientDto)
+        public async Task<Client?> UpdateAsync(ClientRequestDto clientDto, string tenantId)
         {
             var existingClient = await _context.Clients
-                .FirstOrDefaultAsync(x => x.ClientID == clientDto.ClientID && !x.IsDeleted);
+                .FirstOrDefaultAsync(x => x.ClientID == clientDto.ClientID && !x.IsDeleted && x.TenantId.ToString() == tenantId);
 
             if (existingClient == null)
                 return null;
@@ -162,9 +168,11 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ClientRepository
             return existingClient;
         }
 
-        public async Task<bool> DeleteAsync(Guid id, string deletedBy)
+        public async Task<bool> DeleteAsync(Guid id, string deletedBy, string tenantId)
         {
-            var existing = await _context.Clients.FindAsync(id);
+            var existing = await _context.Clients
+                .FirstOrDefaultAsync(x => x.ClientID == id
+                           && x.TenantId.ToString() == tenantId);
             if (existing == null)
                 return false;
 
@@ -181,12 +189,15 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ClientRepository
      string? search,
      bool? status,
      int pageNumber,
-     int pageSize)
+     int pageSize
+     ,string userId)
         {
             try
             {
+                var userData = await _context.Users.FindAsync(userId);
+                
                 var query = _context.Clients
-                    .Where(c => !c.IsDeleted)
+                    .Where(c => !c.IsDeleted && c.CreatedBy == userId && c.TenantId == userData.TenantId)
                     .AsQueryable();
 
                 #region Search Filter

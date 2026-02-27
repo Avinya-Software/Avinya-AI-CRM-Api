@@ -7,10 +7,10 @@ namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.Leads
 {
     public interface ILeadRepository
     {
-        Task<IEnumerable<LeadDropdown>> GetAllAsync();
-        Task<LeadDto?> GetByIdAsync(Guid id);
+        Task<IEnumerable<LeadDropdown>> GetAllAsync(string tenantId);
+        Task<LeadDto?> GetByIdAsync(Guid id, string tenantId);
         Task<Lead> AddAsync(LeadRequestDto dto, string userId);
-        Task<Lead?> UpdateAsync(LeadRequestDto dto);
+        Task<Lead?> UpdateAsync(LeadRequestDto dto, string tenantId);
         Task<ResponseModel> UpdateLeadStatusAsync(Lead lead);
         Task<Lead?> GetLeadByIdAsync(Guid Id);
         Task<bool> DeleteAsync(Guid id, string deletedBy);
@@ -22,7 +22,7 @@ namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.Leads
      DateTime? endDate,
      int pageNumber,
      int pageSize,
-     ClaimsPrincipal user);
+     string userId);
         Task<IEnumerable<LeadSourceMaster>> GetAllLeadSourceAsync();
         Task<IEnumerable<LeadStatusMaster>> GetAllLeadStatusAsync();
         Task<DateTime?> GetLatestFollowupDateAsync(Guid leadId);

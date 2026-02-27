@@ -34,11 +34,11 @@ namespace AvinyaAICRM.Application.Services.Orders
 
         #endregion
 
-        public async Task<ResponseModel> GetByIdAsync(Guid id)
+        public async Task<ResponseModel> GetByIdAsync(Guid id, string tenantId)
         {
             try
             {
-                var dto = await _repo.GetByIdAsync(id);
+                var dto = await _repo.GetByIdAsync(id, tenantId);
 
                 if (dto == null)
                     return new ResponseModel(404, "Order not found");
@@ -55,14 +55,15 @@ namespace AvinyaAICRM.Application.Services.Orders
             string? search,
             int page,
             int pageSize,
+            string userId,
             int? statusFilter = null,
             DateTime? from = null,
-            DateTime? to = null)
+            DateTime? to = null )
         {
             try
             {
                 var result = await _repo.GetFilteredAsync(
-                    search, page, pageSize, statusFilter, from, to);
+                    search, page, pageSize, userId, statusFilter, from, to);
 
                 return CommonHelper.GetResponseMessage(result);
             }
@@ -72,11 +73,10 @@ namespace AvinyaAICRM.Application.Services.Orders
             }
         }
 
-        public async Task<ResponseModel> AddOrUpdateAsync(OrderDto dto)
+        public async Task<ResponseModel> AddOrUpdateAsync(OrderDto dto, string userId)
         {
             try
             {
-                var userId = GetUserId();
 
                 bool isNew = dto.OrderID == null || dto.OrderID == Guid.Empty;
 
@@ -98,8 +98,6 @@ namespace AvinyaAICRM.Application.Services.Orders
         {
             try
             {
-                GetUserId();
-
                 var ok = await _repo.SoftDeleteAsync(id);
 
                 if (!ok)

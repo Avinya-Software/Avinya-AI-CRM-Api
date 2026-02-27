@@ -30,10 +30,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
             _numberGeneratorService = numberGeneratorService;
         }
 
-        public async Task<IEnumerable<LeadDropdown>> GetAllAsync()
+        public async Task<IEnumerable<LeadDropdown>> GetAllAsync(string tenantId)
         {
             return await _context.Leads
-                .Where(l => !l.IsDeleted)
+                .Where(l => !l.IsDeleted && l.TenantId.ToString() == tenantId)
                 .OrderByDescending(c => c.CreatedDate)
                 .Select(c => new LeadDropdown
                 {
@@ -43,9 +43,9 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                 .ToListAsync();
         }
 
-        public async Task<LeadDto?> GetByIdAsync(Guid id)
+        public async Task<LeadDto?> GetByIdAsync(Guid id, string tenantId)
         {
-            var clients = await _context.Clients.ToListAsync();
+            var clients = await _context.Clients.Where(c => c.TenantId.ToString() == tenantId).ToListAsync();
             var users = await _context.Users
                 .Select(u => new { u.Id, u.UserName })
                 .ToListAsync();
@@ -181,7 +181,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
 
             try
             {
-                
+                var userData = await _context.Users.FindAsync(userId);
+
                 if (string.IsNullOrEmpty(userId))
                 {
                     throw new Exception("Session expired. Please login again.");
@@ -210,7 +211,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                         Notes = "",
                         CreatedBy = userId,
                         UpdatedAt = null,
-                        IsDeleted = false
+                        IsDeleted = false,
+                        TenantId = userData.TenantId
                     };
 
                     await _context.Clients.AddAsync(newClient);
@@ -253,7 +255,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                     OtherSources = dto.OtherSources,
                     Status = leadStatusId.ToString(),
                     CreatedBy = userId,
-                    AssignedTo = dto.AssignedTo
+                    AssignedTo = dto.AssignedTo,
+                    TenantId = userData.TenantId
                 };
 
                 // Generate LeadNo
@@ -302,12 +305,12 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
             }
         }
 
-        public async Task<Lead?> UpdateAsync(LeadRequestDto dto)
+        public async Task<Lead?> UpdateAsync(LeadRequestDto dto, string tenantId)
         {
             try
             {
                 var existing = await _context.Leads
-                                .FirstOrDefaultAsync(l => l.LeadID == dto.LeadID && !l.IsDeleted);
+                                .FirstOrDefaultAsync(l => l.LeadID == dto.LeadID && !l.IsDeleted && l.TenantId.ToString() == tenantId);
 
                 if (existing == null) return null;
 
@@ -418,7 +421,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                             CreatedBy = existing.CreatedBy,
                             CreatedDate = DateTime.Now,
                             UpdatedAt = null,
-                            IsDeleted = false
+                            IsDeleted = false,
+                            TenantId = Guid.Parse(tenantId)
                         };
 
                         await _context.Clients.AddAsync(newClient);
@@ -550,23 +554,24 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
      DateTime? endDate,
      int pageNumber,
      int pageSize,
-     ClaimsPrincipal user)
+     string userId)
         {
             try
             {
+                var userData = await _context.Users.FindAsync(userId);
                 var query = _context.Leads
-                    .Where(l => !l.IsDeleted)
+                    .Where(l => !l.IsDeleted && l.TenantId == userData.TenantId)
                     .AsQueryable();
 
-                var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                var role = user.FindFirst(ClaimTypes.Role)?.Value;
+               
+                //var role = user.FindFirst(ClaimTypes.Role)?.Value;
 
                 var statuses = await _context.leadStatusMasters.ToListAsync();
                 var sources = await _context.leadSourceMasters.ToListAsync();
 
-                // Employee restriction
-                if (role == "Employee" && !string.IsNullOrEmpty(userId))
-                    query = query.Where(l => l.CreatedBy == userId);
+                //// Employee restriction
+                //if (role == "Employee" && !string.IsNullOrEmpty(userId))
+                //    query = query.Where(l => l.CreatedBy == userId);
 
                 #region SEARCH FILTER
 
@@ -643,6 +648,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                     .OrderByDescending(l => l.CreatedDate)
                     .Skip((pageNumber - 1) * pageSize)
                     .Take(pageSize)
+                    .Where(l => l.CreatedBy == userId)
                     .ToListAsync();
 
                 var leadIds = leads.Select(l => l.LeadID).ToList();

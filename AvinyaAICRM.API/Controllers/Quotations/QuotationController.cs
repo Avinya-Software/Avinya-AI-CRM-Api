@@ -57,7 +57,8 @@ namespace AvinyaAICRM.Api.Controllers.Quotations
             DateTime? endDate = null,
             [FromQuery] int pageSize = 10)
         {
-            var result = await _quotationService.FilterAsync(search, status, startDate, endDate, page, pageSize);
+            var userId = User.FindFirst("userId")?.Value!;
+            var result = await _quotationService.FilterAsync(search, status, startDate, endDate, page, pageSize, userId);
             return new JsonResult(result) { StatusCode = result.StatusCode };
         }
     }

@@ -9,6 +9,6 @@ namespace AvinyaAICRM.Application.Interfaces.ServiceInterface.Quotations
         Task<ResponseModel> GetByIdAsync(Guid id);
         Task<ResponseModel> AddOrUpdateAsync(QuotationRequestDto dto, string userId);
         Task<ResponseModel> SoftDeleteAsync(Guid id);
-        Task<ResponseModel> FilterAsync(string? search,string? statusFilter, DateTime? startDate, DateTime? endDate, int page, int pageSize);
+        Task<ResponseModel> FilterAsync(string? search,string? statusFilter, DateTime? startDate, DateTime? endDate, int page, int pageSize, string userId);
     }
 }

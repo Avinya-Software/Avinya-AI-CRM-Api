@@ -5,7 +5,7 @@ namespace AvinyaAICRM.Application.Interfaces.ServiceInterface.Settings
 {
     public interface ISettingsServices
     {
-        Task<ResponseModel> GetAllAsync(string? search);
+        Task<ResponseModel> GetAllAsync(string? search, string tenantId);
 
         Task<ResponseModel> UpdateSettingAsync(SettingUpdateDto dto);
 

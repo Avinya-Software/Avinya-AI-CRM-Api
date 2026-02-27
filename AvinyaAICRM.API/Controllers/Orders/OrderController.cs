@@ -1,6 +1,7 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using AvinyaAICRM.Application.DTOs.Order;
+﻿using AvinyaAICRM.Application.DTOs.Order;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Orders;
+using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace AvinyaAICRM.API.Controllers
 {
@@ -20,20 +21,24 @@ namespace AvinyaAICRM.API.Controllers
         [HttpGet("{id:guid}")]
         public async Task<IActionResult> GetById(Guid id)
         {
-            return Ok(await _service.GetByIdAsync(id));
+            var tenantId = User.FindFirst("tenantId")?.Value!;
+            var result = await _service.GetByIdAsync(id, tenantId);
+            return new JsonResult(result) { StatusCode = result.StatusCode };
         }
 
         [HttpGet("list")]
         public async Task<IActionResult> List(string? search, int page = 1, int pageSize = 10, int? status = null, DateTime? from = null, DateTime? to = null)
         {
-            var result = await _service.GetFilteredAsync(search, page, pageSize, status, from, to);
+            var userId = User.FindFirst("userId")?.Value!;
+            var result = await _service.GetFilteredAsync(search, page, pageSize, userId, status, from, to);
             return new JsonResult(result) { StatusCode = result.StatusCode };
         }
 
         [HttpPost("save")]
         public async Task<IActionResult> Save([FromBody] OrderDto dto)
         {
-            var result = await _service.AddOrUpdateAsync(dto);
+            var userId = User.FindFirst("userId")?.Value!;
+            var result = await _service.AddOrUpdateAsync(dto, userId);
             return new JsonResult(result) { StatusCode = result.StatusCode };
         }
 

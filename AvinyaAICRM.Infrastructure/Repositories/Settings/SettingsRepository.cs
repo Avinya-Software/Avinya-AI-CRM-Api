@@ -13,7 +13,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Settings
         {
             _context = context;
         }
-        public async Task<IEnumerable<Setting>> GetAllAsync(string? search)
+        public async Task<IEnumerable<Setting>> GetAllAsync(string? search, string tenantId)
         {
             var query = _context.Settings.AsQueryable();
 

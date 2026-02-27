@@ -66,6 +66,7 @@ namespace AvinyaAICRM.Application
             services.AddScoped<ICityService, CityService>();
             services.AddScoped<IStateService, StateService>();
             services.AddScoped<ITaxCategoryService, TaxCategoryService>();
+            services.AddScoped<IProductService, ProductService>();
 
             return services;
         }

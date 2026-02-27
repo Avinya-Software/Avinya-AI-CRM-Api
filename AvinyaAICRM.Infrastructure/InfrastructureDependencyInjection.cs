@@ -147,6 +147,7 @@ namespace AvinyaAICRM.Infrastructure
             services.AddScoped<ICityRepository, CityRepository>();
             services.AddScoped<IStateRepository, StateRepository>();
             services.AddScoped<ITaxCategoryRepository, TaxCategoryRepository>();
+            services.AddScoped<IProductRepository, ProductRepository>();
             // ---------------- Permission System ----------------
             services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
             services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();

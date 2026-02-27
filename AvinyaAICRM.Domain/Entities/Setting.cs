@@ -22,5 +22,6 @@ namespace AvinyaAICRM.Domain.Entities
         public DateTime? UpdatedAt { get; set; }
         public string? PreFix { get; set; }
         public int? Digits { get; set; }
+        public Guid? TenantId { get; set; }
     }
 }

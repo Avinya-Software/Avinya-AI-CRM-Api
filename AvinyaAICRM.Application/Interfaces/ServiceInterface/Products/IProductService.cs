@@ -5,14 +5,14 @@ namespace AvinyaAICRM.Application.Interfaces.ServiceInterface.Products
 {
     public interface IProductService
     {
-        Task<ResponseModel> GetAllAsync();
+        Task<ResponseModel> GetAllAsync(string userid);
         Task<ResponseModel> GetByIdAsync(Guid id);
         Task<ResponseModel> CreateAsync(ProductRequest product);
         Task<ResponseModel> UpdateAsync(ProductDto productDto);
-        Task<ResponseModel> DeleteAsync(Guid id);
-        Task<ResponseModel> GetFilteredAsync(string? search, bool? status, int page, int pageSize);
+        Task<ResponseModel> DeleteAsync(Guid id, string userid);
+        Task<ResponseModel> GetFilteredAsync(string? search, bool? status, int page, int pageSize, string userId);
 
-        Task<ResponseModel> GetUnitTypeAsync();
+        Task<ResponseModel> GetUnitTypeAsync(); 
 
     }
 

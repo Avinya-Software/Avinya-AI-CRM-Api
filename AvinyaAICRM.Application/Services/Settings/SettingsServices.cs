@@ -16,9 +16,9 @@ namespace AvinyaAICRM.Application.Services.Settings
             _settingsRepository = settingsRepository;
         }
 
-        public async Task<ResponseModel> GetAllAsync(string? search)
+        public async Task<ResponseModel> GetAllAsync(string? search, string tenantId)
         {
-            var result = await _settingsRepository.GetAllAsync(search);
+            var result = await _settingsRepository.GetAllAsync(search, tenantId);
             return CommonHelper.GetResponseMessage(result);
         }
 

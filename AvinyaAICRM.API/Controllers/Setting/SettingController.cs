@@ -20,15 +20,16 @@ namespace AvinyaAICRM.Api.Controllers.Setting
         [HttpGet("get-all-settings")]
         public async Task<IActionResult> GetAllSettings([FromQuery] string? search)
         {
-            var response = await _settingsServices.GetAllAsync(search);
-            return StatusCode(response.StatusCode, response); 
+            var tenantId = User.FindFirst("tenantId")?.Value!;
+            var response = await _settingsServices.GetAllAsync(search, tenantId);
+            return new JsonResult(response) { StatusCode = response.StatusCode };
         }
 
         [HttpPut("update")]
         public async Task<IActionResult> UpdateSetting([FromBody] SettingUpdateDto dto)
         {
             var response = await _settingsServices.UpdateSettingAsync(dto);
-            return StatusCode(response.StatusCode, response);
+            return new JsonResult(response) { StatusCode = response.StatusCode };
         }
     }
 }

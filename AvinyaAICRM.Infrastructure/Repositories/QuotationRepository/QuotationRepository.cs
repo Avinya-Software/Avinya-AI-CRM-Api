@@ -35,7 +35,9 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
             try
             {
                 bool isNew = false;
-                
+
+                var userData = await _context.Users.FindAsync(userId);
+
                 if (string.IsNullOrEmpty(userId))
                 {
                     throw new Exception("Session expired. Please login again.");
@@ -67,7 +69,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
                         TermsAndConditions = dto.TermsAndConditions,
                         EnableTax = enableTax,
                         RejectedNotes = dto.RejectedNotes,
-                        CreatedBy = userId
+                        CreatedBy = userId,
+                        TenantId = userData.TenantId
                     };
                     await _context.Quotations.AddAsync(quotation);
 
@@ -456,11 +459,13 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
      DateTime? startDate,
      DateTime? endDate,
      int pageNumber,
-     int pageSize)
+     int pageSize,
+     string userId)
         {
+            var userData = await _context.Users.FindAsync(userId);
             var query = _context.Quotations
                 .AsNoTracking()
-                .Where(q => !q.IsDeleted);
+                .Where(q => !q.IsDeleted && q.TenantId == userData.TenantId);
 
             #region SEARCH
 
@@ -550,6 +555,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
                 .OrderByDescending(q => q.CreatedDate)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
+                .Where(q => q.CreatedBy == userId)
                 .Select(q => new
                 {
                     Quotation = q,

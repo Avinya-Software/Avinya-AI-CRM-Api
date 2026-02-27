@@ -3,9 +3,11 @@ using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Products;
 using AvinyaAICRM.Domain.Entities.Master;
 using AvinyaAICRM.Domain.Entities.Product;
 using AvinyaAICRM.Domain.Entities.TaxCategory;
+using AvinyaAICRM.Domain.Entities.User;
 using AvinyaAICRM.Infrastructure.Persistence;
 using AvinyaAICRM.Shared.Model;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
 
@@ -24,8 +26,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ProductRepository
         }
 
         //  Get all clients
-        public async Task<IEnumerable<ProductDropDown>> GetAllAsync()
+        public async Task<IEnumerable<ProductDropDown>> GetAllAsync(string userid)
         {
+            var userData = await _context.Users.FindAsync(userid);
+
             var unitTypes = await _context.UnitTypeMasters
                 .Select(u => new { u.UnitTypeID, u.UnitName })
                 .ToListAsync();
@@ -35,7 +39,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ProductRepository
                 .ToListAsync();
 
             var products = await _context.Products
-                .Where(p => p.Status == 1 && !p.IsDeleted)
+                .Where(p => p.Status == 1 && !p.IsDeleted && p.TenantId == userData.TenantId)
                 .OrderByDescending(p => p.CreatedDate)
                 .ToListAsync();
 
@@ -126,10 +130,11 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ProductRepository
             if (dto.ProductID == Guid.Empty)
                 dto.ProductID = Guid.NewGuid();
 
+            var userData = await _context.Users.FindAsync(dto.CreatedBy);
+
             // Map DTO → Entity
             var entity = new Product
             {
-                ProductID = dto.ProductID,
                 ProductName = dto.ProductName,
                 Category = dto.Category,
                 UnitType = dto.UnitType,
@@ -141,7 +146,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ProductRepository
                 Description = dto.Description,
                 Status = dto.Status,
                 CreatedBy = dto.CreatedBy,
-                CreatedDate = DateTime.UtcNow
+                CreatedDate = DateTime.UtcNow,
+                TenantId = userData.TenantId
             };
 
 
@@ -229,13 +235,11 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ProductRepository
         }
 
         //  Delete client
-        public async Task<bool> DeleteAsync(Guid id)
+        public async Task<bool> DeleteAsync(Guid id, string userId)
         {
             var existing = await _context.Products.FindAsync(id);
             if (existing == null)
                 return false;
-            var userId = _httpContextAccessor.HttpContext?.User?
-                   .FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
             if (string.IsNullOrEmpty(userId))
             {
@@ -256,14 +260,17 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ProductRepository
      string? search,
      bool? status,
      int pageNumber,
-     int pageSize)
+     int pageSize,
+     string userId)
         {
+            var userData = await _context.Users.FindAsync(userId);
+
             var query =
                 from p in _context.Products.AsNoTracking()
                 join ut in _context.UnitTypeMasters
                     on p.UnitType equals ut.UnitTypeID.ToString() into utJoin
                 from ut in utJoin.DefaultIfEmpty()
-                where !p.IsDeleted
+                where !p.IsDeleted && p.TenantId == userData.TenantId
                 select new { p, ut };
 
             #region Search Filter

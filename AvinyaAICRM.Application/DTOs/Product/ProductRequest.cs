@@ -5,7 +5,7 @@ namespace AvinyaAICRM.Application.DTOs.Product
     public class ProductRequest
     {
         [JsonIgnore]
-        public Guid ProductID { get; set; }
+        public Guid? ProductID { get; set; }
         public string ProductName { get; set; }
 
         public string? Category { get; set; }
@@ -26,6 +26,6 @@ namespace AvinyaAICRM.Application.DTOs.Product
 
         public int Status { get; set; }
 
-        public string CreatedBy { get; set; }
+        public string? CreatedBy { get; set; }
     }
 }

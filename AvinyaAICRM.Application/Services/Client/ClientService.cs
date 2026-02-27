@@ -36,11 +36,11 @@ namespace AvinyaAICRM.Application.Services.Client
 
         #endregion
 
-        public async Task<ResponseModel> GetAllAsync(bool getAll = false)
+        public async Task<ResponseModel> GetAllAsync(string tenantId ,bool getAll = false)
         {
             try
             {
-                var clients = await _repository.GetAllAsync(getAll);
+                var clients = await _repository.GetAllAsync(tenantId ,getAll);
                 return CommonHelper.GetResponseMessage(clients);
             }
             catch (Exception ex)
@@ -49,11 +49,11 @@ namespace AvinyaAICRM.Application.Services.Client
             }
         }
 
-        public async Task<ResponseModel> GetByIdAsync(Guid clientId)
+        public async Task<ResponseModel> GetByIdAsync(Guid clientId, string tenantId)
         {
             try
             {
-                var client = await _repository.GetByIdAsync(clientId);
+                var client = await _repository.GetByIdAsync(clientId, tenantId);
 
                 if (client == null)
                     return new ResponseModel(404, "Client not found");
@@ -66,12 +66,10 @@ namespace AvinyaAICRM.Application.Services.Client
             }
         }
 
-        public async Task<ResponseModel> CreateAsync(ClientRequestDto dto)
+        public async Task<ResponseModel> CreateAsync(ClientRequestDto dto, string userId)
         {
             try
             {
-                var userId = GetUserId();
-
                 var gst = string.IsNullOrWhiteSpace(dto.GSTNo) ? null : dto.GSTNo.Trim();
                 var mobile = string.IsNullOrWhiteSpace(dto.Mobile) ? null : dto.Mobile.Trim();
                 var email = string.IsNullOrWhiteSpace(dto.Email) ? null : dto.Email.Trim();
@@ -119,13 +117,11 @@ namespace AvinyaAICRM.Application.Services.Client
             }
         }
 
-        public async Task<ResponseModel> UpdateAsync(ClientRequestDto dto)
+        public async Task<ResponseModel> UpdateAsync(ClientRequestDto dto,string tenantId)
         {
             try
             {
-                GetUserId();
-
-                var oldClient = await _repository.GetByIdAsync(dto.ClientID);
+                var oldClient = await _repository.GetByIdAsync(dto.ClientID, tenantId);
                 if (oldClient == null)
                     return new ResponseModel(404, "Client not found");
 
@@ -159,9 +155,9 @@ namespace AvinyaAICRM.Application.Services.Client
                 oldClient.Notes = dto.Notes;
                 oldClient.UpdatedAt = DateTime.Now;
 
-                await _repository.UpdateAsync(dto);
+                await _repository.UpdateAsync(dto, tenantId);
 
-                var updatedClient = await _repository.GetByIdAsync(dto.ClientID);
+                var updatedClient = await _repository.GetByIdAsync(dto.ClientID,tenantId);
 
                 return CommonHelper.SuccessResponseMessage(
                     "Client updated successfully",
@@ -173,11 +169,11 @@ namespace AvinyaAICRM.Application.Services.Client
             }
         }
 
-        public async Task<ResponseModel> DeleteAsync(Guid id, string deletedBy)
+        public async Task<ResponseModel> DeleteAsync(Guid id, string deletedBy, string tenantId)
         {
             try
             {
-                var deleted = await _repository.DeleteAsync(id, deletedBy);
+                var deleted = await _repository.DeleteAsync(id, deletedBy, tenantId);
 
                 if (!deleted)
                     return new ResponseModel(404, "Client not found");
@@ -196,12 +192,13 @@ namespace AvinyaAICRM.Application.Services.Client
             string? search,
             bool? status,
             int page,
-            int pageSize)
+            int pageSize,
+            string userId)
         {
             try
             {
                 var result =
-                    await _repository.GetFilteredAsync(search, status, page, pageSize);
+                    await _repository.GetFilteredAsync(search, status, page, pageSize, userId);
 
                 return CommonHelper.GetResponseMessage(result);
             }

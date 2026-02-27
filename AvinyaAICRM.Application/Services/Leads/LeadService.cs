@@ -21,11 +21,12 @@ namespace AvinyaAICRM.Application.Services.Leads
             _httpContextAccessor = httpContextAccessor;
         }
 
-        public async Task<ResponseModel> GetAllAsync()
+        public async Task<ResponseModel> GetAllAsync(string tenantId)
         {
             try
             {
-                var leads = await _repository.GetAllAsync();
+
+                var leads = await _repository.GetAllAsync(tenantId);
                 return CommonHelper.GetResponseMessage(leads);
             }
             catch (Exception ex)
@@ -34,11 +35,11 @@ namespace AvinyaAICRM.Application.Services.Leads
             }
         }
 
-        public async Task<ResponseModel> GetByIdAsync(Guid id)
+        public async Task<ResponseModel> GetByIdAsync(Guid id, string tenantId)
         {
             try
             {
-                var lead = await _repository.GetByIdAsync(id);
+                var lead = await _repository.GetByIdAsync(id, tenantId);
                 if (lead == null)
                     return new ResponseModel(404, "Lead not found");
 
@@ -75,12 +76,11 @@ namespace AvinyaAICRM.Application.Services.Leads
             }
         }
 
-        public async Task<ResponseModel> UpdateAsync(LeadRequestDto dto)
+        public async Task<ResponseModel> UpdateAsync(LeadRequestDto dto, string userId, string tenantId)
         {
             try
             {
-                var userId = _httpContextAccessor.HttpContext?.User?
-                .FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+               
 
                 if (string.IsNullOrEmpty(userId))
                 {
@@ -98,9 +98,9 @@ namespace AvinyaAICRM.Application.Services.Leads
                 if (id == null)
                     return new ResponseModel(400, "LeadID is required");
 
-                var oldData = await _repository.GetByIdAsync(dto.LeadID.Value);
+                var oldData = await _repository.GetByIdAsync(dto.LeadID.Value, tenantId);
 
-                var updated = await _repository.UpdateAsync(dto);
+                var updated = await _repository.UpdateAsync(dto, tenantId);
                 if (updated == null)
                     return new ResponseModel(404, "Lead not found");
 
@@ -135,11 +135,11 @@ namespace AvinyaAICRM.Application.Services.Leads
             return CommonHelper.GetResponseMessage(result);
         }
 
-        public async Task<ResponseModel> DeleteAsync(Guid id, string deletedBy)
+        public async Task<ResponseModel> DeleteAsync(Guid id, string deletedBy, string tenantId)
         {
             try
             {
-                var oldClient = await _repository.GetByIdAsync(id);
+                var oldClient = await _repository.GetByIdAsync(id, tenantId);
 
                 var deleted = await _repository.DeleteAsync(id,deletedBy);
                 if (!deleted)
@@ -159,9 +159,9 @@ namespace AvinyaAICRM.Application.Services.Leads
             string? statusId, DateTime? startDate, DateTime? endDate,
             int page,
             int pageSize,
-            ClaimsPrincipal user)
+            string userId)
         {
-            var result = await _repository.GetFilteredAsync(search, statusId, startDate,endDate, page, pageSize, user);
+            var result = await _repository.GetFilteredAsync(search, statusId, startDate,endDate, page, pageSize, userId);
 
             return CommonHelper.GetResponseMessage(result);
         }

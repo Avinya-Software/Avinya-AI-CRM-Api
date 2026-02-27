@@ -53,5 +53,6 @@ namespace AvinyaAICRM.Domain.Entities.Orders
 
         public bool IsUseBillingAddress { get; set; }       
         public string? ShippingAddress { get; set; }
+        public Guid? TenantId { get; set; }
     }
 }

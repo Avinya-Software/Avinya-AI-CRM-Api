@@ -31,5 +31,6 @@ namespace AvinyaAICRM.Domain.Entities.Client
         public DateTime? DeletedDate { get; set; }
         public bool IsDeleted { get;set; }
         public string? DeletedBy { get; set; }
+        public Guid? TenantId { get; set; }
     }
 }

@@ -27,6 +27,7 @@ namespace AvinyaAICRM.Domain.Entities.Quotations
         [JsonIgnore]
         public bool IsDeleted { get; set; }
         public bool EnableTax { get; set; }
+        public Guid? TenantId { get; set; }
     }
 
 }

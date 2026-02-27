@@ -14,7 +14,8 @@ namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.Quotations
          DateTime? startDate,
          DateTime? endDate,
          int pageNumber,
-         int pageSize);
+         int pageSize,
+         string userId);
         Task<IEnumerable<QuotationDropdown>> GetAllAsync();
     }
 }

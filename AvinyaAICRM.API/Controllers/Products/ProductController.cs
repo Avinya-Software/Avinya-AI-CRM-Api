@@ -22,7 +22,8 @@ namespace AvinyaAICRM.Api.Controllers.Products
         [HttpGet("get-Product-dropdown")]
         public async Task<IActionResult> GetAll()
         {
-            var response = await _service.GetAllAsync();
+            var userId = User.FindFirst("userId")?.Value!;
+            var response = await _service.GetAllAsync(userId);
             return new JsonResult(response) { StatusCode = response.StatusCode };
         }
 
@@ -36,6 +37,8 @@ namespace AvinyaAICRM.Api.Controllers.Products
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] ProductRequest product)
         {
+            var userId = User.FindFirst("userId")?.Value!;
+            product.CreatedBy = userId;
             var response = await _service.CreateAsync(product);
             return new JsonResult(response) { StatusCode = response.StatusCode };
         }
@@ -56,14 +59,16 @@ namespace AvinyaAICRM.Api.Controllers.Products
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteProduct(Guid id)
         {
-            var response = await _service.DeleteAsync(id);
+            var userId = User.FindFirst("userId")?.Value!;
+            var response = await _service.DeleteAsync(id, userId);
             return new JsonResult(response) { StatusCode = response.StatusCode };
         }
 
         [HttpGet("filter")]
         public async Task<IActionResult> GetFiltered(string? search = null, bool? status = null, int page = 1, int pageSize = 10)
         {
-            var response = await _service.GetFilteredAsync(search, status, page, pageSize);
+            var userId = User.FindFirst("userId")?.Value!;
+            var response = await _service.GetFilteredAsync(search, status, page, pageSize, userId);
             return new JsonResult(response) { StatusCode = response.StatusCode };
         }
 

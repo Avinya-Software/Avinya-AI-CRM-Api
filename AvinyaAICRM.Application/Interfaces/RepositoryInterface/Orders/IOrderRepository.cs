@@ -5,11 +5,12 @@ namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.Orders
 {
     public interface IOrderRepository
     {
-        Task<OrderResponseDto?> GetByIdAsync(Guid id);
+        Task<OrderResponseDto?> GetByIdAsync(Guid id, string tenantId);
         Task<PagedResult<OrderResponseDto>> GetFilteredAsync(
     string? search,
     int pageNumber,
     int pageSize,
+     string userId,
     int? statusFilter = null,
     DateTime? from = null,
     DateTime? to = null);

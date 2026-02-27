@@ -24,7 +24,8 @@ namespace AvinyaAICRM.API.Controllers
         //[Authorize(Roles = "Employee,Manager,Admin")]
         public async Task<IActionResult> GetAll()
         {
-            var response = await _leadService.GetAllAsync();
+            var tenantId = User.FindFirst("tenantId")?.Value!;
+            var response = await _leadService.GetAllAsync(tenantId);
             return new JsonResult(response) { StatusCode = response.StatusCode };
         }
 
@@ -32,7 +33,8 @@ namespace AvinyaAICRM.API.Controllers
         //[Authorize(Roles = "Employee,Manager,Admin")]
         public async Task<IActionResult> GetById(Guid id)
         {
-            var response = await _leadService.GetByIdAsync(id);
+            var tenantId = User.FindFirst("tenantId")?.Value!;
+            var response = await _leadService.GetByIdAsync(id, tenantId);
             return new JsonResult(response) { StatusCode = response.StatusCode };
         }
 
@@ -49,14 +51,16 @@ namespace AvinyaAICRM.API.Controllers
             return new JsonResult(response) { StatusCode = response.StatusCode };
         }
 
-        [HttpPut("{id}")]
+        [HttpPut("{id}")]   
         //[Authorize(Roles = "Manager,Admin")]
         public async Task<IActionResult> Update([FromBody] LeadRequestDto dto, Guid id)
         {
+            var userId = User.FindFirst("userId")?.Value!;
+            var tenantId = User.FindFirst("tenantId")?.Value!;
             if (dto.LeadID == Guid.Empty)
                 return BadRequest("LeadID is required");
             dto.LeadID = id;
-            var response = await _leadService.UpdateAsync(dto);
+            var response = await _leadService.UpdateAsync(dto, userId, tenantId);
             return new JsonResult(response) { StatusCode = response.StatusCode };
         }
 
@@ -73,12 +77,12 @@ namespace AvinyaAICRM.API.Controllers
         public async Task<IActionResult> Delete(Guid id)
         {
             var userId = User.FindFirst("userId")?.Value!;
-
+            var tenantId = User.FindFirst("tenantId")?.Value!;
             if (string.IsNullOrEmpty(userId))
             {
                 throw new Exception("Session expired. Please login again.");
             }
-            var response = await _leadService.DeleteAsync(id, userId);
+            var response = await _leadService.DeleteAsync(id, userId, tenantId);
             return new JsonResult(response) { StatusCode = response.StatusCode };
         }
 
@@ -90,7 +94,8 @@ namespace AvinyaAICRM.API.Controllers
             int page = 1,
             int pageSize = 10)
         {
-            var response = await _leadService.GetFilteredAsync(search, status, startDate, endDate, page, pageSize, User);
+            var userId = User.FindFirst("userId")?.Value!;
+            var response = await _leadService.GetFilteredAsync(search, status, startDate, endDate, page, pageSize, userId);
             return new JsonResult(response) { StatusCode = response.StatusCode };
         }
 

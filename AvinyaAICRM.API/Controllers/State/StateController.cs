@@ -1,5 +1,4 @@
 ﻿using AvinyaAICRM.Application.Interfaces.ServiceInterface.State;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AvinyaAICRM.Api.Controllers.State

@@ -37,11 +37,11 @@ namespace AvinyaAICRM.Application.Services.Products
         #endregion
 
         // ✅ Get All
-        public async Task<ResponseModel> GetAllAsync()
+        public async Task<ResponseModel> GetAllAsync(string userid)
         {
             try
             {
-                var products = await _repository.GetAllAsync();
+                var products = await _repository.GetAllAsync(userid);
                 return CommonHelper.GetResponseMessage(products);
             }
             catch (Exception ex)
@@ -73,8 +73,6 @@ namespace AvinyaAICRM.Application.Services.Products
         {
             try
             {
-                GetUserId();
-
                 if (product.ProductID == Guid.Empty)
                     product.ProductID = Guid.NewGuid();
 
@@ -95,7 +93,6 @@ namespace AvinyaAICRM.Application.Services.Products
         {
             try
             {
-                GetUserId();
 
                 var updated = await _repository.UpdateAsync(productDto);
 
@@ -113,13 +110,11 @@ namespace AvinyaAICRM.Application.Services.Products
         }
 
         // ✅ Delete
-        public async Task<ResponseModel> DeleteAsync(Guid id)
+        public async Task<ResponseModel> DeleteAsync(Guid id, string userid)
         {
             try
             {
-                GetUserId();
-
-                var deleted = await _repository.DeleteAsync(id);
+                var deleted = await _repository.DeleteAsync(id, userid);
 
                 if (!deleted)
                     return new ResponseModel(404, "Product not found");
@@ -139,12 +134,13 @@ namespace AvinyaAICRM.Application.Services.Products
             string? search,
             bool? status,
             int page,
-            int pageSize)
+            int pageSize,
+            string userId)
         {
             try
             {
                 var result =
-                    await _repository.GetFilteredAsync(search, status, page, pageSize);
+                    await _repository.GetFilteredAsync(search, status, page, pageSize, userId);
 
                 return CommonHelper.GetResponseMessage(result);
             }

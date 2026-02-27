@@ -8,17 +8,18 @@ namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.Products
 {
     public interface IProductRepository
     {
-        Task<IEnumerable<ProductDropDown>> GetAllAsync();
+        Task<IEnumerable<ProductDropDown>> GetAllAsync(string userid);
 
         Task<ProductDto?> GetByIdAsync(Guid id);
         Task<ProductRequest> AddAsync(ProductRequest product);
         Task<Product?> UpdateAsync(ProductDto productDto);
-        Task<bool> DeleteAsync(Guid id);
+        Task<bool> DeleteAsync(Guid id, string userid);
         Task<PagedResult<ProductDto>> GetFilteredAsync(
              string? search,
              bool? status,
              int pageNumber,
-             int pageSize);
+             int pageSize,
+             string userId);
         Task<IEnumerable<UnitType>> GetUnitTypeAsync();
     }
 }

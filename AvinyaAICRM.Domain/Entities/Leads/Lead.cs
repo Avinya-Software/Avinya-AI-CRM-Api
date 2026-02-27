@@ -38,5 +38,6 @@ namespace AvinyaAICRM.Domain.Entities.Leads
         public string? DeletedBy { get; set; }
         public string? Notes { get; set; }
         public string? Links { get; set;}
+        public Guid? TenantId { get; set; }
     }
 }

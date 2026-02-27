@@ -22,7 +22,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
             _numberGeneratorService = numberGeneratorService;
         }
 
-        public async Task<OrderResponseDto?> GetByIdAsync(Guid id)
+        public async Task<OrderResponseDto?> GetByIdAsync(Guid id, string tenantId)
         {
             DateTime ConvertUtcToLocal(DateTime utcDate) =>
                TimeZoneInfo.ConvertTimeFromUtc(
@@ -50,7 +50,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
                 join ct in _context.Cities.AsNoTracking()
                     on o.CityID equals ct.CityID into ctj
                 from ct in ctj.DefaultIfEmpty()
-
+                where o.TenantId.ToString() == tenantId
 
                 select new OrderResponseDto
                 {
@@ -140,6 +140,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
     string? search,
     int pageNumber,
     int pageSize,
+    string userId,
     int? statusFilter = null,
     DateTime? from = null,
     DateTime? to = null)
@@ -151,9 +152,11 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
                         utcDate,
                         TimeZoneInfo.FindSystemTimeZoneById("India Standard Time"));
 
+                var userData = await _context.Users.FindAsync(userId);
+
                 var query = _context.Orders
                     .AsNoTracking()
-                    .Where(o => !o.IsDeleted);
+                    .Where(o => !o.IsDeleted && o.TenantId == userData.TenantId);
 
                 #region SEARCH
 
@@ -273,7 +276,28 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
                         // NOTE:
                         // OrderItems, WorkOrder, Bill mapping stays EXACTLY SAME
                         // (keep your existing projection block here unchanged)
+                        OrderItems = _context.OrderItems
+                            .Where(i => i.OrderID == o.OrderID)
+                            .Join(_context.Products, oi => oi.ProductID, p => p.ProductID, (oi, p) => new { oi, p })
+                            .GroupJoin(_context.TaxCategoryMasters, op => op.oi.TaxCategoryID, t => t.TaxCategoryID, (op, t) => new { op.oi, op.p, t })
+                            .SelectMany(x => x.t.DefaultIfEmpty(), (x, t) => new OrderItemReponceDto
+                            {
+                                OrderItemID = x.oi.OrderItemID,
+                                OrderID = x.oi.OrderID,
+                                ProductID = x.oi.ProductID,
+                                ProductName = x.p.ProductName,
+                                Description = x.oi.Description,
+                                Quantity = x.oi.Quantity,
+                                UnitPrice = x.oi.UnitPrice,
+                                TaxCategoryID = x.oi.TaxCategoryID ?? null,
+                                TaxCategoryName = t != null ? t.TaxName : null,
+                                LineTotal = x.oi.LineTotal,
+                                Rate = t != null ? t.Rate : null,
+                                HsnCode = x.p.HSNCode ?? null
+                            })
+                            .ToList(),
                     })
+                    .Where(o => o.CreatedBy == userId)
                     .ToListAsync();
 
                 // 🔹 (Your existing WorkOrderItems loading logic stays SAME)
@@ -321,6 +345,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
 
             try
             {
+                var userData = await _context.Users.FindAsync(userId);
+
                 bool isNew = dto.OrderID == null || dto.OrderID == Guid.Empty;
                 Guid orderId;
                 DateTime now = DateTime.Now;
@@ -397,7 +423,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
                         ShippingAddress = shippingAddress,
                         StateID = stateID,
                         CityID = cityID,
-                        IsDeleted = false
+                        IsDeleted = false,
+                        TenantId = userData.TenantId
                     };
 
                     await _context.Orders.AddAsync(order);
@@ -594,7 +621,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
                 await tx.CommitAsync();
 
                 // ---------- RETURN SAVED RESPONSE ----------
-                return await GetByIdAsync(orderId)
+                return await GetByIdAsync(orderId, userData.TenantId.ToString())
                     ?? throw new Exception("Saved but response fetch failed");
             }
             catch (Exception ex)

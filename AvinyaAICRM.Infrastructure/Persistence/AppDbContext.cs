@@ -9,6 +9,7 @@ using AvinyaAICRM.Domain.Entities.Module;
 using AvinyaAICRM.Domain.Entities.Orders;
 using AvinyaAICRM.Domain.Entities.Permission;
 using AvinyaAICRM.Domain.Entities.Product;
+using AvinyaAICRM.Domain.Entities.Projects;
 using AvinyaAICRM.Domain.Entities.Quotations;
 using AvinyaAICRM.Domain.Entities.State;
 using AvinyaAICRM.Domain.Entities.Tasks;
@@ -60,5 +61,7 @@ namespace AvinyaAICRM.Infrastructure.Persistence
         public DbSet<UnitType> UnitTypeMasters { get; set; }
         public DbSet<TaxCategoryMaster> TaxCategoryMasters { get; set; }
         public DbSet<Product> Products { get; set; }
+
+        public DbSet<Project> Projects { get; set; }
     }
 }
