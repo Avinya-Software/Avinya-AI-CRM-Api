@@ -48,7 +48,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
                     TaskScope = dto.TeamId > 0 ? "Team" : "Personal",
                     CreatedBy = userId,
                     IsActive = true,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    ProjectId = Guid.Parse(dto.ProjectId)
                 };
 
                 _context.TaskSeries.Add(series);

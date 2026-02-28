@@ -8,6 +8,7 @@ using AvinyaAICRM.Application.Interfaces.ServiceInterface.Leads;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Orders;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Permission;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Products;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.Projects;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Quotations;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Settings;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.State;
@@ -27,6 +28,7 @@ using AvinyaAICRM.Application.Services.Leads;
 using AvinyaAICRM.Application.Services.Orders;
 using AvinyaAICRM.Application.Services.Permission;
 using AvinyaAICRM.Application.Services.Products;
+using AvinyaAICRM.Application.Services.Projects;
 using AvinyaAICRM.Application.Services.Quotations;
 using AvinyaAICRM.Application.Services.Settings;
 using AvinyaAICRM.Application.Services.State;
@@ -67,6 +69,7 @@ namespace AvinyaAICRM.Application
             services.AddScoped<IStateService, StateService>();
             services.AddScoped<ITaxCategoryService, TaxCategoryService>();
             services.AddScoped<IProductService, ProductService>();
+            services.AddScoped<IProjectService, ProjectService>();
 
             return services;
         }

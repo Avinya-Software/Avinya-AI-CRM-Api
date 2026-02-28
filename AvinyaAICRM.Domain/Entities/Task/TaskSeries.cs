@@ -29,6 +29,7 @@ namespace AvinyaAICRM.Domain.Entities.Tasks
         public string? TaskScope { get; set; }
 
         public string? Priority { get; set; }
+        public Guid? ProjectId { get; set; }
 
         public ICollection<TaskOccurrence> Occurrences { get; set; }
     }

@@ -5,6 +5,7 @@ using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Leads;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Orders;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Permission;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Products;
+using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Projects;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Quotations;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Settings;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.State;
@@ -27,6 +28,7 @@ using AvinyaAICRM.Infrastructure.Repositories.LeadRepository;
 using AvinyaAICRM.Infrastructure.Repositories.OrderRepository;
 using AvinyaAICRM.Infrastructure.Repositories.Permission;
 using AvinyaAICRM.Infrastructure.Repositories.ProductRepository;
+using AvinyaAICRM.Infrastructure.Repositories.Projects;
 using AvinyaAICRM.Infrastructure.Repositories.QuotationRepository;
 using AvinyaAICRM.Infrastructure.Repositories.Settings;
 using AvinyaAICRM.Infrastructure.Repositories.State;
@@ -148,6 +150,7 @@ namespace AvinyaAICRM.Infrastructure
             services.AddScoped<IStateRepository, StateRepository>();
             services.AddScoped<ITaxCategoryRepository, TaxCategoryRepository>();
             services.AddScoped<IProductRepository, ProductRepository>();
+            services.AddScoped<IProjectRepository, ProjectRepository>();
             // ---------------- Permission System ----------------
             services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
             services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();

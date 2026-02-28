@@ -4,8 +4,8 @@ namespace AvinyaAICRM.Application.DTOs.Tasks
     public class CreateTaskDto
     {
         public string Title { get; set; }
-        public string Description { get; set; }
-        public string Notes { get; set; }
+        public string? Description { get; set; }
+        public string? Notes { get; set; }
 
         public long ListId { get; set; }
         public DateTime? DueDateTime { get; set; }
@@ -22,6 +22,8 @@ namespace AvinyaAICRM.Application.DTOs.Tasks
         public long? TeamId  { get; set; }
 
         public string? AssignToId { get; set; }
+        
+        public string? ProjectId { get; set; } 
 
     }
 

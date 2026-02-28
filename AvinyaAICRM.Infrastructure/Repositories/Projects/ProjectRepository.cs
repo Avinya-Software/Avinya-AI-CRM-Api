@@ -1,5 +1,6 @@
 ﻿using AvinyaAICRM.Application.DTOs.Product;
 using AvinyaAICRM.Application.DTOs.Projects;
+using AvinyaAICRM.Application.DTOs.Tasks;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Projects;
 using AvinyaAICRM.Domain.Entities.Projects;
 using AvinyaAICRM.Infrastructure.Persistence;
@@ -41,8 +42,16 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Projects
 
         public async Task AddAsync(Project project)
         {
-            await _context.Projects.AddAsync(project);
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.Projects.AddAsync(project);
+                await _context.SaveChangesAsync();
+            }
+            catch(Exception ex)
+            {
+
+            }
+           
         }
 
         public async Task UpdateAsync(Project project)
@@ -70,141 +79,179 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Projects
     int pageSize,
     string userId)
         {
-            try
+            var user = await _context.Users.FindAsync(userId);
+
+            var query = _context.Projects
+                .Where(p =>
+                    !p.IsDeleted &&
+                    p.TenantId == user.TenantId)
+                .AsQueryable();
+
+            #region SEARCH FILTER
+
+            if (!string.IsNullOrWhiteSpace(search))
             {
-                var user = await _context.Users.FindAsync(userId);
+                var like = $"%{search}%";
 
-                var query = _context.Projects
-                    .Where(p =>
-                        !p.IsDeleted &&
-                        p.TenantId == user.TenantId)
-                    .AsQueryable();
+                query =
+                    from p in query
+                    join c in _context.Clients
+                        on p.ClientID equals c.ClientID into pc
+                    from client in pc.DefaultIfEmpty()
+                    where
+                        EF.Functions.Like(p.ProjectName, like) ||
+                        EF.Functions.Like(client.CompanyName, like) ||
+                        EF.Functions.Like(p.Location, like)
+                    select p;
+            }
 
-                #region SEARCH FILTER
+            #endregion
 
-                if (!string.IsNullOrWhiteSpace(search))
-                {
-                    var like = $"%{search}%";
+            #region STATUS FILTER
 
-                    query =
-                        from p in query
-                        join c in _context.Clients
-                            on p.ClientID equals c.ClientID into pc
-                        from client in pc.DefaultIfEmpty()
-                        where
-                            EF.Functions.Like(p.ProjectName, like) ||
-                            EF.Functions.Like(client.CompanyName, like) ||
-                            EF.Functions.Like(p.Location, like)
-                        select p;
-                }
+            if (statusFilter.HasValue)
+                query = query.Where(p => p.Status == statusFilter);
 
-                #endregion
+            #endregion
 
-                #region STATUS FILTER
+            #region DATE FILTER
 
-                if (statusFilter.HasValue)
-                {
-                    query = query.Where(p => p.Status == statusFilter);
-                }
+            DateTime? fromDate = startDate?.Date;
+            DateTime? toDate = endDate?.Date;
 
-                #endregion
+            if (fromDate.HasValue && !toDate.HasValue)
+                toDate = DateTime.Today;
 
-                #region DATE FILTER
+            if (toDate.HasValue)
+                toDate = toDate.Value.AddDays(1).AddTicks(-1);
 
-                DateTime? fromDate = startDate?.Date;
-                DateTime? toDate = endDate?.Date;
+            if (fromDate.HasValue && toDate.HasValue)
+                query = query.Where(p =>
+                    p.CreatedDate >= fromDate &&
+                    p.CreatedDate <= toDate);
 
-                if (fromDate.HasValue && !toDate.HasValue)
-                    toDate = DateTime.Today;
+            #endregion
 
-                if (toDate.HasValue)
-                    toDate = toDate.Value.AddDays(1).AddTicks(-1);
+            var totalRecords = await query.CountAsync();
 
-                if (fromDate.HasValue && toDate.HasValue)
-                    query = query.Where(p =>
-                        p.CreatedDate >= fromDate &&
-                        p.CreatedDate <= toDate);
+            var projects = await query
+                .OrderByDescending(p => p.CreatedDate)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
 
-                #endregion
+            var projectIds = projects.Select(p => p.ProjectID).ToList();
 
-                // ✅ total count
-                var totalRecords = await query.CountAsync();
+            /* ===============================
+               LOAD RELATED DATA
+               =============================== */
 
-                // paging
-                var projects = await query
-                    .OrderByDescending(p => p.CreatedDate)
-                    .Skip((pageNumber - 1) * pageSize)
-                    .Take(pageSize)
-                    .ToListAsync();
+            var clients = await _context.Clients
+                .Where(c => projectIds.Contains(c.ClientID))
+                .ToListAsync();
 
-                // preload related data
-                var clientIds = projects.Select(x => x.ClientID).ToList();
+            var users = await _context.Users
+                .Select(u => new { u.Id, u.UserName })
+                .ToListAsync();
 
-                var clients = await _context.Clients
-                    .Where(c => clientIds.Contains(c.ClientID))
-                    .ToListAsync();
+            /* ===============================
+               ✅ LOAD TASKS FOR PROJECTS
+               =============================== */
 
-                var users = await _context.Users
-                    .Select(u => new { u.Id, u.UserName })
-                    .ToListAsync();
+            var userGuid = Guid.Parse(userId);
 
-                // DTO mapping
-                var result = projects.Select(p =>
-                {
-                    var client = clients.FirstOrDefault(c => c.ClientID == p.ClientID);
+            var taskOccurrences = await _context.TaskOccurrences
+                .Include(x => x.TaskSeries)
+                .Where(x =>
+                    x.TaskSeries.ProjectId != null &&
+                    projectIds.Contains(x.TaskSeries.ProjectId.Value) &&
+                    (
+                        x.TaskSeries.CreatedBy == userId
+                        || x.AssignedTo == userId
+                        || (
+                            x.TaskSeries.TeamId != null &&
+                            _context.TeamMembers.Any(tm =>
+                                tm.TeamId == x.TaskSeries.TeamId &&
+                                tm.UserId == userGuid)
+                        )
+                    ))
+                .ToListAsync();
 
-                    var managerName =
-                        users.FirstOrDefault(u => u.Id == p.ProjectManagerId)?.UserName;
-
-                    var assignedUserName =
-                        users.FirstOrDefault(u => u.Id == p.AssignedToUserId)?.UserName;
-
-                    return new ProjectDto
+            var tasksGrouped = taskOccurrences
+                .GroupBy(x => x.TaskSeries.ProjectId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(x => new TaskDto
                     {
-                        ProjectID = p.ProjectID,
-                        ProjectName = p.ProjectName,
-                        Description = p.Description,
+                        OccurrenceId = x.Id,
+                        Title = x.TaskSeries.Title,
+                        TeamId = x.TaskSeries.TeamId,
+                        DueDateTime = x.DueDateTime,
+                        Status = x.Status,
+                        IsRecurring = x.TaskSeries.IsRecurring,
+                        AssignedTo = x.AssignedTo
+                    }).ToList()
+                );
 
-                        ClientID = p.ClientID,
-                        ClientName = client?.CompanyName,
+            /* ===============================
+               DTO MAPPING
+               =============================== */
 
-                        Location = p.Location,
-
-                        Status = p.Status,
-                        Priority = p.Priority,
-                        ProgressPercent = p.ProgressPercent,
-
-                        ProjectManagerId = p.ProjectManagerId,
-                        ProjectManagerName = managerName,
-
-                        AssignedToUserId = p.AssignedToUserId,
-                        AssignedUserName = assignedUserName,
-                        TeamId = p.TeamId,
-
-                        StartDate = p.StartDate,
-                        EndDate = p.EndDate,
-                        Deadline = p.Deadline,
-
-                        EstimatedValue = p.EstimatedValue,
-                        Notes = p.Notes,
-
-                        CreatedDate = p.CreatedDate
-                    };
-                }).ToList();
-
-                return new PagedResult<ProjectDto>
-                {
-                    PageNumber = pageNumber,
-                    PageSize = pageSize,
-                    TotalRecords = totalRecords,
-                    TotalPages = (int)Math.Ceiling(totalRecords / (double)pageSize),
-                    Data = result
-                };
-            }
-            catch
+            var result = projects.Select(p =>
             {
-                throw;
-            }
+                var client = clients.FirstOrDefault(c => c.ClientID == p.ClientID);
+
+                var managerName =
+                    users.FirstOrDefault(u => u.Id == p.ProjectManagerId)?.UserName;
+
+                var assignedUserName =
+                    users.FirstOrDefault(u => u.Id == p.AssignedToUserId)?.UserName;
+
+                return new ProjectDto
+                {
+                    ProjectID = p.ProjectID,
+                    ProjectName = p.ProjectName,
+                    Description = p.Description,
+
+                    ClientID = p.ClientID,
+                    ClientName = client?.CompanyName,
+
+                    Location = p.Location,
+                    Status = p.Status,
+                    Priority = p.Priority,
+                    ProgressPercent = p.ProgressPercent,
+
+                    ProjectManagerId = p.ProjectManagerId,
+                    ProjectManagerName = managerName,
+
+                    AssignedToUserId = p.AssignedToUserId,
+                    AssignedUserName = assignedUserName,
+
+                    TeamId = p.TeamId,
+
+                    StartDate = p.StartDate,
+                    EndDate = p.EndDate,
+                    Deadline = p.Deadline,
+
+                    EstimatedValue = p.EstimatedValue,
+                    Notes = p.Notes,
+                    CreatedDate = p.CreatedDate,
+
+                    // ✅ attach tasks
+                    Tasks = tasksGrouped.ContainsKey(p.ProjectID)
+                        ? tasksGrouped[p.ProjectID]
+                        : new List<TaskDto>()
+                };
+            }).ToList();
+
+            return new PagedResult<ProjectDto>
+            {
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                TotalRecords = totalRecords,
+                TotalPages = (int)Math.Ceiling(totalRecords / (double)pageSize),
+                Data = result
+            };
         }
     }
 }

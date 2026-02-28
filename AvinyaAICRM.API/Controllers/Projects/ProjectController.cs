@@ -31,10 +31,9 @@ namespace AvinyaAICRM.API.Controllers.Projects
          DateTime? startDate,
          DateTime? endDate,
          int pageNumber,
-         int pageSize,
-         string userId)
+         int pageSize)
         {
-            var tenantId = User.FindFirst("tenantId")?.Value!;
+            var userId = User.FindFirst("userId")?.Value!;
             var response = await _projectService.GetAllFilter(search, statusFilter, startDate, endDate, pageNumber, pageSize, userId);
             return new JsonResult(response) { StatusCode = response.StatusCode };
         }
@@ -51,7 +50,7 @@ namespace AvinyaAICRM.API.Controllers.Projects
         public async Task<IActionResult> Create([FromBody] ProjectCreateUpdateDto dto)
         {
             var tenantId = User.FindFirst("tenantId")?.Value!;
-            var userId = User.FindFirst("sub")?.Value!;
+            var userId = User.FindFirst("userId")?.Value!;
             var response = await _projectService.CreateAsync(dto, tenantId, userId);
             return new JsonResult(response) { StatusCode = response.StatusCode };
         }

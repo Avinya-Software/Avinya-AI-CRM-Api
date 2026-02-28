@@ -1,4 +1,6 @@
 ﻿
+using AvinyaAICRM.Application.DTOs.Tasks;
+
 namespace AvinyaAICRM.Application.DTOs.Projects
 {
     public class ProjectDto
@@ -32,5 +34,6 @@ namespace AvinyaAICRM.Application.DTOs.Projects
         public string? Notes { get; set; }
 
         public DateTime CreatedDate { get; set; }
+        public List<TaskDto> Tasks { get; set; } = new();
     }
 }
