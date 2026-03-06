@@ -27,7 +27,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tenant
             
         }
 
-        public async Task<AvinyaAICRM.Domain.Entities.Tenant.Tenant?> GetByIdAsync(Guid tenantId)
+        public async Task<AvinyaAICRM.Domain.Entities.Tenant.Tenant?> GetByIdAsync(Guid? tenantId)
             => await _context.Tenants.FindAsync(tenantId);
 
         public async Task ApproveTenantAsync(AvinyaAICRM.Domain.Entities.Tenant.Tenant tenant)

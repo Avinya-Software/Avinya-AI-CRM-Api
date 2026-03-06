@@ -21,7 +21,7 @@ namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.User
         Task<IList<string>> GetRolesAsync(AppUser user);
         Task<AppUser?> GetAdminByTenantIdAsync(Guid tenantId);
         Task<bool> IsInRoleAsync(string userId, string roleName);
-        Task<PagedResult<UserListDto>> GetUsersForSuperAdminAsync(UserListFilterRequest request);
+        Task<PagedResult<UserListDto>> GetUsersForSuperAdminAsync(UserListFilterRequest request, Guid? currentUserTenantId);
         Task<List<AvinyaAICRM.Domain.Entities.Tenant.Tenant>> GetMyCompaniesAsync();
         Task<List<UserDropdownDto>> GetUsersDropdown(string userId);
         Task<AppUser> GetUserName(string name);

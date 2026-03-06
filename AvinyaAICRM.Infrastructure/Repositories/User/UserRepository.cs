@@ -84,7 +84,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
             return await _userManager.IsInRoleAsync(user, roleName);
         }
 
-        public async Task<PagedResult<UserListDto>> GetUsersForSuperAdminAsync(UserListFilterRequest request)
+        public async Task<PagedResult<UserListDto>> GetUsersForSuperAdminAsync(UserListFilterRequest request, Guid? currentUserTenantId)
         {
             var query =
                 from u in _context.Users
@@ -98,6 +98,9 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
                     RoleName = r.Name,
                     TenantName = t != null ? t.CompanyName : "System"
                 };
+
+            if (currentUserTenantId.HasValue)
+                query = query.Where(x => x.User.TenantId == currentUserTenantId.Value);
 
             if (!string.IsNullOrEmpty(request.Role))
                 query = query.Where(x => x.RoleName == request.Role);

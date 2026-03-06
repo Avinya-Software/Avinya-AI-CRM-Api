@@ -9,7 +9,6 @@ namespace AvinyaAICRM.API.Controllers.SuperAdmin
 {
     [ApiController]
     [Route("api/superadmin")]
-    [Authorize(Roles = "SuperAdmin")]
     public class SuperAdminController : ControllerBase
     {
         private readonly ISuperAdminService _superAdminService;
