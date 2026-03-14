@@ -162,9 +162,9 @@ namespace AvinyaAICRM.Application.Services.User
             return CommonHelper.GetResponseMessage(menu);
         }
 
-        public async Task<ResponseModel> GetUsersForSuperAdminAsync(UserListFilterRequest request)
+        public async Task<ResponseModel> GetUsersForSuperAdminAsync(UserListFilterRequest request, Guid? currentUserTenant)
         {
-            var result = await _userRepo.GetUsersForSuperAdminAsync(request);
+            var result = await _userRepo.GetUsersForSuperAdminAsync(request, currentUserTenant);
             return CommonHelper.GetResponseMessage(result);
         }
 

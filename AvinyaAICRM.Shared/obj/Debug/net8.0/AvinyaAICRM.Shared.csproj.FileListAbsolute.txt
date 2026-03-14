@@ -1,0 +1,16 @@
+D:\Pintu\AvinyaAICRM\AvinyaAICRM.Shared\bin\Debug\net8.0\AvinyaAICRM.Shared.deps.json
+D:\Pintu\AvinyaAICRM\AvinyaAICRM.Shared\bin\Debug\net8.0\AvinyaAICRM.Shared.dll
+D:\Pintu\AvinyaAICRM\AvinyaAICRM.Shared\bin\Debug\net8.0\AvinyaAICRM.Shared.pdb
+D:\Pintu\AvinyaAICRM\AvinyaAICRM.Shared\bin\Debug\net8.0\AvinyaAICRM.Domain.dll
+D:\Pintu\AvinyaAICRM\AvinyaAICRM.Shared\bin\Debug\net8.0\AvinyaAICRM.Domain.pdb
+D:\Pintu\AvinyaAICRM\AvinyaAICRM.Shared\obj\Debug\net8.0\AvinyaAICRM.Shared.csproj.AssemblyReference.cache
+D:\Pintu\AvinyaAICRM\AvinyaAICRM.Shared\obj\Debug\net8.0\AvinyaAICRM.Shared.GeneratedMSBuildEditorConfig.editorconfig
+D:\Pintu\AvinyaAICRM\AvinyaAICRM.Shared\obj\Debug\net8.0\AvinyaAICRM.Shared.AssemblyInfoInputs.cache
+D:\Pintu\AvinyaAICRM\AvinyaAICRM.Shared\obj\Debug\net8.0\AvinyaAICRM.Shared.AssemblyInfo.cs
+D:\Pintu\AvinyaAICRM\AvinyaAICRM.Shared\obj\Debug\net8.0\AvinyaAICRM.Shared.csproj.CoreCompileInputs.cache
+D:\Pintu\AvinyaAICRM\AvinyaAICRM.Shared\obj\Debug\net8.0\AvinyaAICRM.Shared.sourcelink.json
+D:\Pintu\AvinyaAICRM\AvinyaAICRM.Shared\obj\Debug\net8.0\AvinyaAI.4488E623.Up2Date
+D:\Pintu\AvinyaAICRM\AvinyaAICRM.Shared\obj\Debug\net8.0\AvinyaAICRM.Shared.dll
+D:\Pintu\AvinyaAICRM\AvinyaAICRM.Shared\obj\Debug\net8.0\refint\AvinyaAICRM.Shared.dll
+D:\Pintu\AvinyaAICRM\AvinyaAICRM.Shared\obj\Debug\net8.0\AvinyaAICRM.Shared.pdb
+D:\Pintu\AvinyaAICRM\AvinyaAICRM.Shared\obj\Debug\net8.0\ref\AvinyaAICRM.Shared.dll

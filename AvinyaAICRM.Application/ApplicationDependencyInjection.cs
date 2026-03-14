@@ -4,6 +4,7 @@ using AvinyaAICRM.Application.Interfaces.ServiceInterface;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.AI;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Auth;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.City;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.Expense;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Leads;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Orders;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Permission;
@@ -24,6 +25,7 @@ using AvinyaAICRM.Application.Services.Auth;
 using AvinyaAICRM.Application.Services.City;
 using AvinyaAICRM.Application.Services.Client;
 using AvinyaAICRM.Application.Services.ErrorLog;
+using AvinyaAICRM.Application.Services.Expense;
 using AvinyaAICRM.Application.Services.Leads;
 using AvinyaAICRM.Application.Services.Orders;
 using AvinyaAICRM.Application.Services.Permission;
@@ -70,6 +72,7 @@ namespace AvinyaAICRM.Application
             services.AddScoped<ITaxCategoryService, TaxCategoryService>();
             services.AddScoped<IProductService, ProductService>();
             services.AddScoped<IProjectService, ProjectService>();
+            services.AddScoped<IExpenseService, ExpenseService>();
 
             return services;
         }

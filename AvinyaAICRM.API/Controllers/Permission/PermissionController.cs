@@ -19,9 +19,9 @@ namespace AvinyaAICRM.API.Controllers.Permission
 
         
         [HttpGet("me/permissions")]
-        public async Task<IActionResult> GetMyPermissions()
+        public async Task<IActionResult> GetMyPermissions(string userId)
         {
-            var userId = User.FindFirst("userId")?.Value;
+            //var userId = User.FindFirst("userId")?.Value;
             var result = await _service.GetMyPermissionsAsync(userId!);
             return new JsonResult(result) { StatusCode = result.StatusCode };
 

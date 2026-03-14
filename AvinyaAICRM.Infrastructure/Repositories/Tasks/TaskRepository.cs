@@ -49,7 +49,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
                     CreatedBy = userId,
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
-                    ProjectId = Guid.Parse(dto.ProjectId)
+                    ProjectId = !string.IsNullOrWhiteSpace(dto.ProjectId) ? Guid.Parse(dto.ProjectId) : null
                 };
 
                 _context.TaskSeries.Add(series);

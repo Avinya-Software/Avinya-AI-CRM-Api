@@ -31,15 +31,27 @@ namespace AvinyaAICRM.API.Controllers.SuperAdmin
         [HttpPost("users")]
         public async Task<IActionResult> GetUsers([FromBody] UserListFilterRequest request)
         {
-            var result = await _userService.GetUsersForSuperAdminAsync(request);
+            var tenantIdClaim = User.FindFirst("tenantId")?.Value!;
+
+            // ✅ string → Guid? conversion
+            Guid? currentUserTenant = Guid.TryParse(tenantIdClaim, out var parsed)
+                ? parsed
+                : null;
+            var result = await _userService.GetUsersForSuperAdminAsync(request, currentUserTenant);
             return new JsonResult(result) { StatusCode = result.StatusCode };
         }
 
-        [Authorize(Roles = "SuperAdmin")]
+        //[Authorize(Roles = "SuperAdmin,Admin")]
         [HttpGet("users-list")]
         public async Task<IActionResult> GetUsersList([FromQuery] int pageNumber, [FromQuery] int pageSize, [FromQuery] string? role, [FromQuery] Guid? tenantId,
             [FromQuery] bool? isActive, [FromQuery] string? search)
         {
+            var tenantIdClaim = User.FindFirst("tenantId")?.Value!;
+
+            // ✅ string → Guid? conversion
+            Guid? currentUserTenant = Guid.TryParse(tenantIdClaim, out var parsed)
+                ? parsed
+                : null;
             var request = new UserListFilterRequest
             {
                 PageNumber = pageNumber,
@@ -49,7 +61,7 @@ namespace AvinyaAICRM.API.Controllers.SuperAdmin
                 TenantId = tenantId,
                 IsActive = isActive,
             };
-            var result = await _userService.GetUsersForSuperAdminAsync(request);
+            var result = await _userService.GetUsersForSuperAdminAsync(request, currentUserTenant);
             return new JsonResult(result) { StatusCode = result.StatusCode };
         }
 

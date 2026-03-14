@@ -3,6 +3,7 @@ using AvinyaAICRM.Domain.Entities.Action;
 using AvinyaAICRM.Domain.Entities.City;
 using AvinyaAICRM.Domain.Entities.Client;
 using AvinyaAICRM.Domain.Entities.ErrorLogs;
+using AvinyaAICRM.Domain.Entities.Expenses;
 using AvinyaAICRM.Domain.Entities.Leads;
 using AvinyaAICRM.Domain.Entities.Master;
 using AvinyaAICRM.Domain.Entities.Module;
@@ -10,6 +11,7 @@ using AvinyaAICRM.Domain.Entities.Orders;
 using AvinyaAICRM.Domain.Entities.Permission;
 using AvinyaAICRM.Domain.Entities.Product;
 using AvinyaAICRM.Domain.Entities.Projects;
+using AvinyaAICRM.Domain.Entities.QuickBook;
 using AvinyaAICRM.Domain.Entities.Quotations;
 using AvinyaAICRM.Domain.Entities.State;
 using AvinyaAICRM.Domain.Entities.Tasks;
@@ -61,7 +63,9 @@ namespace AvinyaAICRM.Infrastructure.Persistence
         public DbSet<UnitType> UnitTypeMasters { get; set; }
         public DbSet<TaxCategoryMaster> TaxCategoryMasters { get; set; }
         public DbSet<Product> Products { get; set; }
-
+        public DbSet<Expense> Expenses { get; set; }
+        public DbSet<ExpenseCategory> ExpenseCategories { get; set; }
         public DbSet<Project> Projects { get; set; }
+        public DbSet<QuickBooksConnection> QuickBooksConnections { get; set; }
     }
 }

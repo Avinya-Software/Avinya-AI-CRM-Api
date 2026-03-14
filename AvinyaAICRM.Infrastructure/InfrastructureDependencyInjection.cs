@@ -1,6 +1,7 @@
 ﻿using AvinyaAICRM.Application.Interfaces.Clients;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.City;
+using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Expenses;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Leads;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Orders;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Permission;
@@ -24,6 +25,7 @@ using AvinyaAICRM.Infrastructure.Persistence;
 using AvinyaAICRM.Infrastructure.Repositories.City;
 using AvinyaAICRM.Infrastructure.Repositories.ClientRepository;
 using AvinyaAICRM.Infrastructure.Repositories.ErrorLog;
+using AvinyaAICRM.Infrastructure.Repositories.Expenses;
 using AvinyaAICRM.Infrastructure.Repositories.LeadRepository;
 using AvinyaAICRM.Infrastructure.Repositories.OrderRepository;
 using AvinyaAICRM.Infrastructure.Repositories.Permission;
@@ -151,6 +153,7 @@ namespace AvinyaAICRM.Infrastructure
             services.AddScoped<ITaxCategoryRepository, TaxCategoryRepository>();
             services.AddScoped<IProductRepository, ProductRepository>();
             services.AddScoped<IProjectRepository, ProjectRepository>();
+            services.AddScoped<IExpenseRepository, ExpenseRepository>();
             // ---------------- Permission System ----------------
             services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
             services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();

@@ -111,8 +111,6 @@ namespace AvinyaAICRM.Application.Services.Leads
         {
             try
             {
-                GetUserId();
-
                 var deleted = await _repository.DeleteAsync(id);
 
                 if (!deleted)
