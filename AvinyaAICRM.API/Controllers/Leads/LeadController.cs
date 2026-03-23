@@ -20,12 +20,14 @@ namespace AvinyaAICRM.API.Controllers
         }
         //[ApiExplorerSettings(IgnoreApi = true)]
         [SwaggerIgnore]
+
         [HttpGet("get-lead-dropdown-list")]
         //[Authorize(Roles = "Employee,Manager,Admin")]
         public async Task<IActionResult> GetAll()
         {
             var tenantId = User.FindFirst("tenantId")?.Value!;
-            var response = await _leadService.GetAllAsync(tenantId);
+            var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+            var response = await _leadService.GetAllAsync(tenantId, role);
             return new JsonResult(response) { StatusCode = response.StatusCode };
         }
 
@@ -34,7 +36,37 @@ namespace AvinyaAICRM.API.Controllers
         public async Task<IActionResult> GetById(Guid id)
         {
             var tenantId = User.FindFirst("tenantId")?.Value!;
-            var response = await _leadService.GetByIdAsync(id, tenantId);
+            var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+            var response = await _leadService.GetByIdAsync(id, tenantId, role);
+            return new JsonResult(response) { StatusCode = response.StatusCode };
+        }
+
+        [HttpPut("{id}")]
+        //[Authorize(Roles = "Manager,Admin")]
+        public async Task<IActionResult> Update([FromBody] LeadRequestDto dto, Guid id)
+        {
+            var userId = User.FindFirst("userId")?.Value!;
+            var tenantId = User.FindFirst("tenantId")?.Value!;
+            var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+            if (dto.LeadID == Guid.Empty)
+                return BadRequest("LeadID is required");
+            dto.LeadID = id;
+            var response = await _leadService.UpdateAsync(dto, userId, tenantId, role);
+            return new JsonResult(response) { StatusCode = response.StatusCode };
+        }
+
+        [HttpDelete("{id}")]
+        //[Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> Delete(Guid id)
+        {
+            var userId = User.FindFirst("userId")?.Value!;
+            var tenantId = User.FindFirst("tenantId")?.Value!;
+            var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                throw new Exception("Session expired. Please login again.");
+            }
+            var response = await _leadService.DeleteAsync(id, userId, tenantId, role);
             return new JsonResult(response) { StatusCode = response.StatusCode };
         }
 
@@ -51,38 +83,11 @@ namespace AvinyaAICRM.API.Controllers
             return new JsonResult(response) { StatusCode = response.StatusCode };
         }
 
-        [HttpPut("{id}")]   
-        //[Authorize(Roles = "Manager,Admin")]
-        public async Task<IActionResult> Update([FromBody] LeadRequestDto dto, Guid id)
-        {
-            var userId = User.FindFirst("userId")?.Value!;
-            var tenantId = User.FindFirst("tenantId")?.Value!;
-            if (dto.LeadID == Guid.Empty)
-                return BadRequest("LeadID is required");
-            dto.LeadID = id;
-            var response = await _leadService.UpdateAsync(dto, userId, tenantId);
-            return new JsonResult(response) { StatusCode = response.StatusCode };
-        }
-
         [HttpPut("update-status")]
         //[Authorize(Roles = "Manager,Admin")]    
         public async Task<IActionResult> UpdateStatus([FromQuery] Guid id, [FromQuery] Guid statusId)
         {
             var response = await _leadService.UpdateLeadStatus(id, statusId);
-            return new JsonResult(response) { StatusCode = response.StatusCode };
-        }
-
-        [HttpDelete("{id}")]
-        //[Authorize(Roles = "Admin,Manager")]
-        public async Task<IActionResult> Delete(Guid id)
-        {
-            var userId = User.FindFirst("userId")?.Value!;
-            var tenantId = User.FindFirst("tenantId")?.Value!;
-            if (string.IsNullOrEmpty(userId))
-            {
-                throw new Exception("Session expired. Please login again.");
-            }
-            var response = await _leadService.DeleteAsync(id, userId, tenantId);
             return new JsonResult(response) { StatusCode = response.StatusCode };
         }
 

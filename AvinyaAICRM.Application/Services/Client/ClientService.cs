@@ -36,11 +36,11 @@ namespace AvinyaAICRM.Application.Services.Client
 
         #endregion
 
-        public async Task<ResponseModel> GetAllAsync(string tenantId ,bool getAll = false)
+        public async Task<ResponseModel> GetAllAsync(string tenantId, string? role , bool getAll = false)
         {
             try
             {
-                var clients = await _repository.GetAllAsync(tenantId ,getAll);
+                var clients = await _repository.GetAllAsync(tenantId, role, getAll);
                 return CommonHelper.GetResponseMessage(clients);
             }
             catch (Exception ex)
@@ -49,11 +49,11 @@ namespace AvinyaAICRM.Application.Services.Client
             }
         }
 
-        public async Task<ResponseModel> GetByIdAsync(Guid clientId, string tenantId)
+        public async Task<ResponseModel> GetByIdAsync(Guid clientId, string? tenantId, string? role)
         {
             try
             {
-                var client = await _repository.GetByIdAsync(clientId, tenantId);
+                var client = await _repository.GetByIdAsync(clientId, tenantId, role);
 
                 if (client == null)
                     return new ResponseModel(404, "Client not found");
@@ -117,11 +117,11 @@ namespace AvinyaAICRM.Application.Services.Client
             }
         }
 
-        public async Task<ResponseModel> UpdateAsync(ClientRequestDto dto,string tenantId)
+        public async Task<ResponseModel> UpdateAsync(ClientRequestDto dto, string? tenantId, string? role)
         {
             try
             {
-                var oldClient = await _repository.GetByIdAsync(dto.ClientID, tenantId);
+                var oldClient = await _repository.GetByIdAsync(dto.ClientID, tenantId, role);
                 if (oldClient == null)
                     return new ResponseModel(404, "Client not found");
 
@@ -155,9 +155,9 @@ namespace AvinyaAICRM.Application.Services.Client
                 oldClient.Notes = dto.Notes;
                 oldClient.UpdatedAt = DateTime.Now;
 
-                await _repository.UpdateAsync(dto, tenantId);
+                await _repository.UpdateAsync(dto, tenantId, role);
 
-                var updatedClient = await _repository.GetByIdAsync(dto.ClientID,tenantId);
+                var updatedClient = await _repository.GetByIdAsync(dto.ClientID,tenantId,role);
 
                 return CommonHelper.SuccessResponseMessage(
                     "Client updated successfully",
@@ -169,11 +169,11 @@ namespace AvinyaAICRM.Application.Services.Client
             }
         }
 
-        public async Task<ResponseModel> DeleteAsync(Guid id, string deletedBy, string tenantId)
+        public async Task<ResponseModel> DeleteAsync(Guid id, string deletedBy, string tenantId, string? role)
         {
             try
             {
-                var deleted = await _repository.DeleteAsync(id, deletedBy, tenantId);
+                var deleted = await _repository.DeleteAsync(id, deletedBy, tenantId, role);
 
                 if (!deleted)
                     return new ResponseModel(404, "Client not found");

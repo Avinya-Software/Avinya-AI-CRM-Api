@@ -11,6 +11,7 @@ using AvinyaAICRM.Shared.Model;
 using Azure.Core;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 using System.Security.Claims;
 
 namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
@@ -30,10 +31,17 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
             _numberGeneratorService = numberGeneratorService;
         }
 
-        public async Task<IEnumerable<LeadDropdown>> GetAllAsync(string tenantId)
+        public async Task<IEnumerable<LeadDropdown>> GetAllAsync(string? tenantId, string? role)
         {
+            var query = _context.Leads.Where(l => !l.IsDeleted);
+
+            if (role != "SuperAdmin")
+            {
+                query = query.Where(l => l.TenantId.ToString() == tenantId);
+            }
+
+
             return await _context.Leads
-                .Where(l => !l.IsDeleted && l.TenantId.ToString() == tenantId)
                 .OrderByDescending(c => c.CreatedDate)
                 .Select(c => new LeadDropdown
                 {
@@ -43,22 +51,27 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                 .ToListAsync();
         }
 
-        public async Task<LeadDto?> GetByIdAsync(Guid id, string tenantId)
+        public async Task<LeadDto?> GetByIdAsync(Guid id, string? tenantId, string? role)
         {
-            var clients = await _context.Clients.Where(c => c.TenantId.ToString() == tenantId).ToListAsync();
+            var query = _context.Leads.Where(l => l.LeadID == id && !l.IsDeleted);
+
+            if (role != "SuperAdmin")
+            {
+                query = query.Where(l => l.TenantId.ToString() == tenantId);
+            }
+
+            var lead = await query.FirstOrDefaultAsync();
+
+            if (lead == null)
+                return null;
+
+            var clients = await _context.Clients.ToListAsync();
             var users = await _context.Users
                 .Select(u => new { u.Id, u.UserName })
                 .ToListAsync();
 
             var leadSources = await _context.leadSourceMasters.ToListAsync();
             var statuses = await _context.leadStatusMasters.ToListAsync();
-
-            var lead = await _context.Leads
-                .Where(l => l.LeadID == id && !l.IsDeleted)
-                .FirstOrDefaultAsync();
-
-            if (lead == null)
-                return null;
 
             DateTime ConvertUtcToLocal(DateTime utcDate) =>
                 TimeZoneInfo.ConvertTimeFromUtc(utcDate, TimeZoneInfo.FindSystemTimeZoneById("India Standard Time"));
@@ -305,12 +318,18 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
             }
         }
 
-        public async Task<Lead?> UpdateAsync(LeadRequestDto dto, string tenantId)
+        public async Task<Lead?> UpdateAsync(LeadRequestDto dto, string? tenantId, string? role)
         {
             try
             {
-                var existing = await _context.Leads
-                                .FirstOrDefaultAsync(l => l.LeadID == dto.LeadID && !l.IsDeleted && l.TenantId.ToString() == tenantId);
+                var query = _context.Leads.Where(l => l.LeadID == dto.LeadID && !l.IsDeleted);
+
+                if (role != "SuperAdmin")
+                {
+                    query = query.Where(l => l.TenantId.ToString() == tenantId);
+                }
+
+                var existing = await query.FirstOrDefaultAsync();
 
                 if (existing == null) return null;
 
@@ -533,9 +552,17 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
             return existingLead;
         }
 
-        public async Task<bool> DeleteAsync(Guid id, string deletedBy)
+        public async Task<bool> DeleteAsync(Guid id, string deletedBy, string? tenantId, string? role)
         {
-            var existing = await _context.Leads.FindAsync(id);
+            var query = _context.Leads.Where(l => l.LeadID == id && !l.IsDeleted);
+
+            if (role != "SuperAdmin")
+            {
+                query = query.Where(l => l.TenantId.ToString() == tenantId);
+            }
+
+            var existing = await query.FirstOrDefaultAsync();
+
             if (existing == null) return false;
 
             existing.IsDeleted = true;

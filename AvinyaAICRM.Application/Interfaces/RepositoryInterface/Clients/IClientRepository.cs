@@ -7,11 +7,11 @@ namespace AvinyaAICRM.Application.Interfaces.Clients
 {
     public interface IClientRepository
     {
-        Task<IEnumerable<ClientDropDownDto>> GetAllAsync(string tenantId, bool getAll = false);
-        Task<ClientDto?> GetByIdAsync(Guid? ClientID, string tenantId);
+        Task<IEnumerable<ClientDropDownDto>> GetAllAsync(string tenantId, string? role, bool getAll = false);
+        Task<ClientDto?> GetByIdAsync(Guid? ClientID, string? tenantId, string? role);
         Task<Client> AddAsync(Client client);
-        Task<Client?> UpdateAsync(ClientRequestDto clientDto, string tenantId);
-        Task<bool> DeleteAsync(Guid id, string deletedBy, string tenantId);
+        Task<Client?> UpdateAsync(ClientRequestDto clientDto, string? tenantId, string? role);
+        Task<bool> DeleteAsync(Guid id, string deletedBy, string tenantId, string? role);
         Task<PagedResult<ClientDto>> GetFilteredAsync(
      string? search,
      bool? status,

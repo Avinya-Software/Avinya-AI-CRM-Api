@@ -19,11 +19,15 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ClientRepository
         {
             _context = context;
         }
-        public async Task<IEnumerable<ClientDropDownDto>> GetAllAsync(string tenantId, bool getAll = false)
+        public async Task<IEnumerable<ClientDropDownDto>> GetAllAsync(string tenantId, string? role, bool getAll = false)
         {
-            var query = _context.Clients
-                .Where(c => c.TenantId.ToString() == tenantId)
-                .AsQueryable();
+            var query = _context.Clients.AsQueryable();
+
+            if (role != "SuperAdmin")
+            {
+                query = query.Where(c => c.TenantId.ToString() == tenantId);
+
+            }
 
             if (!getAll)
             {
@@ -49,11 +53,17 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ClientRepository
                 .ToListAsync();
         }
 
-        public async Task<ClientDto?> GetByIdAsync(Guid? ClientID, string tenantId)
+        public async Task<ClientDto?> GetByIdAsync(Guid? ClientID, string? tenantId, string? role)
         {
+            var query = _context.Clients.Where(c => !c.IsDeleted && c.ClientID == ClientID);
+
+            if (role != "SuperAdmin")
+            {
+                query = query.Where(c => c.TenantId.ToString() == tenantId);
+            }
+
             return await (
-                from c in _context.Clients
-                where !c.IsDeleted && c.ClientID == ClientID && c.TenantId.ToString() == tenantId
+                from c in query
                 join u in _context.Users on c.CreatedBy equals u.Id into users
                 from user in users.DefaultIfEmpty()
                 join s in _context.States on c.StateID equals s.StateID into states
@@ -61,7 +71,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ClientRepository
                 join ct in _context.Cities on c.CityID equals ct.CityID into cities
                 from city in cities.DefaultIfEmpty()
 
-                select new ClientDto
+        select new ClientDto
                 {
                     ClientID = c.ClientID,
                     CompanyName = c.CompanyName,
@@ -102,10 +112,16 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ClientRepository
             return client;
         }
 
-        public async Task<Client?> UpdateAsync(ClientRequestDto clientDto, string tenantId)
+        public async Task<Client?> UpdateAsync(ClientRequestDto clientDto, string? tenantId, string? role)
         {
-            var existingClient = await _context.Clients
-                .FirstOrDefaultAsync(x => x.ClientID == clientDto.ClientID && !x.IsDeleted && x.TenantId.ToString() == tenantId);
+            var query = _context.Clients.Where(x => x.ClientID == clientDto.ClientID && !x.IsDeleted);
+
+            if (role != "SuperAdmin")
+            {
+                query = query.Where(x => x.TenantId.ToString() == tenantId);
+            }
+
+            var existingClient = await query.FirstOrDefaultAsync();
 
             if (existingClient == null)
                 return null;
@@ -168,11 +184,17 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ClientRepository
             return existingClient;
         }
 
-        public async Task<bool> DeleteAsync(Guid id, string deletedBy, string tenantId)
+        public async Task<bool> DeleteAsync(Guid id, string deletedBy, string tenantId, string? role)
         {
-            var existing = await _context.Clients
-                .FirstOrDefaultAsync(x => x.ClientID == id
-                           && x.TenantId.ToString() == tenantId);
+            var query = _context.Clients.Where(x => x.ClientID == id && !x.IsDeleted);
+
+            if (role != "SuperAdmin")
+            {
+                query = query.Where(x => x.TenantId.ToString() == tenantId);
+            }
+
+            var existing = await query.FirstOrDefaultAsync();
+
             if (existing == null)
                 return false;
 
