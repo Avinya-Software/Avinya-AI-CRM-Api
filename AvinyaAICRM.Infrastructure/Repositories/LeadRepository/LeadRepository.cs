@@ -786,7 +786,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                         CompanyName = client?.CompanyName ?? "",
                         BillingAddress = client?.BillingAddress ?? "",
                         GSTNo = client?.GSTNo ?? "",
-
+                        StateID = client?.StateID ?? 0,
+                        CityID = client?.CityID ?? 0,
                         Status = l.Status,
                         StatusName = statusName,
 
