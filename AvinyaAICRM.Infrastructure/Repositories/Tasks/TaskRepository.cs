@@ -3,6 +3,7 @@ using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Tasks;
 using AvinyaAICRM.Domain.Entities.Tasks;
 using AvinyaAICRM.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
 {
@@ -103,10 +104,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
 
 
         public async Task<List<TaskDto>> GetTasksAsync(
-     string userId,
-     DateTime? from,
-     DateTime? to,
-     string? scope)
+    string userId,
+    DateTime? from,
+    DateTime? to,
+    string? scope)
         {
             var userGuid = Guid.Parse(userId);
 
@@ -114,10 +115,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
                 .Include(x => x.TaskSeries)
                 .Where(x =>
                     x.TaskSeries.CreatedBy == userId
-                    ||
-                    x.AssignedTo == userId
-                    ||
-                    (
+                    || x.AssignedTo == userId
+                    || (
                         x.TaskSeries.TeamId != null &&
                         _context.TeamMembers.Any(tm =>
                             tm.TeamId == x.TaskSeries.TeamId &&
@@ -128,12 +127,17 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
 
             if (from.HasValue && to.HasValue)
             {
-                var fromDate = from.Value.Date;
-                var toDate = to.Value.Date.AddDays(1).AddTicks(-1);
+                var fromUtc = from.Value.Kind == DateTimeKind.Utc
+                    ? from.Value
+                    : DateTime.SpecifyKind(from.Value, DateTimeKind.Utc);
+
+                var toUtc = to.Value.Kind == DateTimeKind.Utc
+                    ? to.Value
+                    : DateTime.SpecifyKind(to.Value, DateTimeKind.Utc);
 
                 query = query.Where(x =>
-                    x.DueDateTime >= fromDate &&
-                    x.DueDateTime <= toDate);
+                    x.DueDateTime >= fromUtc &&
+                    x.DueDateTime <= toUtc);
             }
 
             if (!string.IsNullOrWhiteSpace(scope))
@@ -142,19 +146,34 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
                     x.TaskSeries.TaskScope.ToLower() == scope.ToLower());
             }
 
-            return await query
+            var data = await query
                 .OrderBy(x => x.DueDateTime)
                 .Select(x => new TaskDto
                 {
                     OccurrenceId = x.Id,
                     Title = x.TaskSeries.Title,
                     TeamId = x.TaskSeries.TeamId,
-                    DueDateTime = x.DueDateTime,
+                    DueDateTime = x.DueDateTime, // keep UTC
                     Status = x.Status,
                     IsRecurring = x.TaskSeries.IsRecurring,
                     AssignedTo = x.AssignedTo
                 })
                 .ToListAsync();
+
+            var istTimeZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
+
+            foreach (var item in data)
+            {
+                if (item.DueDateTime.HasValue)
+                {
+                    item.DueDateTime = TimeZoneInfo.ConvertTimeFromUtc(
+                        item.DueDateTime.Value,
+                        istTimeZone
+                    );
+                }
+            }
+
+            return data;
         }
 
         public async Task<bool> UpdateTaskAsync(long occurrenceId, UpdateTaskDto dto)

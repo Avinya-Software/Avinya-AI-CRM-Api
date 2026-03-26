@@ -8,7 +8,7 @@ namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.Leads
     public interface ILeadRepository
     {
         Task<IEnumerable<LeadDropdown>> GetAllAsync(string? tenantId, string? role);
-        Task<LeadDto?> GetByIdAsync(Guid id, string? tenantId, string? role);
+        Task<LeadDetailsDto?> GetByIdAsync(Guid id, string? tenantId, string? role);
         Task<Lead> AddAsync(LeadRequestDto dto, string userId);
         Task<Lead?> UpdateAsync(LeadRequestDto dto, string? tenantId, string? role);
         Task<ResponseModel> UpdateLeadStatusAsync(Lead lead);

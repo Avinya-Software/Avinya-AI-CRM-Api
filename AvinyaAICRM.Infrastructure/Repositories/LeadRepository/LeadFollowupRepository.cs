@@ -143,17 +143,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
             var lead = await _context.Leads.FirstOrDefaultAsync(l => l.LeadID == dto.LeadID);
             if (lead == null)
                 return (null, "Lead not found");
-
-            // Latest follow-up
-            var latestFollowup = await _context.LeadFollowups
-                .Where(f => f.LeadID == dto.LeadID)
-                .OrderByDescending(f => f.CreatedDate)
-                .FirstOrDefaultAsync();
-
-            // Block if pending/in-progress
-            if (latestFollowup != null && (latestFollowup.Status == 1 || latestFollowup.Status == 2))
-                return (null, "A follow-up is already pending or in progress for this lead.");
-
+                
             var newFollowup = new LeadFollowups
             {
                 FollowUpID = Guid.NewGuid(),

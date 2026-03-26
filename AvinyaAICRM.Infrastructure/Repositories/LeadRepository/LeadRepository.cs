@@ -1,4 +1,5 @@
 ﻿using AvinyaAICRM.Application.DTOs.Lead;
+using AvinyaAICRM.Application.DTOs.Reports;
 using AvinyaAICRM.Application.DTOs.User;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Leads;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface;
@@ -51,9 +52,11 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                 .ToListAsync();
         }
 
-        public async Task<LeadDto?> GetByIdAsync(Guid id, string? tenantId, string? role)
+        public async Task<LeadDetailsDto?> GetByIdAsync(Guid id, string? tenantId, string? role)
         {
-            var query = _context.Leads.Where(l => l.LeadID == id && !l.IsDeleted);
+            // ------------------ LEAD ------------------
+            var query = _context.Leads
+                .Where(l => l.LeadID == id && !l.IsDeleted);
 
             if (role != "SuperAdmin")
             {
@@ -65,49 +68,71 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
             if (lead == null)
                 return null;
 
+            // ------------------ MASTER DATA ------------------
             var clients = await _context.Clients.ToListAsync();
+
             var users = await _context.Users
                 .Select(u => new { u.Id, u.UserName })
                 .ToListAsync();
 
             var leadSources = await _context.leadSourceMasters.ToListAsync();
             var statuses = await _context.leadStatusMasters.ToListAsync();
+            var followupStatuses = await _context.LeadFollowupStatuses.ToListAsync();
 
+            // ------------------ TIME CONVERSION ------------------
             DateTime ConvertUtcToLocal(DateTime utcDate) =>
-                TimeZoneInfo.ConvertTimeFromUtc(utcDate, TimeZoneInfo.FindSystemTimeZoneById("India Standard Time"));
+                TimeZoneInfo.ConvertTimeFromUtc(
+                    utcDate,
+                    TimeZoneInfo.FindSystemTimeZoneById("India Standard Time"));
 
-            var latestFollowupDate = await GetLatestFollowupDateAsync(id);
-
+            // ------------------ CLIENT ------------------
             var client = clients.FirstOrDefault(c => c.ClientID == lead.ClientID);
 
             var createdByName = users.FirstOrDefault(u => u.Id == lead.CreatedBy)?.UserName;
             var assignedToName = users.FirstOrDefault(u => u.Id == lead.AssignedTo)?.UserName;
 
-            string? sourceName = null;
-            if (Guid.TryParse(lead.LeadSource, out var lsGuid))
-            {
-                sourceName = leadSources
-                    .FirstOrDefault(ls => ls.LeadSourceID == lsGuid)
-                    ?.SourceName;
-            }
-            else
-            {
-                sourceName = lead.LeadSource;
-            }
+            // ------------------ SOURCE ------------------
+            string? sourceName = Guid.TryParse(lead.LeadSource, out var lsGuid)
+                ? leadSources.FirstOrDefault(ls => ls.LeadSourceID == lsGuid)?.SourceName
+                : lead.LeadSource;
 
-            string? statusName = null;
-            if (Guid.TryParse(lead.Status, out var stGuid))
-            {
-                statusName = statuses
-                    .FirstOrDefault(s => s.LeadStatusID == stGuid)
-                    ?.StatusName;
-            }
-            else
-            {
-                statusName = lead.Status;
-            }
+            // ------------------ STATUS ------------------
+            string? statusName = Guid.TryParse(lead.Status, out var stGuid)
+                ? statuses.FirstOrDefault(s => s.LeadStatusID == stGuid)?.StatusName
+                : lead.Status;
 
-            return new LeadDto
+            // ================== FOLLOWUPS ==================
+            var followups = await (
+                from f in _context.LeadFollowups
+                join u in _context.Users on f.FollowUpBy equals u.Id into fu
+                from user in fu.DefaultIfEmpty()
+
+                join fs in _context.LeadFollowupStatuses
+                    on f.Status equals fs.LeadFollowupStatusID into fsj
+                from fs in fsj.DefaultIfEmpty()
+
+                where f.LeadID == id
+                orderby f.CreatedDate descending
+
+                select new LeadFollowupDetailsDto
+                {
+                    FollowUpID = f.FollowUpID,
+                    LeadID = f.LeadID,
+                    Notes = f.Notes,
+                    NextFollowupDate = f.NextFollowupDate,
+                    Status = f.Status,
+                    StatusName = fs != null ? fs.StatusName : null,
+                    FollowUpBy = f.FollowUpBy,
+                    FollowUpByName = user != null ? user.UserName : null,
+                    CreatedDate = f.CreatedDate,
+                    UpdatedDate = f.UpdatedDate
+                }
+            ).ToListAsync();
+
+            var latestFollowup = followups.FirstOrDefault();
+
+            // ================== FINAL RESPONSE ==================
+            return new LeadDetailsDto
             {
                 LeadID = lead.LeadID,
                 LeadNo = lead.LeadNo,
@@ -120,33 +145,42 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                 CityID = client?.CityID,
 
                 Date = lead.Date,
+                RequirementDetails = lead.RequirementDetails,
                 Notes = lead.Notes,
                 Links = lead.Links,
-                RequirementDetails = lead.RequirementDetails,
+
                 LeadSourceID = lead.LeadSource,
                 LeadSourceName = sourceName,
                 OtherSources = lead.OtherSources,
+
                 Status = lead.Status,
                 StatusName = statusName,
+
                 CreatedBy = lead.CreatedBy,
                 CreatedbyName = createdByName,
                 AssignedTo = lead.AssignedTo,
                 AssignToName = assignedToName,
+
                 CreatedDate = ConvertUtcToLocal(lead.CreatedDate),
 
                 ClientType = client?.ClientType ?? 0,
-                clientTypeName = client != null
-        ? Enum.GetName(typeof(ClientTypeEnum), client.ClientType)
-        : "",
+                ClientTypeName = client != null
+                    ? Enum.GetName(typeof(ClientTypeEnum), client.ClientType)
+                    : "",
 
                 CompanyName = client?.CompanyName ?? "",
                 GSTNo = client?.GSTNo ?? "",
                 BillingAddress = client?.BillingAddress ?? "",
 
-                NextFollowupDate = latestFollowupDate
-            };
+                Followups = followups,
+                FollowupCount = followups.Count,
 
+                LatestLeadFollowupId = latestFollowup?.FollowUpID,
+                LatestFollowupStatus = latestFollowup?.StatusName,
+                NextFollowupDate = latestFollowup?.NextFollowupDate
+            };
         }
+
         public async Task<DateTime?> GetLatestFollowupDateAsync(Guid leadId)
         {
             return await _context.LeadFollowups
@@ -575,13 +609,13 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
         }
 
         public async Task<PagedResult<LeadDto>> GetFilteredAsync(
-     string? search,
-     string? statusFilter,
-     DateTime? startDate,
-     DateTime? endDate,
-     int pageNumber,
-     int pageSize,
-     string userId)
+         string? search,
+         string? statusFilter,
+         DateTime? startDate,
+         DateTime? endDate,
+         int pageNumber,
+         int pageSize,
+         string userId)
         {
             try
             {
