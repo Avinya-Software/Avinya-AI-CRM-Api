@@ -38,13 +38,17 @@ namespace AvinyaAICRM.Application.Validators
                     else
                         baseDate = new DateTime(now.Year, now.Month, day);
                 }
-                else if (text.Contains("kal"))
+                else if (text.Contains("aaj") || text.Contains("today"))
+                {
+                    baseDate = now.Date;
+                }
+                else if (text.Contains("kal") || text.Contains("tomorrow"))
                 {
                     baseDate = now.Date.AddDays(1);
                 }
-                else if (text.Contains("aaj"))
+                else if (text.Contains("yesterday") || text.Contains("pichla") || text.Contains("kal ka"))
                 {
-                    baseDate = now.Date;
+                    baseDate = now.Date.AddDays(-1);
                 }
             }
 
@@ -68,7 +72,7 @@ namespace AvinyaAICRM.Application.Validators
                         hour += 12;
                 }
 
-                if (text.Contains("am") || text.Contains("subah"))
+                if (text.Contains("am") || text.Contains("subah") || text.Contains("morning"))
                 {
                     if (hour == 12)
                         hour = 0;
@@ -76,15 +80,20 @@ namespace AvinyaAICRM.Application.Validators
             }
             else
             {
-                if (text.Contains("aaj"))
+                if (text.Contains("aaj") || text.Contains("today"))
                 {
                     hour = 23;
                     minute = 59;
                 }
-                else if (text.Contains("kal"))
+                else if (text.Contains("kal") || text.Contains("tomorrow"))
                 {
                     hour = 23;
                     minute = 59;
+                }
+                else if (text.Contains("yesterday"))
+                {
+                    hour = now.Hour;
+                    minute = now.Minute;
                 }
                 else
                 {
