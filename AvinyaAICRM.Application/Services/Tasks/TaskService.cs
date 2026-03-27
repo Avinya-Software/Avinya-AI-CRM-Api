@@ -99,6 +99,10 @@ namespace AvinyaAICRM.Application.Services.Tasks
 
             var entities = VoiceEntityExtractor.Extract(text);
 
+            var status = VoiceStatusParser.ExtractStatus(text);
+
+
+
             string? assignToId = null;
             long? teamId = null;
 
@@ -122,7 +126,7 @@ namespace AvinyaAICRM.Application.Services.Tasks
                 Title = text,
                 Description = "Created via voice",
                 ListId = 0,
-
+                Status = status,
                 DueDateTime = dueDate,
                 ReminderAt = reminder,
                 AssignToId = assignToId,
