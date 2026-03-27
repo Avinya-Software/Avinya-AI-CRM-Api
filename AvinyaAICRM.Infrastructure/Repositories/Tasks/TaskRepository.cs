@@ -60,7 +60,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
                 {
                     TaskSeriesId = series.Id,
                     DueDateTime = dueDateUtc,
-                    Status = "Pending",
+                    Status = string.IsNullOrEmpty(dto.Status) ? "Pending" : dto.Status,
                     CreatedAt = DateTime.UtcNow,
                     AssignedTo = dto.AssignToId
                 };
