@@ -24,24 +24,40 @@ namespace AvinyaAICRM.Infrastructure.Repositories
 
             var prompt = $@"
                         You are a CRM assistant.
-                            Use this database schema:
+                        Analyze user intent and extract data.
 
-                            {AISchema.CRM}
+                        ACTONS:
+                        - ""get_summary"": User wants a report/summary (e.g., ""how many leads today"").
+                        - ""create_lead"": User wants to create a new lead (e.g., ""Create a lead for Manish"").
+
+                        FOR ""create_lead"" ACTION:
+                        - Extract ""CompanyName"": Treat any mentioned customer/client name as CompanyName (e.g., ""Manish"" in ""Create a lead for Manish"").
+                        - Extract ""Mobile"": Any phone numbers found.
+                        - Extract ""Email"": Any email addresses found.
+                        - Extract ""Notes"": Any extra context or requirements mentioned.
+                        - Extract ""ContactPerson"": Name of person if different from CompanyName.
 
                         Return ONLY valid JSON.
                         Do NOT use markdown.
                         Do NOT add ```json or ```.
-                        If user gives specific date → use FromDate and ToDate
-                        If user gives range → use both FromDate and ToDate
-                        If user says today/yesterday → use dateRange
 
                         Format:
-                        {{ ""action"": ""get_summary"", ""dateRange"": ""last_7_days"" }}
+                        {{ 
+                            ""action"": ""create_lead"", 
+                            ""parameters"": {{ 
+                                ""CompanyName"": ""Manish"", 
+                                ""Mobile"": ""1234567890"", 
+                                ""Email"": ""manish@test.com"",
+                                ""Notes"": ""Interested in CRM""
+                            }} 
+                        }}
 
                         User Input: {userMessage}
                         ";
 
             var result = await CallGeminiAsync(prompt, apiKey);
+            if (string.IsNullOrEmpty(result)) return new AIResponse { Action = "none" };
+
             var cleanJson = CleanJsonResponse(result);
 
             return JsonSerializer.Deserialize<AIResponse>(cleanJson, new JsonSerializerOptions

@@ -1,5 +1,5 @@
 using AvinyaAICRM.Application.DTOs.AICHATS;
-
+using AvinyaAICRM.Shared.AI;
 
 namespace AvinyaAICRM.Application.Interfaces.ServiceInterface.AICHAT
 {
@@ -7,5 +7,7 @@ namespace AvinyaAICRM.Application.Interfaces.ServiceInterface.AICHAT
     {
         Task<List<Dictionary<string, object>>> ExecuteRawSqlAsync(string sql, Guid tenantId, bool isSuperAdmin);
         Task<SummaryDto> GetSummaryAsync(string dateRange);
+        Task<AIResponse> ProcessCommandAsync(string message, Guid tenantId, string userId, bool isSuperAdmin);
+        Task<List<string>> GetUserAllowedModulesAsync(string userId);
     }
 }
