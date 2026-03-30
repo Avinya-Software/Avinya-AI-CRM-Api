@@ -84,7 +84,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
 
                     if (lead != null)
                     {
-                        lead.Status = quotationSentStatusId.ToString();
+                        lead.LeadStatusID = quotationSentStatusId;
 
                     }
                 }
@@ -123,7 +123,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
                                     .Select(x => x.LeadStatusID)
                                     .FirstOrDefaultAsync();
 
-                                lead.Status = lostStatusId.ToString();
+                                lead.LeadStatusID = lostStatusId;
                             }
                         }
                     }

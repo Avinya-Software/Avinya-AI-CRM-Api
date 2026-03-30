@@ -30,8 +30,7 @@ namespace AvinyaAICRM.Application.DTOs.Lead
         public string? LeadSource { get; set; }
         public string? OtherSources { get; set; }
 
-        [MaxLength(200)]
-        public string? Status { get; set; }
+        public Guid? LeadStatusID { get; set; }
         public string? CreatedBy { get; set; }
         public string? AssignedTo { get; set; }
         [JsonIgnore]

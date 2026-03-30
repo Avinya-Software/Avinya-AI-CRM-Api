@@ -446,7 +446,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
                                     .Where(x => x.StatusName == "Converted")
                                     .Select(x => x.LeadStatusID)
                                     .FirstOrDefaultAsync();
-                                lead.Status = convertedStatusId.ToString();
+                                lead.LeadStatusID = convertedStatusId;
                             }
                         }
                     }

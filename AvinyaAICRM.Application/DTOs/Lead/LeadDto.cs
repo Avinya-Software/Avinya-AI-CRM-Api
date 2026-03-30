@@ -18,7 +18,7 @@
         public string? LeadSourceName { get; set; }
         public string? OtherSources { get; set; }
 
-        public string? Status { get; set; }       
+        public Guid? LeadStatusID { get; set; }       
         public string? StatusName { get; set; }
 
         public DateTime? NextFollowupDate { get; set; }
