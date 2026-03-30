@@ -14,7 +14,7 @@
         public DateTime? Date { get; set; }
         public string? RequirementDetails { get; set; }
 
-        public string? LeadSourceID { get; set; }  
+        public Guid? LeadSourceID { get; set; }
         public string? LeadSourceName { get; set; }
         public string? OtherSources { get; set; }
 

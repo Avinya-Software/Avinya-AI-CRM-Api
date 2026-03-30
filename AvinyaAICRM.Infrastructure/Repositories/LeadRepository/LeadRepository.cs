@@ -83,19 +83,12 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
             var createdByName = users.FirstOrDefault(u => u.Id == lead.CreatedBy)?.UserName;
             var assignedToName = users.FirstOrDefault(u => u.Id == lead.AssignedTo)?.UserName;
 
-            string? sourceName = null;
-            if (Guid.TryParse(lead.LeadSource, out var lsGuid))
-            {
-                sourceName = leadSources
-                    .FirstOrDefault(ls => ls.LeadSourceID == lsGuid)
-                    ?.SourceName;
-            }
-            else
-            {
-                sourceName = lead.LeadSource;
-            }
+            // ✅ Direct Guid? == Guid? comparison
+            string? sourceName = leadSources
+                .FirstOrDefault(ls => ls.LeadSourceID == lead.LeadSourceID)
+                ?.SourceName;
 
-            
+
             string? statusName = statuses
                 .FirstOrDefault(s => s.LeadStatusID == lead.LeadStatusID)
                 ?.StatusName;
@@ -116,7 +109,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                 Notes = lead.Notes,
                 Links = lead.Links,
                 RequirementDetails = lead.RequirementDetails,
-                LeadSourceID = lead.LeadSource,
+                LeadSourceID = lead.LeadSourceID,
                 LeadSourceName = sourceName,
                 OtherSources = lead.OtherSources,
                 LeadStatusID = lead.LeadStatusID,
@@ -250,7 +243,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                     RequirementDetails = dto.RequirementDetails,
                     Notes = dto.Notes,
                     Links = dto.Links,
-                    LeadSource = dto.LeadSource,
+                    LeadSourceID = dto.LeadSourceID,
                     OtherSources = dto.OtherSources,
                     LeadStatusID = leadStatusId,
                     CreatedBy = userId,
@@ -340,10 +333,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                 if (!string.IsNullOrWhiteSpace(dto.Links) && dto.Links != "string")
                     existing.Links = dto.Links;
 
-                if (Guid.TryParse(dto.LeadSource, out _))
-                    existing.LeadSource = dto.LeadSource;
-
- 
+            
+                    existing.LeadSourceID = dto.LeadSourceID;
                     existing.LeadStatusID = dto.LeadStatusID;
 
 
@@ -717,10 +708,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                         .FirstOrDefault(s => s.LeadStatusID == l.LeadStatusID)
                         ?.StatusName;
 
-                    string? leadSourceName =
-                        Guid.TryParse(l.LeadSource, out var lsGuid)
-                        ? sources.FirstOrDefault(s => s.LeadSourceID == lsGuid)?.SourceName
-                        : l.LeadSource;
+                    // ✅ Direct Guid? == Guid? comparison
+                    string? leadSourceName = sources
+                        .FirstOrDefault(s => s.LeadSourceID == l.LeadSourceID)
+                        ?.SourceName;
 
                     var followupStatusName =
                         followupStatuses
@@ -743,7 +734,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                         LeadStatusID = l.LeadStatusID,
                         StatusName = statusName,
 
-                        LeadSourceID = l.LeadSource,
+                        LeadSourceID = l.LeadSourceID,
                         LeadSourceName = leadSourceName,
 
                         AssignedTo = l.AssignedTo,
@@ -980,11 +971,9 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                 var assignedToName = users.FirstOrDefault(u => u.Id == l.AssignedTo)?.UserName;
 
                 // Resolve lead source name
-                string? leadSourceName = null;
-                if (Guid.TryParse(l.LeadSource, out var lsGuid))
-                    leadSourceName = sources.FirstOrDefault(s => s.LeadSourceID == lsGuid)?.SourceName;
-                else
-                    leadSourceName = l.LeadSource;
+                string? leadSourceName = sources
+                    .FirstOrDefault(s => s.LeadSourceID == l.LeadSourceID)
+                    ?.SourceName;
 
                 // Resolve status name
 
@@ -1007,7 +996,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                     Date = l.Date,
                     RequirementDetails = l.RequirementDetails,
 
-                    LeadSourceID = l.LeadSource,
+                    LeadSourceID = l.LeadSourceID,
                     LeadSourceName = leadSourceName,
                     OtherSources = l.OtherSources,
 
