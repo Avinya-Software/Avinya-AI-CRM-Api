@@ -22,7 +22,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories
         {
             var apiKey = _config["Gemini:ApiKey"];
 
-            // 1. Local Keyword Picker + Permission Filtering (to build targeted schema)
+            // 1. Keyword Identification
             var lowerMessage = userMessage.ToLower();
             var finalTables = new HashSet<string>();
 
@@ -30,13 +30,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories
             {
                 { "lead", new[] { "Leads", "LeadFollowups", "LeadSourceMaster", "LeadStatusMaster", "Clients" } },
                 { "leads", new[] { "Leads", "LeadFollowups", "LeadSourceMaster", "LeadStatusMaster", "Clients" } },
-                { "enquiry", new[] { "Leads", "LeadFollowups" } },
-                { "enquiries", new[] { "Leads", "LeadFollowups" } },
-                { "inquiry", new[] { "Leads", "LeadFollowups" } },
-                { "inquiries", new[] { "Leads", "LeadFollowups" } },
                 { "followup", new[] { "Leads", "LeadFollowups" } },
                 { "follow up", new[] { "Leads", "LeadFollowups" } },
                 { "follow-up", new[] { "Leads", "LeadFollowups" } },
+                { "follow", new[] { "Leads", "LeadFollowups" } },
                 { "client", new[] { "Clients", "States", "Cities" } },
                 { "clients", new[] { "Clients", "States", "Cities" } },
                 { "customer", new[] { "Clients" } },
@@ -44,39 +41,24 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 { "order", new[] { "Orders", "OrderItems", "OrderStatusMaster", "Products", "Clients" } },
                 { "orders", new[] { "Orders", "OrderItems", "OrderStatusMaster", "Products", "Clients" } },
                 { "booking", new[] { "Orders", "OrderItems" } },
-                { "bookings", new[] { "Orders", "OrderItems" } },
                 { "quotation", new[] { "Quotations", "QuotationItems", "QuotationStatusMaster", "Leads", "Clients" } },
                 { "quotations", new[] { "Quotations", "QuotationItems", "QuotationStatusMaster", "Leads", "Clients" } },
                 { "quote", new[] { "Quotations", "QuotationItems", "QuotationStatusMaster", "Leads", "Clients" } },
-                { "quotes", new[] { "Quotations", "QuotationItems", "QuotationStatusMaster", "Leads", "Clients" } },
-                { "proposal", new[] { "Quotations", "QuotationItems" } },
-                { "proposals", new[] { "Quotations", "QuotationItems" } },
                 { "product", new[] { "Products", "TaxCategoryMaster", "UnitTypeMaster" } },
-                { "products", new[] { "Products", "TaxCategoryMaster", "UnitTypeMaster" } },
-                { "item", new[] { "Products" } },
-                { "items", new[] { "Products" } },
                 { "expense", new[] { "Expenses", "ExpenseCategories" } },
-                { "expenses", new[] { "Expenses", "ExpenseCategories" } },
+                { "expense category", new[] { "ExpenseCategories" } },
                 { "spend", new[] { "Expenses", "ExpenseCategories" } },
                 { "revenue", new[] { "Orders", "Quotations" } },
                 { "sales", new[] { "Orders", "Quotations" } },
                 { "project", new[] { "Projects", "ProjectStatusMaster", "ProjectPriorityMaster", "Clients" } },
-                { "projects", new[] { "Projects", "ProjectStatusMaster", "ProjectPriorityMaster", "Clients" } },
                 { "team", new[] { "Teams", "AspNetUsers" } },
-                { "teams", new[] { "Teams", "AspNetUsers" } },
                 { "user", new[] { "AspNetUsers" } },
-                { "users", new[] { "AspNetUsers" } },
-                { "staff", new[] { "AspNetUsers", "Teams" } },
-                { "employee", new[] { "AspNetUsers" } },
-                { "employees", new[] { "AspNetUsers" } },
                 { "task", new[] { "TaskSeries", "TaskOccurrences", "TaskLists" } },
-                { "tasks", new[] { "TaskSeries", "TaskOccurrences", "TaskLists" } },
                 { "todo", new[] { "TaskSeries", "TaskOccurrences" } },
-                { "tenant", new[] { "Tenants" } },
-                { "tenants", new[] { "Tenants" } },
-                { "company", new[] { "Tenants", "Clients" } },
-                { "companies", new[] { "Tenants", "Clients" } },
-                { "location", new[] { "Cities", "States", "Clients" } }
+                { "overall", new[] { "Leads", "Quotations", "Orders", "Expenses", "Projects", "TaskSeries", "TaskOccurrences", "LeadFollowups" } },
+                { "report", new[] { "Leads", "Quotations", "Orders", "Expenses", "Projects", "TaskSeries", "TaskOccurrences", "LeadFollowups" } },
+                { "summary", new[] { "Leads", "Quotations", "Orders", "Expenses", "Projects", "TaskSeries", "TaskOccurrences", "LeadFollowups" } },
+                { "activity", new[] { "Leads", "LeadFollowups", "TaskOccurrences", "Orders" } }
             };
 
             var baseTables = new HashSet<string> { 
@@ -89,82 +71,70 @@ namespace AvinyaAICRM.Infrastructure.Repositories
             var moduleTableMap = new Dictionary<string, string[]>
             {
                 { "lead", new[] { "Leads", "LeadFollowups" } },
-                { "followup", new[] { "LeadFollowups" } },
                 { "task", new[] { "TaskSeries", "TaskOccurrences", "TaskLists" } },
                 { "quotation", new[] { "Quotations", "QuotationItems" } },
                 { "order", new[] { "Orders", "OrderItems" } },
-                { "invoice", new[] { "Orders" } },
                 { "client", new[] { "Clients" } },
                 { "product", new[] { "Products" } },
                 { "project", new[] { "Projects" } },
                 { "expense", new[] { "Expenses", "ExpenseCategories" } },
                 { "team", new[] { "Teams" } },
-                { "user", new[] { "AspNetUsers" } },
-                { "settings", new[] { "Settings" } }
+                { "user", new[] { "AspNetUsers" } }
             };
 
-            var deniedModules = new HashSet<string>();
             foreach (var entry in mapping)
             {
                 if (lowerMessage.Contains(entry.Key))
                 {
-                    bool hasAtLeastOneFunctionalTable = false;
                     foreach (var table in entry.Value)
                     {
                         if (baseTables.Contains(table)) { finalTables.Add(table); continue; }
-                        if (isSuperAdmin) { finalTables.Add(table); hasAtLeastOneFunctionalTable = true; continue; }
+                        if (isSuperAdmin) { finalTables.Add(table); continue; }
 
                         var module = moduleTableMap.FirstOrDefault(x => x.Value.Contains(table)).Key;
-                        if (module != null && allowedModules.Contains(module))
-                        {
-                            finalTables.Add(table);
-                            hasAtLeastOneFunctionalTable = true;
-                        }
-                    }
-                    if (!isSuperAdmin && !hasAtLeastOneFunctionalTable && moduleTableMap.ContainsKey(entry.Key) && !allowedModules.Contains(entry.Key))
-                    {
-                        deniedModules.Add(entry.Key);
+                        if (module != null && allowedModules.Contains(module)) finalTables.Add(table);
                     }
                 }
             }
 
-            if (!isSuperAdmin && deniedModules.Any())
-            {
-                return new AIResponse { Action = "message", ErrorMessage = $"Access Denied: You do not have permission to view {string.Join(", ", deniedModules)}." };
-            }
-
             var targetedSchema = finalTables.Any() ? AISchema.GetTables(finalTables) : (isSuperAdmin ? AISchema.CRM : AISchema.GetTables(baseTables));
+            bool isReportMode = lowerMessage.Contains("report") || lowerMessage.Contains("summary") || lowerMessage.Contains("overall");
+            if (isReportMode) targetedSchema = AISchema.CRM;
 
             var securityRule = isSuperAdmin 
-                ? "1. You are a SUPER ADMIN. You have global access. Do NOT add TenantId filters unless the user asks for a specific tenant."
-                : "1. You are a per-tenant analyst.\n2. ONLY use 'WHERE TenantId = @TenantId' for tables that explicitly include 'TenantId'.\n3. Join with parent tables if needed to filter by TenantId.";
+                ? "1. SUPER ADMIN. Global access. Do NOT add TenantId filters unless specific." 
+                : "1. Per-tenant analyst.\n2. Use 'WHERE TenantId = @TenantId'.";
 
             var prompt = $@"
-                You are a CRM assistant. Analyze input and return ONLY valid JSON.
-                
-                ACTIONS:
-                - ""create_lead"": User wants to create a lead. Extract 'CompanyName', 'Mobile', 'Email', 'Notes'.
-                - ""get_summary"": User wants a report or info. Generate a T-SQL SELECT query.
-                - ""message"": General conversation or fallback.
+                You are a Business Analyst assistant for a CRM system. 
+                Your task is to analyze data and provide friendly, human-interactive insights.
 
-                SQL RULES (MANDATORY for ""get_summary""):
+                SQL RULES:
                 1. {securityRule}
-                2. SECURITY (CRITICAL): If you are NOT a super admin, you MUST include 'WHERE TenantId = @TenantId' in your query. If you join multiple tables, ensure at least one table is filtered by TenantId.
-                3. JOIN LOGIC (CRITICAL): Always join on ID/GUID columns (e.g., ClientID, LeadStatusID, LeadID). NEVER join on name columns.
-                4. READABLE DATA: In the SELECT clause, prefer human-readable columns (e.g., CompanyName, StatusName, FullName) over IDs.
-                5. USER LOOKUP: Join with 'dbo.AspNetUsers' on 'Id' to show 'FullName' for columns like 'CreatedBy' or 'AssignedTo'.
-                6. SCHEMAS: Always use the 'dbo.' prefix (e.g., 'dbo.Leads').
-                7. Schema Context:
-                {targetedSchema}
+                2. SECURITY: Include '@TenantId'. Ignore records with 'IsDeleted = 1'.
+                3. JOIN LOGIC: Join on ID/GUID columns, SELECT readable Names.
+                4. COLUMN NAMES: Clients table uses 'CompanyName'.
 
+                MODE: BUSINESS ANALYST MODE (for reports/summaries):
+                - Create a structured, conversational report in Markdown.
+                - Use placeholders like {{FieldName}} for database values. 
+                - Be encouraging! If conversion is up, say ""Great work!"". If revenue is low, say ""Let's focus on converting some quotes today."".
+                - Explain what the numbers mean for the business.
+
+                MODE: DATA LIST MODE (for specific record lists):
+                - Keep the message simple: ""Found {userMessage} records.""
+                
                 JSON FORMAT:
                 {{
                   ""action"": ""create_lead"" | ""get_summary"" | ""message"",
-                  ""parameters"": {{ ""CompanyName"": ""..."", ""Mobile"": ""..."", ... }},
-                  ""sql"": ""SELECT ..."",
-                  ""successMessage"": ""Found {{count}} records."",
+                  ""parameters"": {{ ... }},
+                  ""sql"": ""SELECT ... (if summary, return one row with all calculated fields)"",
+                  ""successMessage"": ""Conversational, interactive message with {{Field}} placeholders."",
                   ""errorMessage"": ""No records found.""
                 }}
+
+                Schema Context:
+                {targetedSchema}
 
                 User Input: {userMessage}";
 

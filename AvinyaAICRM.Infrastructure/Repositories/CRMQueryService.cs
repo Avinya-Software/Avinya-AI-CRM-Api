@@ -1,4 +1,3 @@
-using AvinyaAICRM.Application.DTOs.AICHATS;
 using AvinyaAICRM.Application.DTOs.Lead;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.AIChat;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.AICHAT;
@@ -6,6 +5,7 @@ using AvinyaAICRM.Application.Interfaces.ServiceInterface.Leads;
 using AvinyaAICRM.Infrastructure.Persistence;
 using AvinyaAICRM.Shared.AI;
 using Microsoft.EntityFrameworkCore;
+using Dapper;
 
 namespace AvinyaAICRM.Application.Services.AICHATS
 {
@@ -42,68 +42,18 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                 }
             }
 
-            var results = new List<Dictionary<string, object>>();
-
             using (var connection = _context.Database.GetDbConnection())
             {
-                await connection.OpenAsync();
-                using (var command = connection.CreateCommand())
-                {
-                    command.CommandText = sql;
-                    
-                    // Only add parameter if not SuperAdmin OR if the SQL actually used it
-                    if (!isSuperAdmin || sql.Contains("@TenantId", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var parameter = command.CreateParameter();
-                        parameter.ParameterName = "@TenantId";
-                        parameter.Value = tenantId;
-                        command.Parameters.Add(parameter);
-                    }
+                var queryParams = new { TenantId = tenantId };
+                
+                // Dapper handles the mapping to dynamic (DapperRow) automatically
+                var results = await connection.QueryAsync(sql, queryParams);
 
-                    using (var reader = await command.ExecuteReaderAsync())
-                    {
-                        while (await reader.ReadAsync())
-                        {
-                            var row = new Dictionary<string, object>();
-                            for (int i = 0; i < reader.FieldCount; i++)
-                            {
-                                row[reader.GetName(i)] = reader.IsDBNull(i) ? null : reader.GetValue(i);
-                            }
-                            results.Add(row);
-                        }
-                    }
-                }
+                // Convert DapperRow to Dictionary<string, object> for the UI
+                return results.Select(x => (Dictionary<string, object>)new Dictionary<string, object>((IDictionary<string, object>)x)).ToList();
             }
-            return results;
         }
 
-        public async Task<SummaryDto> GetSummaryAsync(string dateRange)
-        {
-            var query = _context.Leads.AsQueryable();
-
-            // Apply filter based on AI
-            if (dateRange == "last_7_days")
-            {
-                var date = DateTime.UtcNow.AddDays(-7);
-                query = query.Where(x => x.CreatedDate >= date);
-            }
-            else if (dateRange == "this_month")
-            {
-                var now = DateTime.UtcNow;
-                query = query.Where(x =>
-                    x.CreatedDate.Day >= 1 &&
-                    x.CreatedDate.Month == now.Month &&
-                    x.CreatedDate.Year == now.Year);
-            }
-
-            // Aggregate data
-            var result = new SummaryDto
-            {
-                TotalLeads = await query.CountAsync(),
-            };
-
-            return result;
-        }
         public async Task<AIResponse> ProcessCommandAsync(string message, Guid tenantId, string userId, bool isSuperAdmin, List<string> allowedModules)
         {
             // 1. Unified Analysis (Intent + Data + SQL if summary)

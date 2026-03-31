@@ -1,4 +1,3 @@
-using AvinyaAICRM.Application.DTOs.AICHATS;
 using AvinyaAICRM.Shared.AI;
 
 namespace AvinyaAICRM.Application.Interfaces.ServiceInterface.AICHAT
@@ -6,7 +5,6 @@ namespace AvinyaAICRM.Application.Interfaces.ServiceInterface.AICHAT
     public interface ICRMQueryService
     {
         Task<List<Dictionary<string, object>>> ExecuteRawSqlAsync(string sql, Guid tenantId, bool isSuperAdmin);
-        Task<SummaryDto> GetSummaryAsync(string dateRange);
         Task<AIResponse> ProcessCommandAsync(string message, Guid tenantId, string userId, bool isSuperAdmin, List<string> allowedModules);
         Task<List<string>> GetUserAllowedModulesAsync(string userId);
     }

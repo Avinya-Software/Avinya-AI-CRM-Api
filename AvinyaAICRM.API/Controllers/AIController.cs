@@ -45,7 +45,7 @@ namespace AvinyaAICRM.API.Controllers
                 // 2. Process Command (Intent + SQL Generation in ONE call)
                 var commandResult = await _crmService.ProcessCommandAsync(request.Message, tenantId, userId ?? "", isSuperAdmin, allowedModules);
 
-                // 3. Handle Actions
+                // 3. Handle Create Lead special flow
                 if (commandResult.Action == "create_lead")
                 {
                     return Ok(new
@@ -59,16 +59,36 @@ namespace AvinyaAICRM.API.Controllers
                     });
                 }
 
-                // 4. Handle Queries (get_summary)
-                if (commandResult.Action == "get_summary" && !string.IsNullOrEmpty(commandResult.Sql))
+                // 4. Handle any Query Execution (If SQL is present, execute it)
+                if (!string.IsNullOrEmpty(commandResult.Sql))
                 {
                     // Execute the query
                     var data = await _crmService.ExecuteRawSqlAsync(commandResult.Sql, tenantId, isSuperAdmin);
 
-                    // Hydrate the template
-                    var finalMessage = data.Count > 0 
-                        ? (commandResult.SuccessMessage?.Replace("{count}", data.Count.ToString()) ?? "Here is what I found:")
-                        : (commandResult.ErrorMessage ?? "No records found.");
+                    // Hydrate the template with data from the first row (for reports) or just {count}
+                    var finalMessage = commandResult.SuccessMessage ?? "Here is what I found:";
+                    
+                    if (data.Count > 0)
+                    {
+                        finalMessage = finalMessage.Replace("{count}", data.Count.ToString());
+
+                        // Support for complex reports: replace {FieldName} or {{FieldName}} with data from the first row
+                        var firstRow = data[0];
+                        foreach (var kvp in firstRow)
+                        {
+                            var valueStr = kvp.Value?.ToString() ?? "0";
+                            
+                            // Replace {{FieldName}}
+                            finalMessage = finalMessage.Replace("{{" + kvp.Key + "}}", valueStr);
+                            
+                            // Replace {FieldName} (single brace)
+                            finalMessage = finalMessage.Replace("{" + kvp.Key + "}", valueStr);
+                        }
+                    }
+                    else
+                    {
+                        finalMessage = commandResult.ErrorMessage ?? "No records found.";
+                    }
 
                     return Ok(new
                     {
