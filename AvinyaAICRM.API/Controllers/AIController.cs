@@ -42,9 +42,10 @@ namespace AvinyaAICRM.API.Controllers
                 // 1. Fetch User Permissions via service
                 var allowedModules = await _crmService.GetUserAllowedModulesAsync(userId ?? "");
 
-                // 2. Analyze Intent / Process Command
-                var commandResult = await _crmService.ProcessCommandAsync(request.Message, tenantId, userId ?? "", isSuperAdmin);
+                // 2. Process Command (Intent + SQL Generation in ONE call)
+                var commandResult = await _crmService.ProcessCommandAsync(request.Message, tenantId, userId ?? "", isSuperAdmin, allowedModules);
 
+                // 3. Handle Actions
                 if (commandResult.Action == "create_lead")
                 {
                     return Ok(new
@@ -58,34 +59,33 @@ namespace AvinyaAICRM.API.Controllers
                     });
                 }
 
-                // 3. Fallback to SQL Generation (Queries)
-                var aiResponse = await _aiService.GenerateSqlAsync(request.Message, tenantId, isSuperAdmin, allowedModules);
-
-                if (string.IsNullOrEmpty(aiResponse?.Sql))
+                // 4. Handle Queries (get_summary)
+                if (commandResult.Action == "get_summary" && !string.IsNullOrEmpty(commandResult.Sql))
                 {
+                    // Execute the query
+                    var data = await _crmService.ExecuteRawSqlAsync(commandResult.Sql, tenantId, isSuperAdmin);
+
+                    // Hydrate the template
+                    var finalMessage = data.Count > 0 
+                        ? (commandResult.SuccessMessage?.Replace("{count}", data.Count.ToString()) ?? "Here is what I found:")
+                        : (commandResult.ErrorMessage ?? "No records found.");
+
                     return Ok(new
                     {
-                        query = "",
-                        data = new List<object>(),
-                        count = 0,
-                        message = aiResponse?.ErrorMessage ?? "I couldn't understand the request or generate a valid query."
+                        query = commandResult.Sql, 
+                        data = data,
+                        count = data.Count,
+                        message = finalMessage
                     });
                 }
 
-                // 4. Execute the query
-                var data = await _crmService.ExecuteRawSqlAsync(aiResponse.Sql, tenantId, isSuperAdmin);
-
-                // 5. Hydrate the template
-                var finalMessage = data.Count > 0 
-                    ? aiResponse.SuccessMessage.Replace("{count}", data.Count.ToString())
-                    : aiResponse.ErrorMessage;
-
+                // 5. Default Response (Message or Fallback)
                 return Ok(new
                 {
-                    query = aiResponse.Sql, 
-                    data = data,
-                    count = data.Count,
-                    message = finalMessage
+                    query = "",
+                    data = new List<object>(),
+                    count = 0,
+                    message = commandResult.ClarificationMessage ?? commandResult.ErrorMessage ?? "I'm not sure how to help with that. Can you rephrase it?"
                 });
             }
             catch (UnauthorizedAccessException ex)

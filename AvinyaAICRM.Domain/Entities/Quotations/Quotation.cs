@@ -15,7 +15,7 @@ namespace AvinyaAICRM.Domain.Entities.Quotations
         public Guid? LeadID { get; set; }
         public DateTime QuotationDate { get; set; }
         public DateTime ValidTill { get; set; }
-        public Guid Status { get; set; }
+        public Guid QuotationStatusID { get; set; }
         public int FirmID { get; set; }
         public string? RejectedNotes { get; set; }
         public string? TermsAndConditions { get; set; }

@@ -8,9 +8,14 @@ namespace AvinyaAICRM.Shared.AI
 {
     public class AIResponse
     {
-        public string Action { get; set; }
+        public string Action { get; set; } = "message";
         public string DateRange { get; set; }
         
+        // SQL Reporting Fields
+        public string? Sql { get; set; }
+        public string? SuccessMessage { get; set; }
+        public string? ErrorMessage { get; set; }
+
         // Extracted lead/client data (CompanyName, Email, Mobile, Notes, etc.)
         public Dictionary<string, string>? Parameters { get; set; } = new();
 

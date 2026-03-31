@@ -32,7 +32,7 @@ namespace AvinyaAICRM.Domain.Entities.Orders
 
         public int FirmID { get; set; }
 
-        public int DesignStatus { get; set; }
+        public int DesignStatusID { get; set; }
 
         public string? CreatedBy { get; set; }
 

@@ -218,7 +218,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Projects
 
                     Location = p.Location,
                     Status = p.Status,
-                    Priority = p.Priority,
+                    Priority = p.PriorityID,
                     ProgressPercent = p.ProgressPercent,
 
                     ProjectManagerId = p.ProjectManagerId,

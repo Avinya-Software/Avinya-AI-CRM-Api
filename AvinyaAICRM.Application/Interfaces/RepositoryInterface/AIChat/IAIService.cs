@@ -9,7 +9,6 @@ namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.AIChat
 {
     public interface IAIService
     {
-        Task<AIResponse> GetIntentAsync(string userMessage);
-        Task<SQLAIResponse> GenerateSqlAsync(string userMessage, Guid tenantId, bool isSuperAdmin, List<string> allowedModules);
+        Task<AIResponse> AnalyzeMessageAsync(string userMessage, Guid tenantId, bool isSuperAdmin, List<string> allowedModules);
     }
 }

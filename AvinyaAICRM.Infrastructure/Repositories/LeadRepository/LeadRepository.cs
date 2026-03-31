@@ -858,7 +858,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                         Createddate = ConvertUtcToLocal(q.CreatedDate),
                         ClientName = client?.ContactPerson,
                         CompanyName = client?.CompanyName,
-                        Status = q.Status.ToString(),
+                        Status = q.QuotationStatusID.ToString(),
                         StatusName = status?.StatusName
                     });
                 }

@@ -18,92 +18,74 @@ namespace AvinyaAICRM.Infrastructure.Repositories
             _config = config;
         }
 
-        public async Task<AIResponse> GetIntentAsync(string userMessage)
+        public async Task<AIResponse> AnalyzeMessageAsync(string userMessage, Guid tenantId, bool isSuperAdmin, List<string> allowedModules)
         {
             var apiKey = _config["Gemini:ApiKey"];
 
-            var prompt = $@"
-                        You are a CRM assistant.
-                        Analyze user intent and extract data.
-
-                        ACTONS:
-                        - ""get_summary"": User wants a report/summary (e.g., ""how many leads today"").
-                        - ""create_lead"": User wants to create a new lead (e.g., ""Create a lead for Manish"").
-
-                        FOR ""create_lead"" ACTION:
-                        - Extract ""CompanyName"": Treat any mentioned customer/client name as CompanyName (e.g., ""Manish"" in ""Create a lead for Manish"").
-                        - Extract ""Mobile"": Any phone numbers found.
-                        - Extract ""Email"": Any email addresses found.
-                        - Extract ""Notes"": Any extra context or requirements mentioned.
-                        - Extract ""ContactPerson"": Name of person if different from CompanyName.
-
-                        Return ONLY valid JSON.
-                        Do NOT use markdown.
-                        Do NOT add ```json or ```.
-
-                        Format:
-                        {{ 
-                            ""action"": ""create_lead"", 
-                            ""parameters"": {{ 
-                                ""CompanyName"": ""Manish"", 
-                                ""Mobile"": ""1234567890"", 
-                                ""Email"": ""manish@test.com"",
-                                ""Notes"": ""Interested in CRM""
-                            }} 
-                        }}
-
-                        User Input: {userMessage}
-                        ";
-
-            var result = await CallGeminiAsync(prompt, apiKey);
-            if (string.IsNullOrEmpty(result)) return new AIResponse { Action = "none" };
-
-            var cleanJson = CleanJsonResponse(result);
-
-            return JsonSerializer.Deserialize<AIResponse>(cleanJson, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
-        }
-
-        public async Task<SQLAIResponse> GenerateSqlAsync(string userMessage, Guid tenantId, bool isSuperAdmin, List<string> allowedModules)
-        {
-            var apiKey = _config["Gemini:ApiKey"];
-
-            // 1. Local Keyword Picker + Permission Filtering
+            // 1. Local Keyword Picker + Permission Filtering (to build targeted schema)
             var lowerMessage = userMessage.ToLower();
-            var selectedTables = new HashSet<string>();
+            var finalTables = new HashSet<string>();
 
             var mapping = new Dictionary<string, string[]>
             {
                 { "lead", new[] { "Leads", "LeadFollowups", "LeadSourceMaster", "LeadStatusMaster", "Clients" } },
+                { "leads", new[] { "Leads", "LeadFollowups", "LeadSourceMaster", "LeadStatusMaster", "Clients" } },
+                { "enquiry", new[] { "Leads", "LeadFollowups" } },
+                { "enquiries", new[] { "Leads", "LeadFollowups" } },
+                { "inquiry", new[] { "Leads", "LeadFollowups" } },
+                { "inquiries", new[] { "Leads", "LeadFollowups" } },
                 { "followup", new[] { "Leads", "LeadFollowups" } },
                 { "follow up", new[] { "Leads", "LeadFollowups" } },
+                { "follow-up", new[] { "Leads", "LeadFollowups" } },
                 { "client", new[] { "Clients", "States", "Cities" } },
+                { "clients", new[] { "Clients", "States", "Cities" } },
                 { "customer", new[] { "Clients" } },
+                { "customers", new[] { "Clients" } },
                 { "order", new[] { "Orders", "OrderItems", "OrderStatusMaster", "Products", "Clients" } },
+                { "orders", new[] { "Orders", "OrderItems", "OrderStatusMaster", "Products", "Clients" } },
+                { "booking", new[] { "Orders", "OrderItems" } },
+                { "bookings", new[] { "Orders", "OrderItems" } },
+                { "quotation", new[] { "Quotations", "QuotationItems", "QuotationStatusMaster", "Leads", "Clients" } },
+                { "quotations", new[] { "Quotations", "QuotationItems", "QuotationStatusMaster", "Leads", "Clients" } },
                 { "quote", new[] { "Quotations", "QuotationItems", "QuotationStatusMaster", "Leads", "Clients" } },
-                { "product", new[] { "Products", "TaxCategoryMaster" } },
+                { "quotes", new[] { "Quotations", "QuotationItems", "QuotationStatusMaster", "Leads", "Clients" } },
+                { "proposal", new[] { "Quotations", "QuotationItems" } },
+                { "proposals", new[] { "Quotations", "QuotationItems" } },
+                { "product", new[] { "Products", "TaxCategoryMaster", "UnitTypeMaster" } },
+                { "products", new[] { "Products", "TaxCategoryMaster", "UnitTypeMaster" } },
+                { "item", new[] { "Products" } },
+                { "items", new[] { "Products" } },
                 { "expense", new[] { "Expenses", "ExpenseCategories" } },
+                { "expenses", new[] { "Expenses", "ExpenseCategories" } },
                 { "spend", new[] { "Expenses", "ExpenseCategories" } },
                 { "revenue", new[] { "Orders", "Quotations" } },
                 { "sales", new[] { "Orders", "Quotations" } },
                 { "project", new[] { "Projects", "ProjectStatusMaster", "ProjectPriorityMaster", "Clients" } },
+                { "projects", new[] { "Projects", "ProjectStatusMaster", "ProjectPriorityMaster", "Clients" } },
                 { "team", new[] { "Teams", "AspNetUsers" } },
+                { "teams", new[] { "Teams", "AspNetUsers" } },
                 { "user", new[] { "AspNetUsers" } },
+                { "users", new[] { "AspNetUsers" } },
                 { "staff", new[] { "AspNetUsers", "Teams" } },
+                { "employee", new[] { "AspNetUsers" } },
+                { "employees", new[] { "AspNetUsers" } },
+                { "task", new[] { "TaskSeries", "TaskOccurrences", "TaskLists" } },
+                { "tasks", new[] { "TaskSeries", "TaskOccurrences", "TaskLists" } },
+                { "todo", new[] { "TaskSeries", "TaskOccurrences" } },
+                { "tenant", new[] { "Tenants" } },
+                { "tenants", new[] { "Tenants" } },
+                { "company", new[] { "Tenants", "Clients" } },
+                { "companies", new[] { "Tenants", "Clients" } },
                 { "location", new[] { "Cities", "States", "Clients" } }
             };
-            // 1. Define Base/Master Tables (Always allowed for context)
+
             var baseTables = new HashSet<string> { 
                 "LeadSourceMaster", "LeadStatusMaster", "LeadFollowupStatus", 
                 "OrderStatusMaster", "DesignStatusMaster", "QuotationStatusMaster", 
                 "ProjectStatusMaster", "ProjectPriorityMaster", 
                 "TaxCategoryMaster", "States", "Cities", "AspNetUsers" 
             };
-            var finalTables = new HashSet<string>();
 
-            // Module-to-Table mapping for permission boundary (match user's database ModuleKey)
             var moduleTableMap = new Dictionary<string, string[]>
             {
                 { "lead", new[] { "Leads", "LeadFollowups" } },
@@ -121,7 +103,6 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 { "settings", new[] { "Settings" } }
             };
 
-            // 2. keyword-based selection with STRICT PERMISSION CHECK
             var deniedModules = new HashSet<string>();
             foreach (var entry in mapping)
             {
@@ -130,181 +111,96 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                     bool hasAtLeastOneFunctionalTable = false;
                     foreach (var table in entry.Value)
                     {
-                        // 1. Always allow base tables
-                        if (baseTables.Contains(table))
-                        {
-                            finalTables.Add(table);
-                            continue;
-                        }
+                        if (baseTables.Contains(table)) { finalTables.Add(table); continue; }
+                        if (isSuperAdmin) { finalTables.Add(table); hasAtLeastOneFunctionalTable = true; continue; }
 
-                        // 2. Check permissions for functional tables
-                        if (isSuperAdmin)
+                        var module = moduleTableMap.FirstOrDefault(x => x.Value.Contains(table)).Key;
+                        if (module != null && allowedModules.Contains(module))
                         {
                             finalTables.Add(table);
                             hasAtLeastOneFunctionalTable = true;
-                            continue;
-                        }
-
-                        var module = moduleTableMap.FirstOrDefault(x => x.Value.Contains(table)).Key;
-                        if (module != null)
-                        {
-                            if (allowedModules.Contains(module))
-                            {
-                                finalTables.Add(table);
-                                hasAtLeastOneFunctionalTable = true;
-                            }
                         }
                     }
-
-                    // 3. Security Check: Only trigger denial for non-admins
-                    if (!isSuperAdmin && !hasAtLeastOneFunctionalTable && moduleTableMap.ContainsKey(entry.Key))
+                    if (!isSuperAdmin && !hasAtLeastOneFunctionalTable && moduleTableMap.ContainsKey(entry.Key) && !allowedModules.Contains(entry.Key))
                     {
-                        if (!allowedModules.Contains(entry.Key))
-                        {
-                            deniedModules.Add(entry.Key);
-                        }
+                        deniedModules.Add(entry.Key);
                     }
                 }
             }
 
-            // 3. Security Boundary: If no tables matched or common user, never provide the FULL schema.
-            // SuperAdmins get the full schema if they didn't specify keywords. Regular users get the BASE schema.
-            var targetedSchema = "";
-            if (finalTables.Any())
-            {
-                targetedSchema = AISchema.GetTables(finalTables);
-            }
-            else
-            {
-                targetedSchema = isSuperAdmin ? AISchema.CRM : AISchema.GetTables(baseTables);
-            }
-
-            // 4. Permission Feedback for AI (Direct denial if user restricted)
             if (!isSuperAdmin && deniedModules.Any())
             {
-                return new SQLAIResponse 
-                { 
-                    Sql = "", 
-                    SuccessMessage = "", 
-                    ErrorMessage = $"Access Denied: You do not have permission to view {string.Join(", ", deniedModules)}." 
-                };
+                return new AIResponse { Action = "message", ErrorMessage = $"Access Denied: You do not have permission to view {string.Join(", ", deniedModules)}." };
             }
 
-            // 2. Generate SQL + Templates (Refined Prompt for SuperAdmin/Permissions)
+            var targetedSchema = finalTables.Any() ? AISchema.GetTables(finalTables) : (isSuperAdmin ? AISchema.CRM : AISchema.GetTables(baseTables));
+
             var securityRule = isSuperAdmin 
                 ? "1. You are a SUPER ADMIN. You have global access. Do NOT add TenantId filters unless the user asks for a specific tenant."
-                : $@"1. You are a per-tenant analyst.
-                        2. ONLY use 'WHERE TenantId = @TenantId' for tables that explicitly include 'TenantId' in the schema below.
-                        3. If a table doesn't have 'TenantId', ensure it is filtered via a JOIN to its parent table that DOES have 'TenantId'.";
+                : "1. You are a per-tenant analyst.\n2. ONLY use 'WHERE TenantId = @TenantId' for tables that explicitly include 'TenantId'.\n3. Join with parent tables if needed to filter by TenantId.";
 
-            var sqlPrompt = $@"
-                        You are a SQL expert for a CRM system. 
-                        Task: Generate a T-SQL SELECT query AND natural language templates in JSON format.
-                        
-                        CRITICAL SECURITY RULES:
-                        {securityRule}
-                        
-                        GENERAL RULES:
-                        1. SELECT only. Never UPDATE, DELETE, DROP, INSERT, or ALTER.
-                        2. PREFER READABLE DATA: Always JOIN with master tables (Clients, LeadStatusMaster, etc.) to return names instead of raw GUIDs. Join with 'AspNetUsers' on 'Id' to show 'FullName' for ALL user-related columns like 'AssignedTo', 'CreatedBy', 'FollowUpBy', 'ManagerId', 'AssignedDesignTo', 'ProjectManagerId', and 'AssignedToUserId'. All of these columns store the user's Id.
-                        3. DATE FILTERING (CRITICAL): To filter by today/yesterday/recent, use the 'CreatedDate' or 'CreatedAt' column. These columns ARE available in the schema below for most tables.
-                        4. SCHEMAS: Use the table names exactly as provided in the schema below.
-                        5. FILTERING (CRITICAL): When filtering by a specific status, source, or category (e.g., 'today's leads', 'New leads', 'Client ABC'), NEVER compare string names directly against ID/GUID columns (like 'Status', 'LeadSource', 'ClientID'). You MUST JOIN with the correct master table and filter by the name column (e.g., StatusName = 'New' or CompanyName = 'ABC').
-                        6. Schema: {targetedSchema}
-                        7. TYPE CASTING (CRITICAL): In the 'Leads' table, 'Status' and 'LeadSource' are [nvarchar] strings. To join them with master tables (like LeadStatusMaster), you MUST use TRY_CAST. Example: 'ON TRY_CAST(L.Status AS uniqueidentifier) = LSMT.LeadStatusID'.
-                        
-                        RESPONSE FORMAT (JSON ONLY):
-                        {{
-                          ""sql"": ""The T-SQL query string"",
-                          ""successMessage"": ""A friendly message summary. Use {{count}} as a placeholder for the number of records found."",
-                          ""errorMessage"": ""A friendly message for when NO data is found.""
-                        }}
-                        
-                        User Request: {userMessage}
-                        ";
+            var prompt = $@"
+                You are a CRM assistant. Analyze input and return ONLY valid JSON.
+                
+                ACTIONS:
+                - ""create_lead"": User wants to create a lead. Extract 'CompanyName', 'Mobile', 'Email', 'Notes'.
+                - ""get_summary"": User wants a report or info. Generate a T-SQL SELECT query.
+                - ""message"": General conversation or fallback.
 
-            var rawResult = await CallGeminiAsync(sqlPrompt, apiKey);
-            if (string.IsNullOrEmpty(rawResult)) return new SQLAIResponse { ErrorMessage = "Communication error with AI service." };
-            
-            // Clean AI JSON (remove ```json wrappers if present)
-            var cleanedJson = rawResult.Replace("```json", "").Replace("```", "").Trim();
-            
+                SQL RULES (MANDATORY for ""get_summary""):
+                1. {securityRule}
+                2. SECURITY (CRITICAL): If you are NOT a super admin, you MUST include 'WHERE TenantId = @TenantId' in your query. If you join multiple tables, ensure at least one table is filtered by TenantId.
+                3. JOIN LOGIC (CRITICAL): Always join on ID/GUID columns (e.g., ClientID, LeadStatusID, LeadID). NEVER join on name columns.
+                4. READABLE DATA: In the SELECT clause, prefer human-readable columns (e.g., CompanyName, StatusName, FullName) over IDs.
+                5. USER LOOKUP: Join with 'dbo.AspNetUsers' on 'Id' to show 'FullName' for columns like 'CreatedBy' or 'AssignedTo'.
+                6. SCHEMAS: Always use the 'dbo.' prefix (e.g., 'dbo.Leads').
+                7. Schema Context:
+                {targetedSchema}
+
+                JSON FORMAT:
+                {{
+                  ""action"": ""create_lead"" | ""get_summary"" | ""message"",
+                  ""parameters"": {{ ""CompanyName"": ""..."", ""Mobile"": ""..."", ... }},
+                  ""sql"": ""SELECT ..."",
+                  ""successMessage"": ""Found {{count}} records."",
+                  ""errorMessage"": ""No records found.""
+                }}
+
+                User Input: {userMessage}";
+
+            var result = await CallGeminiAsync(prompt, apiKey);
+            if (string.IsNullOrEmpty(result)) return new AIResponse { Action = "message", ErrorMessage = "AI service error." };
+
             try 
             {
-                return JsonSerializer.Deserialize<SQLAIResponse>(cleanedJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                var clean = CleanJsonResponse(result);
+                return JsonSerializer.Deserialize<AIResponse>(clean, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new AIResponse();
             }
             catch 
             {
-                // Fallback for malformed JSON
-                return new SQLAIResponse { 
-                    Sql = cleanedJson.Contains("SELECT") ? cleanedJson : "", 
-                    SuccessMessage = "Here is what I found:", 
-                    ErrorMessage = "I couldn't find any records." 
-                };
+                return new AIResponse { Action = "message", ErrorMessage = "Error parsing AI response." };
             }
         }
 
         private async Task<string> CallGeminiAsync(string prompt, string apiKey)
         {
-            var requestBody = new
-            {
-                contents = new[]
-                {
-                    new
-                    {
-                        parts = new[]
-                        {
-                            new { text = prompt }
-                        }
-                    }
-                }
-            };
-
+            var requestBody = new { contents = new[] { new { parts = new[] { new { text = prompt } } } } };
             var response = await _httpClient.PostAsync(
                 $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}",
                 new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json")
             );
-
             var result = await response.Content.ReadAsStringAsync();
-
             using var doc = JsonDocument.Parse(result);
-            
-            // Safety check for candidates (using TryGetProperty for dictionary safety)
-            if (!doc.RootElement.TryGetProperty("candidates", out var candidates) || candidates.GetArrayLength() == 0) 
-            {
-                return "";
-            }
-
-            var firstCandidate = candidates[0];
-            if (!firstCandidate.TryGetProperty("content", out var content) || 
-                !content.TryGetProperty("parts", out var parts) || 
-                parts.GetArrayLength() == 0) 
-            {
-                return "";
-            }
-
-            if (!parts[0].TryGetProperty("text", out var text))
-            {
-                return "";
-            }
-
-            return text.GetString() ?? "";
+            if (!doc.RootElement.TryGetProperty("candidates", out var candidates) || candidates.GetArrayLength() == 0) return "";
+            return candidates[0].GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString() ?? "";
         }
 
         private string CleanJsonResponse(string text)
         {
-            text = text.Replace("```json", "")
-                       .Replace("```", "")
-                       .Trim();
-
+            text = text.Replace("```json", "").Replace("```", "").Trim();
             var start = text.IndexOf("{");
             var end = text.LastIndexOf("}") + 1;
-
-            if (start == -1 || end == -1)
-            {
-                throw new Exception("Invalid AI response format: " + text);
-            }
-
+            if (start == -1 || end == -1) return "{}";
             return text.Substring(start, end - start);
         }
     }

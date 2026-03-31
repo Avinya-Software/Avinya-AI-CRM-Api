@@ -104,10 +104,10 @@ namespace AvinyaAICRM.Application.Services.AICHATS
 
             return result;
         }
-        public async Task<AIResponse> ProcessCommandAsync(string message, Guid tenantId, string userId, bool isSuperAdmin)
+        public async Task<AIResponse> ProcessCommandAsync(string message, Guid tenantId, string userId, bool isSuperAdmin, List<string> allowedModules)
         {
-            // 1. Analyze Intent and Extract Data
-            var aiResponse = await _aiService.GetIntentAsync(message);
+            // 1. Unified Analysis (Intent + Data + SQL if summary)
+            var aiResponse = await _aiService.AnalyzeMessageAsync(message, tenantId, isSuperAdmin, allowedModules);
 
             if (aiResponse.Action == "create_lead")
             {

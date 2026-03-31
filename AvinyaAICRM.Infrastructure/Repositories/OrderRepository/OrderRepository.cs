@@ -38,7 +38,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
                 from q in qj.DefaultIfEmpty()
                 join os in _context.OrderStatusMasters.AsNoTracking() on o.Status equals os.StatusID into osj
                 from os in osj.DefaultIfEmpty()
-                join ds in _context.DesignStatusMasters.AsNoTracking() on o.DesignStatus equals ds.DesignStatusID into dsj
+                join ds in _context.DesignStatusMasters.AsNoTracking() on o.DesignStatusID equals ds.DesignStatusID into dsj
                 from ds in dsj.DefaultIfEmpty()
                 join u in _context.Users.AsNoTracking() on o.CreatedBy equals u.Id into uj
                 from created in uj.DefaultIfEmpty()
@@ -77,7 +77,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
                     ExpectedDeliveryDate = o.ExpectedDeliveryDate,
                     Status = o.Status,
                     StatusName = os.StatusName,
-                    DesignStatus = o.DesignStatus,
+                    DesignStatus = o.DesignStatusID,
                     DesignStatusName = ds.DesignStatusName,
                     CreatedBy = created != null ? created.Id : o.CreatedBy.ToString(),
                     CreatedByName = created != null ? created.UserName : null,
@@ -252,10 +252,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
                             .Select(s => s.StatusName)
                             .FirstOrDefault(),
 
-                        DesignStatus = o.DesignStatus,
+                        DesignStatus = o.DesignStatusID,
 
                         DesignStatusName = _context.DesignStatusMasters
-                            .Where(ds => ds.DesignStatusID == o.DesignStatus)
+                            .Where(ds => ds.DesignStatusID == o.DesignStatusID)
                             .Select(ds => ds.DesignStatusName)
                             .FirstOrDefault(),
 
@@ -413,7 +413,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
                         ExpectedDeliveryDate = dto.ExpectedDeliveryDate,
                         Status = dto.Status ?? 0,
                         FirmID = dto.FirmID,
-                        DesignStatus = dto.DesignStatus ?? 0,
+                        DesignStatusID = dto.DesignStatus ?? 0,
                         CreatedBy = userId,
 
                         EnableTax = dto.EnableTax.GetValueOrDefault(),
@@ -489,7 +489,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
                         order.Status = dto.Status.Value;
 
                     if (dto.DesignStatus.HasValue)
-                        order.DesignStatus = dto.DesignStatus.Value;
+                        order.DesignStatusID = dto.DesignStatus.Value;
 
                     // TAX ENABLE always exists in DTO
                     if (dto.EnableTax.HasValue)

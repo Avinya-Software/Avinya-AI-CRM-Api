@@ -11,7 +11,7 @@ namespace AvinyaAICRM.Application.DTOs.Product
         public bool IsDesignByUs { get; set; }
 
         public string? UnitTypeName { get; set; }
-        public string? UnitTypeId { get; set; }
+        public Guid? UnitTypeId { get; set; }
 
         public Guid? TaxCategoryID { get; set; }
         public string? TaxCategoryName { get; set; }

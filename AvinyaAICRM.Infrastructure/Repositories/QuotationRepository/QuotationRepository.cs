@@ -63,7 +63,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
                         FirmID= dto.FirmID,
                         QuotationDate = dto.QuotationDate,
                         ValidTill = dto.ValidTill ?? dto.QuotationDate.AddDays(15),
-                         Status = dto.Status != null && dto.Status != Guid.Empty
+                        QuotationStatusID = dto.Status != null && dto.Status != Guid.Empty
                          ? dto.Status.Value
                          : sentStatusId,
                         TermsAndConditions = dto.TermsAndConditions,
@@ -103,7 +103,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
                     if (dto.Status != null && dto.Status != Guid.Empty)
                     {
                         if (dto.Status != null && dto.Status != Guid.Empty)
-                            quotation.Status = dto.Status.Value;
+                            quotation.QuotationStatusID = dto.Status.Value;
 
                         // If rejected, mark lead as Lost
                         var statusName = await _context.QuotationStatusMaster
@@ -131,7 +131,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
                     quotation.FirmID = dto.FirmID;
 
                     if (dto.Status != null && dto.Status != Guid.Empty)
-                        quotation.Status = dto.Status.Value;
+                        quotation.QuotationStatusID = dto.Status.Value;
 
                     if (!string.IsNullOrWhiteSpace(dto.TermsAndConditions))
                         quotation.TermsAndConditions = dto.TermsAndConditions;
@@ -233,7 +233,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
                                from c in cTbl.DefaultIfEmpty()
                                join l in _context.Leads on qt.LeadID equals l.LeadID into lTbl
                                from l in lTbl.DefaultIfEmpty()
-                               join s in _context.QuotationStatusMaster on qt.Status equals s.QuotationStatusID into sTbl
+                               join s in _context.QuotationStatusMaster on qt.QuotationStatusID equals s.QuotationStatusID into sTbl
                                from s in sTbl.DefaultIfEmpty()
                                join u in _context.Users on qt.CreatedBy equals u.Id into uTbl
                                from u in uTbl.DefaultIfEmpty()
@@ -251,7 +251,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
                                    LeadNo = l.LeadNo,
                                    QuotationDate = qt.QuotationDate,
                                    ValidTill = qt.ValidTill,
-                                   Status = qt.Status,
+                                   Status = qt.QuotationStatusID,
                                    EnableTax = qt.EnableTax,
                                    StatusName = s.StatusName,
                                    TermsAndConditions = qt.TermsAndConditions,
@@ -357,7 +357,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
 
                                     let status = _context.QuotationStatusMaster
                                         .AsNoTracking()
-                                        .FirstOrDefault(s => s.QuotationStatusID == q.Status)
+                                        .FirstOrDefault(s => s.QuotationStatusID == q.QuotationStatusID)
 
                                     let createdByUser = _context.Users
                                         .AsNoTracking()
@@ -380,7 +380,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
                                         LeadNo = lead.LeadNo,
 
                                         EnableTax = q.EnableTax,
-                                        Status = q.Status,
+                                        Status = q.QuotationStatusID,
                                         StatusName = status.StatusName,
 
                                         QuotationDate = q.QuotationDate,
@@ -419,7 +419,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
                                                 UnitName = (
                                                     from p in _context.Products
                                                     join u in _context.UnitTypeMasters
-                                                        on p.UnitType equals u.UnitTypeID.ToString()
+                                                        on p.UnitTypeID equals u.UnitTypeID
                                                     where p.ProductID == i.ProductID
                                                     select u.UnitName
                                                 ).FirstOrDefault(),
@@ -496,7 +496,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
 
                 if (isGuid)
                 {
-                    query = query.Where(q => q.Status == statusId);
+                    query = query.Where(q => q.QuotationStatusID == statusId);
                 }
                 else
                 {
@@ -504,7 +504,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
 
                     query = query.Where(q =>
                         _context.QuotationStatusMaster
-                            .Where(s => s.QuotationStatusID == q.Status)
+                            .Where(s => s.QuotationStatusID == q.QuotationStatusID)
                             .Select(s => s.StatusName.ToLower())
                             .FirstOrDefault()
                             .Contains(lower));
@@ -540,7 +540,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
             var productUnitQuery =
                 from p in _context.Products
                 join u in _context.UnitTypeMasters
-                    on p.UnitType equals u.UnitTypeID.ToString() into pu
+                    on p.UnitTypeID equals u.UnitTypeID into pu
                 from u in pu.DefaultIfEmpty()
                 select new
                 {
@@ -569,7 +569,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
                         .FirstOrDefault(),
 
                     StatusName = _context.QuotationStatusMaster
-                        .Where(s => s.QuotationStatusID == q.Status)
+                        .Where(s => s.QuotationStatusID == q.QuotationStatusID)
                         .Select(s => s.StatusName)
                         .FirstOrDefault(),
 
@@ -632,7 +632,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
                 ValidTill = x.Quotation.ValidTill,
                 EnableTax = x.Quotation.EnableTax,
 
-                Status = x.Quotation.Status,
+                Status = x.Quotation.QuotationStatusID,
                 StatusName = x.StatusName,
 
                 TermsAndConditions = x.Quotation.TermsAndConditions,

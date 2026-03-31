@@ -52,7 +52,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Dashboard
                 .CountAsync(x =>
                     !x.IsDeleted &&
                     _context.QuotationStatusMaster
-                        .Where(s => s.QuotationStatusID == x.Status)
+                        .Where(s => s.QuotationStatusID == x.QuotationStatusID)
                         .Select(s => s.StatusName)
                         .FirstOrDefault() == "Pending");
 
