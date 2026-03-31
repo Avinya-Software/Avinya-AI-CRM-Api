@@ -1,7 +1,10 @@
 using AvinyaAICRM.Application.DTOs.Lead;
+using AvinyaAICRM.Application.DTOs.Tasks;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.AIChat;
+using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Team;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.AICHAT;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Leads;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.Tasks;
 using AvinyaAICRM.Infrastructure.Persistence;
 using AvinyaAICRM.Shared.AI;
 using Microsoft.EntityFrameworkCore;
@@ -14,12 +17,21 @@ namespace AvinyaAICRM.Application.Services.AICHATS
         private readonly AppDbContext _context;
         private readonly IAIService _aiService;
         private readonly ILeadService _leadService;
+        private readonly ITaskService _taskService;
+        private readonly ITeamRepository _teamRepo;
 
-        public CRMQueryService(AppDbContext context, IAIService aiService, ILeadService leadService)
+        public CRMQueryService(
+            AppDbContext context, 
+            IAIService aiService, 
+            ILeadService leadService, 
+            ITaskService taskService,
+            ITeamRepository teamRepo)
         {
             _context = context;
             _aiService = aiService;
             _leadService = leadService;
+            _taskService = taskService;
+            _teamRepo = teamRepo;
         }
 
         public async Task<List<Dictionary<string, object>>> ExecuteRawSqlAsync(string sql, Guid tenantId, bool isSuperAdmin)
@@ -63,6 +75,87 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             {
                 return await HandleCreateLeadAsync(aiResponse, tenantId, userId, isSuperAdmin);
             }
+            
+            if (aiResponse.Action == "create_task")
+            {
+                return await HandleCreateTaskAsync(aiResponse, tenantId, userId, isSuperAdmin);
+            }
+
+            return aiResponse;
+        }
+
+        private async Task<AIResponse> HandleCreateTaskAsync(AIResponse aiResponse, Guid tenantId, string userId, bool isSuperAdmin)
+        {
+            if (aiResponse.IsClarificationRequired) return aiResponse;
+
+            var p = aiResponse.Parameters ?? new Dictionary<string, string>();
+            p.TryGetValue("TaskScope", out var scope);
+            p.TryGetValue("TeamName", out var teamName);
+
+            long? teamId = null;
+            if (scope?.ToLower() == "team")
+            {
+                teamId = await _teamRepo.ResolveTeamId(userId, teamName);
+                if (teamId == null && !string.IsNullOrEmpty(teamName))
+                {
+                    aiResponse.IsClarificationRequired = true;
+                    aiResponse.ClarificationMessage = $"I couldn't find a team named '{teamName}'. Please check the team name or choose one from your managed teams.";
+                    return aiResponse;
+                }
+                else if (teamId == null && string.IsNullOrEmpty(teamName))
+                {
+                    aiResponse.IsClarificationRequired = true;
+                    aiResponse.ClarificationMessage = "This is a team task, but you didn't specify which team. Which team should I assign this to?";
+                    return aiResponse;
+                }
+            }
+
+            // Resolve Assignee if name provided
+            string? assignToId = null;
+            p.TryGetValue("AssignToName", out var assignToName);
+            if (!string.IsNullOrEmpty(assignToName))
+            {
+                var user = await _context.Users
+                    .Where(u => u.FullName.Contains(assignToName) && (isSuperAdmin || u.TenantId == tenantId))
+                    .FirstOrDefaultAsync();
+                
+                assignToId = user?.Id;
+            }
+
+            DateTime? dueDate = null;
+            if (p.TryGetValue("DueDateTime", out var dueStr) && DateTime.TryParse(dueStr, out var d)) dueDate = d;
+
+            DateTime? reminderAt = null;
+            if (p.TryGetValue("ReminderAt", out var remStr) && DateTime.TryParse(remStr, out var r)) reminderAt = r;
+
+            var dto = new CreateTaskDto
+            {
+                Title = p.GetValueOrDefault("Title") ?? "New Task",
+                Description = p.GetValueOrDefault("Description"),
+                Notes = p.GetValueOrDefault("Notes"),
+                AssignToId = assignToId ?? userId,
+                DueDateTime = dueDate,
+                ReminderAt = reminderAt,
+                ReminderChannel = "in-app", // Default for chatbot
+                TeamId = teamId,
+                Scope = scope ?? "Personal",
+                IsRecurring = p.TryGetValue("IsRecurring", out var rec) && bool.TryParse(rec, out var b) && b,
+                RecurrenceRule = p.GetValueOrDefault("RecurrenceRule"),
+                ListId = 0 // Default list
+            };
+
+            var result = await _taskService.CreateTaskAsync(dto, userId);
+
+            if (result.StatusCode == 200 || result.StatusCode == 201)
+            {
+                aiResponse.ClarificationMessage = $"Successfully created the task: {dto.Title}.";
+                if (dueDate.HasValue) aiResponse.ClarificationMessage += $" Due on {dueDate.Value:f}.";
+                if (teamId.HasValue) aiResponse.ClarificationMessage += $" (Team Task)";
+            }
+            else
+            {
+                aiResponse.ClarificationMessage = "Error creating task: " + result.StatusMessage;
+            }
 
             return aiResponse;
         }
@@ -74,7 +167,7 @@ namespace AvinyaAICRM.Application.Services.AICHATS
 
             if (!string.IsNullOrEmpty(clientName))
             {
-                // 2. Check Existing Client
+                // check if it's already a client
                 var existingClients = await _context.Clients
                     .Where(c => c.CompanyName.Contains(clientName) && (isSuperAdmin || c.TenantId == tenantId))
                     .Select(c => new ClientDisambiguationDto
@@ -88,18 +181,14 @@ namespace AvinyaAICRM.Application.Services.AICHATS
 
                 if (existingClients.Count == 0)
                 {
-                    // Proceed normally: Lead without ClientID
                     return await CreateLeadAndFinalize(aiResponse, null, tenantId, userId);
                 }
                 else if (existingClients.Count == 1)
                 {
-                    // Use unique ClientID
                     return await CreateLeadAndFinalize(aiResponse, existingClients[0].ClientID, tenantId, userId);
                 }
                 else
                 {
-                    // Multiple found: Use metadata for disambiguation
-                    // Check if user already provided extra info in this message (e.g. mobile/email)
                     parameters.TryGetValue("Email", out var email);
                     parameters.TryGetValue("Mobile", out var mobile);
 
@@ -115,7 +204,6 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                         }
                     }
 
-                    // Still ambiguous
                     aiResponse.IsClarificationRequired = true;
                     aiResponse.SuggestedClients = existingClients;
                     aiResponse.ClarificationMessage = $"I found multiple clients named '{clientName}'. Please provide an email or phone number to identify the correct one, or select from the list below:";
@@ -123,7 +211,6 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                 }
             }
 
-            // If no client name provided, create lead without ClientID
             return await CreateLeadAndFinalize(aiResponse, null, tenantId, userId);
         }
 
@@ -159,6 +246,7 @@ namespace AvinyaAICRM.Application.Services.AICHATS
 
             return aiResponse;
         }
+
         public async Task<List<string>> GetUserAllowedModulesAsync(string userId)
         {
             if (string.IsNullOrEmpty(userId)) return new List<string>();

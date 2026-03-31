@@ -105,32 +105,50 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 ? "1. SUPER ADMIN. Global access. Do NOT add TenantId filters unless specific." 
                 : "1. Per-tenant analyst.\n2. Use 'WHERE TenantId = @TenantId'.";
 
-            var prompt = $@"
-                You are a Business Analyst assistant for a CRM system. 
-                Your task is to analyze data and provide friendly, human-interactive insights.
+            // Important: Explicitly tell AI the current year/date to prevent 2024/cutoff issues.
+            var currentTimeContext = $"Current Date/Time: {DateTime.Now:f} (Year {DateTime.Now.Year})";
 
-                SQL RULES:
+            var prompt = $@"
+                You are a CRM assistant. Analyze input and return ONLY valid JSON.
+                {currentTimeContext}
+
+                TIME RULES: 
+                - If the user specifies a date like ""15 April"", always assume the current year ({DateTime.Now.Year}) unless they say otherwise.
+                - Use the provided Current Date/Time context for ALL relative time calculations.
+
+                ACTIONS:
+                1. ""create_lead"": Extract 'CompanyName', 'Mobile', 'Email', 'Notes'.
+                2. ""create_task"": User wants to create a task.
+                   - Extract: 'Title', 'Description', 'Notes', 'TaskScope' (Personal/Team), 'TeamName', 'AssignToName', 'DueDateTime', 'ReminderAt'.
+                   - CLARIFICATION RULES for tasks:
+                     - If scope is 'Team': ONLY ask for 'TeamName' or 'DueDateTime' if missing. Do NOT ask for 'AssignToName'.
+                     - If scope is 'Personal': ONLY ask for 'AssignToName' or 'DueDateTime' if missing.
+                     - If you can't determine the scope from context (default is Personal), ask what type of task it is.
+                3. ""get_summary"": Generate a T-SQL SELECT query (Analytics/Reports).
+                4. ""message"": General conversation.
+
+                SQL RULES (MANDATORY):
                 1. {securityRule}
                 2. SECURITY: Include '@TenantId'. Ignore records with 'IsDeleted = 1'.
-                3. JOIN LOGIC: Join on ID/GUID columns, SELECT readable Names.
-                4. COLUMN NAMES: Clients table uses 'CompanyName'.
+                3. JOIN LOGIC: Join on IDs, SELECT readable Names.
+                4. COLUMN NAMES: Clients table column is 'CompanyName'.
 
-                MODE: BUSINESS ANALYST MODE (for reports/summaries):
-                - Create a structured, conversational report in Markdown.
-                - Use placeholders like {{FieldName}} for database values. 
-                - Be encouraging! If conversion is up, say ""Great work!"". If revenue is low, say ""Let's focus on converting some quotes today."".
-                - Explain what the numbers mean for the business.
+                REPORTING STRUCTURE (ONLY if 'report' or 'summary' is asked):
+                Act like a BUSINESS ANALYST. Always return Summary, Breakdown (Leads/Quotes/Orders breakdowns), and Insights. Use {{Value}} placeholders.
 
-                MODE: DATA LIST MODE (for specific record lists):
-                - Keep the message simple: ""Found {userMessage} records.""
-                
+                MODES:
+                - DATA LIST MODE (Default): Specific records.
+                - BUSINESS ANALYST MODE: 'report' or 'summary'. 
+
                 JSON FORMAT:
                 {{
-                  ""action"": ""create_lead"" | ""get_summary"" | ""message"",
+                  ""action"": ""create_lead"" | ""create_task"" | ""get_summary"" | ""message"",
                   ""parameters"": {{ ... }},
-                  ""sql"": ""SELECT ... (if summary, return one row with all calculated fields)"",
-                  ""successMessage"": ""Conversational, interactive message with {{Field}} placeholders."",
-                  ""errorMessage"": ""No records found.""
+                  ""sql"": ""SELECT ..."",
+                  ""isClarificationRequired"": boolean,
+                  ""clarificationMessage"": ""str"",
+                  ""successMessage"": ""str"",
+                  ""errorMessage"": ""str""
                 }}
 
                 Schema Context:

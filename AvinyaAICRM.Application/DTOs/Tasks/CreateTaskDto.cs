@@ -1,4 +1,4 @@
-﻿
+
 namespace AvinyaAICRM.Application.DTOs.Tasks
 {
     public class CreateTaskDto
@@ -24,6 +24,8 @@ namespace AvinyaAICRM.Application.DTOs.Tasks
         public string? AssignToId { get; set; }
         
         public string? ProjectId { get; set; } 
+
+        public string? Scope { get; set; }
 
     }
 
