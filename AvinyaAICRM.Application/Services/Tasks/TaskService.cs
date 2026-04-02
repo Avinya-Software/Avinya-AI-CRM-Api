@@ -81,11 +81,27 @@ namespace AvinyaAICRM.Application.Services.Tasks
             if (intent == "Unknown")
                 return CommonHelper.BadRequestResponseMessage("Unable to understand");
 
-            var dueDate = VoiceDateTimeExtractor.ExtractDueDate(text);
-            var reminder = VoiceReminderResolver.ResolveReminder(text, dueDate);
+            var dueDateLocal = VoiceDateTimeExtractor.ExtractDueDate(text);
+
+            var dueDate = dueDateLocal?.Kind == DateTimeKind.Utc
+                ? dueDateLocal
+                : DateTime.SpecifyKind(dueDateLocal.Value, DateTimeKind.Local).ToUniversalTime();
+
+            var reminderLocal = VoiceReminderResolver.ResolveReminder(text, dueDate);
+
+            var reminder = reminderLocal.HasValue
+                ? (reminderLocal.Value.Kind == DateTimeKind.Utc
+                    ? reminderLocal
+                    : DateTime.SpecifyKind(reminderLocal.Value, DateTimeKind.Local).ToUniversalTime())
+                : null;
+
             var (isRecurring, rule) = VoiceRecurrenceParser.Parse(text);
 
             var entities = VoiceEntityExtractor.Extract(text);
+
+            var status = VoiceStatusParser.ExtractStatus(text);
+
+
 
             string? assignToId = null;
             long? teamId = null;
@@ -110,7 +126,7 @@ namespace AvinyaAICRM.Application.Services.Tasks
                 Title = text,
                 Description = "Created via voice",
                 ListId = 0,
-
+                Status = status,
                 DueDateTime = dueDate,
                 ReminderAt = reminder,
                 AssignToId = assignToId,
