@@ -60,7 +60,7 @@ namespace AvinyaAICRM.Application.Services.Projects
                 ClientID = dto.ClientID,
                 Location = dto.Location,
                 Status = dto.Status,
-                Priority = dto.Priority,
+                PriorityID = dto.Priority,
                 ProgressPercent = dto.ProgressPercent,
 
                 ProjectManagerId = dto.ProjectManagerId,
@@ -91,7 +91,7 @@ namespace AvinyaAICRM.Application.Services.Projects
             existing.ProjectName = dto.ProjectName;
             existing.Description = dto.Description;
             existing.Status = dto.Status;
-            existing.Priority = dto.Priority;
+            existing.PriorityID = dto.Priority;
             existing.ProgressPercent = dto.ProgressPercent;
             existing.ProjectManagerId = dto.ProjectManagerId;
             existing.AssignedToUserId = dto.AssignedToUserId;

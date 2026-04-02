@@ -18,8 +18,8 @@ namespace AvinyaAICRM.Domain.Entities.Product
         [MaxLength(200)]
         public string? Category { get; set; }
 
-        [MaxLength(100)]
-        public string? UnitType { get; set; }
+        
+        public Guid? UnitTypeID { get; set; }
 
         [Column(TypeName = "decimal(18,2)")]
         public decimal? DefaultRate { get; set; }

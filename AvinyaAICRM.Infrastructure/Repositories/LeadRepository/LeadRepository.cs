@@ -91,28 +91,15 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
             var createdByName = users.FirstOrDefault(u => u.Id == lead.CreatedBy)?.UserName;
             var assignedToName = users.FirstOrDefault(u => u.Id == lead.AssignedTo)?.UserName;
 
-            // ------------------ SOURCE ------------------
-            string? sourceName = Guid.TryParse(lead.LeadSource, out var lsGuid)
-                ? leadSources.FirstOrDefault(ls => ls.LeadSourceID == lsGuid)?.SourceName
-                : lead.LeadSource;
+            // ✅ Direct Guid? == Guid? comparison
+            string? sourceName = leadSources
+                .FirstOrDefault(ls => ls.LeadSourceID == lead.LeadSourceID)
+                ?.SourceName;
 
-            // ------------------ STATUS ------------------
-            string? statusName = Guid.TryParse(lead.Status, out var stGuid)
-                ? statuses.FirstOrDefault(s => s.LeadStatusID == stGuid)?.StatusName
-                : lead.Status;
 
-            // ================== FOLLOWUPS ==================
-            var followups = await (
-                from f in _context.LeadFollowups
-                join u in _context.Users on f.FollowUpBy equals u.Id into fu
-                from user in fu.DefaultIfEmpty()
-
-                join fs in _context.LeadFollowupStatuses
-                    on f.Status equals fs.LeadFollowupStatusID into fsj
-                from fs in fsj.DefaultIfEmpty()
-
-                where f.LeadID == id
-                orderby f.CreatedDate descending
+            string? statusName = statuses
+                .FirstOrDefault(s => s.LeadStatusID == lead.LeadStatusID)
+                ?.StatusName;
 
                 select new LeadFollowupDetailsDto
                 {
@@ -148,12 +135,11 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                 RequirementDetails = lead.RequirementDetails,
                 Notes = lead.Notes,
                 Links = lead.Links,
-
-                LeadSourceID = lead.LeadSource,
+                RequirementDetails = lead.RequirementDetails,
+                LeadSourceID = lead.LeadSourceID,
                 LeadSourceName = sourceName,
                 OtherSources = lead.OtherSources,
-
-                Status = lead.Status,
+                LeadStatusID = lead.LeadStatusID,
                 StatusName = statusName,
 
                 CreatedBy = lead.CreatedBy,
@@ -278,17 +264,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
 
                    .FirstOrDefaultAsync();
 
-                Guid leadStatusId;
+                // ✅ Replace with this
+                Guid leadStatusId = dto.LeadStatusID ?? newStatusId;
 
-                if (!string.IsNullOrWhiteSpace(dto.Status) &&
-                Guid.TryParse(dto.Status, out Guid parsedStatusId))
-                {
-                    leadStatusId = parsedStatusId; // from UI
-                }
-                else
-                {
-                    leadStatusId = newStatusId; // default "New"
-                }
+                
 
                 var lead = new Lead
                 {
@@ -298,9 +277,9 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                     RequirementDetails = dto.RequirementDetails,
                     Notes = dto.Notes,
                     Links = dto.Links,
-                    LeadSource = dto.LeadSource,
+                    LeadSourceID = dto.LeadSourceID,
                     OtherSources = dto.OtherSources,
-                    Status = leadStatusId.ToString(),
+                    LeadStatusID = leadStatusId,
                     CreatedBy = userId,
                     AssignedTo = dto.AssignedTo,
                     TenantId = userData.TenantId
@@ -388,11 +367,9 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                 if (!string.IsNullOrWhiteSpace(dto.Links) && dto.Links != "string")
                     existing.Links = dto.Links;
 
-                if (Guid.TryParse(dto.LeadSource, out _))
-                    existing.LeadSource = dto.LeadSource;
-
-                if (Guid.TryParse(dto.Status, out _))
-                    existing.Status = dto.Status;
+            
+                    existing.LeadSourceID = dto.LeadSourceID;
+                    existing.LeadStatusID = dto.LeadStatusID;
 
 
                 if (!string.IsNullOrWhiteSpace(dto.CreatedBy) && dto.CreatedBy != "string")
@@ -666,7 +643,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
 
                     if (isGuid)
                     {
-                        query = query.Where(l => l.Status == statusFilter);
+                        query = query.Where(l => l.LeadStatusID.ToString() == statusFilter);
                     }
                     else
                     {
@@ -677,7 +654,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                             .Select(s => s.LeadStatusID.ToString())
                             .ToList();
 
-                        query = query.Where(l => matchedStatusIds.Contains(l.Status));
+                        query = query.Where(l => matchedStatusIds.Contains(l.LeadStatusID.ToString()));
                     }
                 }
 
@@ -704,12 +681,13 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                 // ✅ Total count
                 var totalRecords = await query.CountAsync();
 
-                // ✅ Paging
+             
+                // ✅ Move .Where BEFORE .Skip/.Take (paging must come last)
                 var leads = await query
+                    .Where(l => l.CreatedBy == userId)          // ← moved up
                     .OrderByDescending(l => l.CreatedDate)
                     .Skip((pageNumber - 1) * pageSize)
                     .Take(pageSize)
-                    .Where(l => l.CreatedBy == userId)
                     .ToListAsync();
 
                 var leadIds = leads.Select(l => l.LeadID).ToList();
@@ -759,15 +737,15 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                     var createdByName =
                         users.FirstOrDefault(u => u.Id == l.CreatedBy)?.UserName;
 
-                    string? statusName =
-                        Guid.TryParse(l.Status, out var stGuid)
-                        ? statuses.FirstOrDefault(s => s.LeadStatusID == stGuid)?.StatusName
-                        : l.Status;
+                    // ✅ Direct Guid? == Guid? comparison
+                    string? statusName = statuses
+                        .FirstOrDefault(s => s.LeadStatusID == l.LeadStatusID)
+                        ?.StatusName;
 
-                    string? leadSourceName =
-                        Guid.TryParse(l.LeadSource, out var lsGuid)
-                        ? sources.FirstOrDefault(s => s.LeadSourceID == lsGuid)?.SourceName
-                        : l.LeadSource;
+                    // ✅ Direct Guid? == Guid? comparison
+                    string? leadSourceName = sources
+                        .FirstOrDefault(s => s.LeadSourceID == l.LeadSourceID)
+                        ?.SourceName;
 
                     var followupStatusName =
                         followupStatuses
@@ -786,12 +764,11 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                         CompanyName = client?.CompanyName ?? "",
                         BillingAddress = client?.BillingAddress ?? "",
                         GSTNo = client?.GSTNo ?? "",
-                        StateID = client?.StateID ?? 0,
-                        CityID = client?.CityID ?? 0,
-                        Status = l.Status,
+
+                        LeadStatusID = l.LeadStatusID,
                         StatusName = statusName,
 
-                        LeadSourceID = l.LeadSource,
+                        LeadSourceID = l.LeadSourceID,
                         LeadSourceName = leadSourceName,
 
                         AssignedTo = l.AssignedTo,
@@ -861,11 +838,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                     .Where(c => c.ClientID == lead.ClientID)
                     .FirstOrDefaultAsync();
 
-                Guid statusId;
-                if (!Guid.TryParse(lead.Status, out statusId))
-                {
-                    statusId = Guid.Empty;
-                }
+                // ✅ Direct — unwrap Guid? with ?? fallback
+                Guid statusId = lead.LeadStatusID ?? Guid.Empty;
 
                 var status = await _context.leadStatusMasters
                     .Where(s => s.LeadStatusID == statusId)
@@ -881,7 +855,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                     Createddate = ConvertUtcToLocal(lead.CreatedDate),
                     ClientName = client?.ContactPerson,
                     CompanyName = client?.CompanyName,
-                    Status = lead.Status,
+                    Status = lead.LeadStatusID.ToString(),
                     StatusName = status?.StatusName
                 });
 
@@ -918,7 +892,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                         Createddate = ConvertUtcToLocal(q.CreatedDate),
                         ClientName = client?.ContactPerson,
                         CompanyName = client?.CompanyName,
-                        Status = q.Status.ToString(),
+                        Status = q.QuotationStatusID.ToString(),
                         StatusName = status?.StatusName
                     });
                 }
@@ -1031,18 +1005,15 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                 var assignedToName = users.FirstOrDefault(u => u.Id == l.AssignedTo)?.UserName;
 
                 // Resolve lead source name
-                string? leadSourceName = null;
-                if (Guid.TryParse(l.LeadSource, out var lsGuid))
-                    leadSourceName = sources.FirstOrDefault(s => s.LeadSourceID == lsGuid)?.SourceName;
-                else
-                    leadSourceName = l.LeadSource;
+                string? leadSourceName = sources
+                    .FirstOrDefault(s => s.LeadSourceID == l.LeadSourceID)
+                    ?.SourceName;
 
                 // Resolve status name
-                string? statusName = null;
-                if (Guid.TryParse(l.Status, out var stGuid))
-                    statusName = statuses.FirstOrDefault(s => s.LeadStatusID == stGuid)?.StatusName;
-                else
-                    statusName = l.Status;
+
+                string? statusName = statuses
+                    .FirstOrDefault(s => s.LeadStatusID == l.LeadStatusID)
+                    ?.StatusName;
 
                 return new LeadDto
                 {
@@ -1059,11 +1030,11 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                     Date = l.Date,
                     RequirementDetails = l.RequirementDetails,
 
-                    LeadSourceID = l.LeadSource,
+                    LeadSourceID = l.LeadSourceID,
                     LeadSourceName = leadSourceName,
                     OtherSources = l.OtherSources,
 
-                    Status = l.Status,
+                    LeadStatusID = l.LeadStatusID,
                     StatusName = statusName,
 
                     AssignedTo = l.AssignedTo,

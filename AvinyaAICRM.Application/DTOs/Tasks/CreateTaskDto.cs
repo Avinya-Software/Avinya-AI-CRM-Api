@@ -1,4 +1,4 @@
-﻿
+
 namespace AvinyaAICRM.Application.DTOs.Tasks
 {
     public class CreateTaskDto
@@ -25,6 +25,8 @@ namespace AvinyaAICRM.Application.DTOs.Tasks
         
         public string? ProjectId { get; set; }
         public string Status { get; set; } = "Pending";
+
+        public string? Scope { get; set; }
 
     }
 

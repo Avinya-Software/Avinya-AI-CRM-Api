@@ -128,7 +128,7 @@ namespace AvinyaAICRM.Application.Services.Leads
             var existingLead = await _repository.GetLeadByIdAsync(id);
             if (existingLead != null)
             {
-                existingLead.Status = statusId.ToString();
+                existingLead.LeadStatusID = statusId;
             }
 
             var result = await _repository.UpdateLeadStatusAsync(existingLead);

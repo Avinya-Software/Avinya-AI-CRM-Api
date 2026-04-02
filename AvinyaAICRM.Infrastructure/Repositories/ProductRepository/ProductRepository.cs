@@ -44,7 +44,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ProductRepository
                 .ToListAsync();
 
             var result = (from p in products
-                          let parsedUnitTypeId = Guid.TryParse(p.UnitType, out var uid) ? uid : Guid.Empty
+                          let parsedUnitTypeId = p.UnitTypeID ?? Guid.Empty
                           join u in unitTypes
                               on parsedUnitTypeId equals u.UnitTypeID into ug
                           from u in ug.DefaultIfEmpty()
@@ -94,8 +94,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ProductRepository
             if (product == null)
                 return null;
 
-            var unitType = unitTypes.FirstOrDefault(u =>
-                Guid.TryParse(product.UnitType, out var uid) && u.UnitTypeID == uid);
+            var unitType = unitTypes.FirstOrDefault(u => u.UnitTypeID == product.UnitTypeID);
 
             var taxCategory = taxCategories.FirstOrDefault(t =>
                 t.TaxCategoryID == product.TaxCategoryID);
@@ -108,7 +107,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ProductRepository
                 ProductID = product.ProductID,
                 ProductName = product.ProductName,
                 Category = product.Category,
-                UnitTypeId = product.UnitType,
+                UnitTypeId = product.UnitTypeID,
                 UnitTypeName = unitType?.UnitName,
                 DefaultRate = product.DefaultRate,
                 PurchasePrice = product.PurchasePrice,
@@ -132,12 +131,13 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ProductRepository
 
             var userData = await _context.Users.FindAsync(dto.CreatedBy);
 
+            Guid? unitTypeId = Guid.TryParse(dto.UnitType, out var uid) ? uid : null;
             // Map DTO → Entity
             var entity = new Product
             {
                 ProductName = dto.ProductName,
                 Category = dto.Category,
-                UnitType = dto.UnitType,
+                UnitTypeID = unitTypeId,
                 DefaultRate = dto.DefaultRate,
                 PurchasePrice = dto.PurchasePrice,
                 HSNCode = dto.HSNCode,
@@ -199,9 +199,9 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ProductRepository
 
 
                 if (dto.UnitTypeId != null)
-                    existing.UnitType = dto.UnitTypeId.Trim();
+                    existing.UnitTypeID = dto.UnitTypeId;
                 else
-                    existing.UnitType = string.Empty;
+                    existing.UnitTypeID = Guid.Empty;
 
                 if (dto.TaxCategoryID.HasValue)
                     existing.TaxCategoryID = dto.TaxCategoryID.Value;
@@ -268,7 +268,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ProductRepository
             var query =
                 from p in _context.Products.AsNoTracking()
                 join ut in _context.UnitTypeMasters
-                    on p.UnitType equals ut.UnitTypeID.ToString() into utJoin
+                    on p.UnitTypeID equals ut.UnitTypeID into utJoin
                 from ut in utJoin.DefaultIfEmpty()
                 where !p.IsDeleted && p.TenantId == userData.TenantId
                 select new { p, ut };
@@ -308,7 +308,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ProductRepository
                     ProductName = x.p.ProductName,
                     Category = x.p.Category,
 
-                    UnitTypeId = x.p.UnitType,
+                    UnitTypeId = x.p.UnitTypeID,
                     UnitTypeName = x.ut != null ? x.ut.UnitName : null,
 
                     DefaultRate = x.p.DefaultRate,
