@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.User;
+using AvinyaAICRM.Application.DTOs.User;
 using AvinyaAICRM.Infrastructure.Identity;
 using AvinyaAICRM.Shared.Model;
 using Microsoft.AspNetCore.Identity;
@@ -22,7 +22,7 @@ namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.User
         Task<AppUser?> GetAdminByTenantIdAsync(Guid tenantId);
         Task<bool> IsInRoleAsync(string userId, string roleName);
         Task<PagedResult<UserListDto>> GetUsersForSuperAdminAsync(UserListFilterRequest request, Guid? currentUserTenantId);
-        Task<List<AvinyaAICRM.Domain.Entities.Tenant.Tenant>> GetMyCompaniesAsync();
+        Task<List<AvinyaAICRM.Domain.Entities.Tenant.Tenant>> GetMyCompaniesAsync(Guid? currentUserTenantId);
         Task<List<UserDropdownDto>> GetUsersDropdown(string userId);
         Task<AppUser> GetUserName(string name);
 

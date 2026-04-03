@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Auth;
+using AvinyaAICRM.Application.DTOs.Auth;
 using AvinyaAICRM.Application.DTOs.User;
 using AvinyaAICRM.Shared.Model;
 using System;
@@ -17,7 +17,7 @@ namespace AvinyaAICRM.Application.Interfaces.ServiceInterface.User
         Task<ResponseModel> GetMyPermissionsAsync(string userId);
         Task<ResponseModel> GetMenuAsync(string userId);
         Task<ResponseModel> GetUsersForSuperAdminAsync(UserListFilterRequest request, Guid? currentUserTenant);
-        Task<ResponseModel> GetMyCompaniesAsync();
+        Task<ResponseModel> GetMyCompaniesAsync(Guid? currentUserTenant);
         Task<ResponseModel> GetUsersDropdown(string userId);
     }
 

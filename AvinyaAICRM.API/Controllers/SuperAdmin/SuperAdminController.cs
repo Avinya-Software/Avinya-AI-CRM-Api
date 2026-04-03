@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.User;
+using AvinyaAICRM.Application.DTOs.User;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.SuperAdmin;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.User;
 using Microsoft.AspNetCore.Authorization;
@@ -27,38 +27,50 @@ namespace AvinyaAICRM.API.Controllers.SuperAdmin
             return new JsonResult(result) { StatusCode = result.StatusCode };
         }
 
-        [Authorize(Roles = "SuperAdmin")]
+        [Authorize(Roles = "SuperAdmin,Admin")]
         [HttpPost("users")]
         public async Task<IActionResult> GetUsers([FromBody] UserListFilterRequest request)
         {
-            var tenantIdClaim = User.FindFirst("tenantId")?.Value!;
+            var isSuperAdmin = User.IsInRole("SuperAdmin");
+            Guid? currentUserTenant = null;
 
-            // ✅ string → Guid? conversion
-            Guid? currentUserTenant = Guid.TryParse(tenantIdClaim, out var parsed)
-                ? parsed
-                : null;
+            if (!isSuperAdmin)
+            {
+                var tenantIdClaim = User.FindFirst("tenantId")?.Value;
+                if (Guid.TryParse(tenantIdClaim, out var parsed))
+                {
+                    currentUserTenant = parsed;
+                }
+            }
+
             var result = await _userService.GetUsersForSuperAdminAsync(request, currentUserTenant);
             return new JsonResult(result) { StatusCode = result.StatusCode };
         }
 
-        //[Authorize(Roles = "SuperAdmin,Admin")]
+        [Authorize(Roles = "SuperAdmin,Admin")]
         [HttpGet("users-list")]
         public async Task<IActionResult> GetUsersList([FromQuery] int pageNumber, [FromQuery] int pageSize, [FromQuery] string? role, [FromQuery] Guid? tenantId,
             [FromQuery] bool? isActive, [FromQuery] string? search)
         {
-            var tenantIdClaim = User.FindFirst("tenantId")?.Value!;
+            var isSuperAdmin = User.IsInRole("SuperAdmin");
+            Guid? currentUserTenant = null;
 
-            // ✅ string → Guid? conversion
-            Guid? currentUserTenant = Guid.TryParse(tenantIdClaim, out var parsed)
-                ? parsed
-                : null;
+            if (!isSuperAdmin)
+            {
+                var tenantIdClaim = User.FindFirst("tenantId")?.Value;
+                if (Guid.TryParse(tenantIdClaim, out var parsed))
+                {
+                    currentUserTenant = parsed;
+                }
+            }
+
             var request = new UserListFilterRequest
             {
                 PageNumber = pageNumber,
                 PageSize = pageSize,
                 Search = search,
                 Role = role,
-                TenantId = tenantId,
+                TenantId = tenantId, // This comes from query, but repository should handle priority
                 IsActive = isActive,
             };
             var result = await _userService.GetUsersForSuperAdminAsync(request, currentUserTenant);

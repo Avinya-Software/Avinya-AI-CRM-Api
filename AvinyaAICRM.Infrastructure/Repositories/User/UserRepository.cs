@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.User;
+using AvinyaAICRM.Application.DTOs.User;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.User;
 using AvinyaAICRM.Infrastructure.Identity;
 using AvinyaAICRM.Infrastructure.Persistence;
@@ -151,10 +151,16 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
         }
 
 
-        public async Task<List<AvinyaAICRM.Domain.Entities.Tenant.Tenant>> GetMyCompaniesAsync()
+        public async Task<List<AvinyaAICRM.Domain.Entities.Tenant.Tenant>> GetMyCompaniesAsync(Guid? currentUserTenantId)
         {
-            var tenants = await _context.Tenants.ToListAsync();
-            return tenants;
+            var query = _context.Tenants.AsNoTracking().AsQueryable();
+
+            if (currentUserTenantId.HasValue)
+            {
+                query = query.Where(t => t.TenantId == currentUserTenantId.Value);
+            }
+
+            return await query.ToListAsync();
         }
 
         public async Task<List<UserDropdownDto>> GetUsersDropdown(string userId)
@@ -167,16 +173,18 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
             if (tenantId == null)
                 return new List<UserDropdownDto>();
 
-            return await _context.Users
-                .Where(u => u.TenantId == tenantId && u.IsActive)
-                .Select(u => new UserDropdownDto
+            return await (
+                from u in _context.Users
+                join ur in _context.UserRoles on u.Id equals ur.UserId
+                join r in _context.Roles on ur.RoleId equals r.Id
+                where u.TenantId == tenantId && u.IsActive && r.Name != "Admin" && r.Name != "SuperAdmin"
+                select new UserDropdownDto
                 {
                     Id = u.Id,
                     FullName = u.FullName,
                     Email = u.Email
-                })
-                .OrderBy(u => u.FullName)
-                .ToListAsync();
+                }
+            ).OrderBy(u => u.FullName).Distinct().ToListAsync();
         }
 
         public async Task<AppUser> GetUserName(string name)
