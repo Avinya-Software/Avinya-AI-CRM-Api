@@ -14,25 +14,20 @@ namespace AvinyaAICRM.Infrastructure.Services
             QuestPDF.Settings.License = LicenseType.Community;
         }
 
-        public byte[] GenerateOrderBillPdf(OrderResponseDto order, Guid billId)
+        public byte[] GenerateOrderPdf(OrderResponseDto order)
         {
-            var bill = order.Bill.FirstOrDefault(b => b.BillID == billId);
-            if (bill == null) return null;
-
-            var document = new OrderBillDocument(order, bill);
+            var document = new OrderDocument(order);
             return document.GeneratePdf();
         }
     }
 
-    public class OrderBillDocument : IDocument
+    public class OrderDocument : IDocument
     {
         public OrderResponseDto Order { get; }
-        public BillData Bill { get; }
 
-        public OrderBillDocument(OrderResponseDto order, BillData bill)
+        public OrderDocument(OrderResponseDto order)
         {
             Order = order;
-            Bill = bill;
         }
 
         public DocumentMetadata GetMetadata() => DocumentMetadata.Default;
@@ -50,8 +45,8 @@ namespace AvinyaAICRM.Infrastructure.Services
                     // 1. Header
                     column.Item().Element(ComposeHeader);
                     
-                    // 2. Invoice Details
-                    column.Item().Element(ComposeInvoiceDetails);
+                    // 2. Order Details
+                    column.Item().Element(ComposeOrderDetails);
                     
                     // 3. Shipping / Billing Details
                     column.Item().Element(ComposePartyDetails);
@@ -62,10 +57,7 @@ namespace AvinyaAICRM.Infrastructure.Services
                     // 5. Total Section
                     column.Item().Element(ComposeTotalSection);
 
-                    // 6. Bank Details Section
-                    column.Item().Element(ComposeBankDetails);
-
-                    // 7. Footer (Terms & Condition, QR, Signature)
+                    // 6. Footer (Terms, QR Placeholder, Signature)
                     column.Item().Element(ComposeFooter);
                 });
             });
@@ -77,38 +69,37 @@ namespace AvinyaAICRM.Infrastructure.Services
             {
                 column.Item().Row(row =>
                 {
-                    row.RelativeItem().Text($"GSTIN : {Bill.FirmName ?? "-"}").FontSize(8).Bold();
-                    row.RelativeItem().AlignCenter().Text("TAX INVOICE").FontSize(9).Bold();
-                    row.RelativeItem().AlignRight().Text("Original Copy").FontSize(7.5f);
+                    row.RelativeItem().Text($"GSTIN : {Order.FirmGSTNo ?? "-"}").FontSize(8).Bold();
+                    row.RelativeItem().AlignCenter().Text("ORDER CONFIRMATION").FontSize(9).Bold();
+                    row.RelativeItem().AlignRight().Text("Client Copy").FontSize(7.5f);
                 });
 
-                column.Item().AlignCenter().PaddingTop(5).Text(Bill.FirmName?.ToUpper() ?? "AVINYA AI").FontSize(14).Bold();
+                column.Item().AlignCenter().PaddingTop(5).Text(Order.FirmName?.ToUpper() ?? " ").FontSize(14).Bold();
+                column.Item().AlignCenter().Text(Order.FirmAddress?.ToUpper() ?? "-").FontSize(7.5f);
+                column.Item().AlignCenter().Text($"Tel : {Order.FirmMobile ?? "-"}").FontSize(8);
             });
         }
 
-        private void ComposeInvoiceDetails(IContainer container)
+        private void ComposeOrderDetails(IContainer container)
         {
             container.BorderBottom(1).Row(row =>
             {
-                // Left - Invoice info
+                // Left - Order Details
                 row.RelativeItem().BorderRight(1).Padding(5).Column(col =>
                 {
-                    col.Item().Row(r => { r.ConstantItem(90).Text("Invoice No."); r.RelativeItem().Text($": {Bill.BillNo}").Bold(); });
-                    col.Item().Row(r => { r.ConstantItem(90).Text("Date"); r.RelativeItem().Text($": {Bill.BillDate:dd/MM/yyyy}"); });
-                    col.Item().Row(r => { r.ConstantItem(90).Text("Place of Supply"); r.RelativeItem().Text($": {Bill.PlaceOfSupply ?? Order.StateName ?? "-"}"); });
-                    col.Item().Row(r => { r.ConstantItem(90).Text("Reverse Charge"); r.RelativeItem().Text($": {(Bill.ReverseCharge == true ? "Yes" : "No")}"); });
-                    col.Item().Row(r => { r.ConstantItem(90).Text("GR/RR No."); r.RelativeItem().Text($": {Bill.GRRRNo ?? "-"}"); });
-                    col.Item().Row(r => { r.ConstantItem(90).Text("Due Date").Bold(); r.RelativeItem().Text($": {Bill.DueDate:dd/MM/yyyy}").Bold(); });
+                    col.Item().Row(r => { r.ConstantItem(90).Text("Order No."); r.RelativeItem().Text($": {Order.OrderNo}").Bold(); });
+                    col.Item().Row(r => { r.ConstantItem(90).Text("Order Date"); r.RelativeItem().Text($": {Order.OrderDate:dd/MM/yyyy}"); });
+                    col.Item().Row(r => { r.ConstantItem(90).Text("State Name"); r.RelativeItem().Text($": {Order.StateName ?? "-"}"); });
+                    col.Item().Row(r => { r.ConstantItem(90).Text("Quotation Ref."); r.RelativeItem().Text($": {Order.QuotationNo ?? "-"}"); });
                 });
 
-                // Right - Transport info
+                // Right - Delivery Info
                 row.RelativeItem().Padding(5).Column(col =>
                 {
-                    col.Item().Row(r => { r.ConstantItem(90).Text("Transport"); r.RelativeItem().Text($": {Bill.Transport ?? "-"}"); });
-                    col.Item().Row(r => { r.ConstantItem(90).Text("Vehicle No."); r.RelativeItem().Text($": {Bill.VehicleNo ?? "-"}"); });
-                    col.Item().Row(r => { r.ConstantItem(90).Text("Station"); r.RelativeItem().Text($": {Bill.Station ?? "-"}"); });
-                    col.Item().Row(r => { r.ConstantItem(90).Text("E-Way Bill No."); r.RelativeItem().Text($": {Bill.EWayBillNo ?? "-"}"); });
-                    col.Item().PaddingTop(5).Text($"Outstanding Amt: {Bill.OutstandingAmount?.ToString("F2") ?? "0.00"}").Bold();
+                    col.Item().Row(r => { r.ConstantItem(120).Text("Expected Delivery"); r.RelativeItem().Text($": {Order.ExpectedDeliveryDate?.ToString("dd/MM/yyyy") ?? "-"}"); });
+                    col.Item().Row(r => { r.ConstantItem(120).Text("Design Status"); r.RelativeItem().Text($": {Order.DesignStatusName ?? "-"}"); });
+                    col.Item().Row(r => { r.ConstantItem(120).Text("Order Status"); r.RelativeItem().Text($": {Order.StatusName ?? "-"}"); });
+                    col.Item().PaddingTop(5).Text($"Created By: {Order.CreatedByName ?? "-"}").FontSize(8);
                 });
             });
         }
@@ -141,17 +132,16 @@ namespace AvinyaAICRM.Infrastructure.Services
 
         private void ComposeTable(IContainer container)
         {
-            container.MinHeight(300).Layers(layers =>
+            container.MinHeight(500).Layers(layers =>
             {
                 layers.Layer().Row(row =>
                 {
                     row.ConstantItem(30).BorderRight(1);  // S.N.
                     row.RelativeItem().BorderRight(1);    // Description
                     row.ConstantItem(70).BorderRight(1);  // HSN
-                    row.ConstantItem(45).BorderRight(1);  // Qty
-                    row.ConstantItem(45).BorderRight(1);  // Unit
-                    row.ConstantItem(60).BorderRight(1);  // Price
-                    row.ConstantItem(45).BorderRight(1);  // Tax %
+                    row.ConstantItem(50).BorderRight(1);  // Qty
+                    row.ConstantItem(70).BorderRight(1);  // Price
+                    row.ConstantItem(50).BorderRight(1);  // Tax %
                     row.ConstantItem(80);                  // Amount
                 });
 
@@ -162,10 +152,9 @@ namespace AvinyaAICRM.Infrastructure.Services
                         columns.ConstantColumn(30);
                         columns.RelativeColumn();
                         columns.ConstantColumn(70);
-                        columns.ConstantColumn(45);
-                        columns.ConstantColumn(45);
-                        columns.ConstantColumn(60);
-                        columns.ConstantColumn(45);
+                        columns.ConstantColumn(50);
+                        columns.ConstantColumn(70);
+                        columns.ConstantColumn(50);
                         columns.ConstantColumn(80);
                     });
 
@@ -197,7 +186,7 @@ namespace AvinyaAICRM.Infrastructure.Services
                         table.Cell().Element(ItemStyle).Text(item.Quantity.ToString("F2"));
                         table.Cell().Element(ItemStyle).Text(item.UnitPrice.ToString("F2"));
                         table.Cell().Element(ItemStyle).Text(Order.EnableTax ? "18%" : "-");
-                        table.Cell().Element(ItemStyle).Text(item.LineTotal.ToString("F2"));
+                        table.Cell().Element(ItemStyle).Text((item.Quantity * item.UnitPrice).ToString("F2"));
 
                         static IContainer ItemStyle(IContainer sub) => sub.PaddingHorizontal(5).PaddingVertical(3).AlignCenter();
                     }
@@ -212,51 +201,20 @@ namespace AvinyaAICRM.Infrastructure.Services
                 // Amount in words
                 row.RelativeItem().Padding(5).Column(col =>
                 {
-                    col.Item().Text(NumberToWords((double)(Bill.GrandTotal ?? 0))).Bold();
+                    col.Item().Text(NumberToWords((double)(Order.GrandTotal ?? 0))).Bold();
                 });
 
-                // Quantities and Totals
+                // Totals
                 row.ConstantItem(230).BorderLeft(1).Padding(5).Column(col =>
                 {
-                    col.Item().Row(r => { r.RelativeItem().Text("Sub Total"); r.RelativeItem().AlignRight().Text(Bill.SubTotal?.ToString("F2") ?? "0.00"); });
-                    if (Bill.Taxes > 0)
-                        col.Item().Row(r => { r.RelativeItem().Text("Taxes"); r.RelativeItem().AlignRight().Text(Bill.Taxes?.ToString("F2") ?? "0.00"); });
-                    if (Bill.Discount > 0)
-                        col.Item().Row(r => { r.RelativeItem().Text("Discount"); r.RelativeItem().AlignRight().Text($"-{Bill.Discount:F2}"); });
+                    col.Item().Row(r => { r.RelativeItem().Text("Sub Total"); r.RelativeItem().AlignRight().Text(Order.TotalAmount?.ToString("F2") ?? "0.00"); });
+                    if (Order.Taxes > 0)
+                        col.Item().Row(r => { r.RelativeItem().Text("Taxes"); r.RelativeItem().AlignRight().Text(Order.Taxes?.ToString("F2") ?? "0.00"); });
                     if (Order.DesigningCharge > 0)
                         col.Item().Row(r => { r.RelativeItem().Text("Design Charge"); r.RelativeItem().AlignRight().Text(Order.DesigningCharge?.ToString("F2") ?? "0.00"); });
 
-                    col.Item().Row(r => { r.RelativeItem().Text("Grand Total").Bold().FontSize(10); r.RelativeItem().AlignRight().Text(Bill.GrandTotal?.ToString("F2") ?? "0.00").Bold().FontSize(10); });
+                    col.Item().Row(r => { r.RelativeItem().Text("Grand Total").Bold().FontSize(10); r.RelativeItem().AlignRight().Text(Order.GrandTotal?.ToString("F2") ?? "0.00").Bold().FontSize(10); });
                 });
-            });
-        }
-
-        private void ComposeBankDetails(IContainer container)
-        {
-            if (Bill.Bank1 == null && Bill.Bank2 == null) return;
-
-            container.BorderTop(1).Row(row =>
-            {
-                if (Bill.Bank1 != null)
-                {
-                    row.RelativeItem().Padding(5).Column(col =>
-                    {
-                        col.Item().Text("Bank Details :").Bold();
-                        col.Item().Text($"BANK NAME : {Bill.Bank1.BankName ?? "-"}");
-                        col.Item().Text($"A/C NO : {Bill.Bank1.AccountNumber ?? "-"}");
-                        col.Item().Text($"IFSC CODE : {Bill.Bank1.IFSCCode ?? "-"}");
-                    });
-                }
-                if (Bill.Bank2 != null)
-                {
-                    row.RelativeItem().BorderLeft(1).Padding(5).Column(col =>
-                    {
-                        col.Item().Text("Bank Details :").Bold();
-                        col.Item().Text($"BANK NAME : {Bill.Bank2.BankName ?? "-"}");
-                        col.Item().Text($"A/C NO : {Bill.Bank2.AccountNumber ?? "-"}");
-                        col.Item().Text($"IFSC CODE : {Bill.Bank2.IFSCCode ?? "-"}");
-                    });
-                }
             });
         }
 
@@ -268,24 +226,15 @@ namespace AvinyaAICRM.Infrastructure.Services
                 row.RelativeItem().Column(col =>
                 {
                     col.Item().Text("Terms & Conditions").Bold().FontSize(8.5f);
-                    col.Item().Text("E. & O. E.").FontSize(7);
-                    col.Item().PaddingTop(2).Text("1. Goods once sold will not be taken back.");
-                    col.Item().Text("2. Interest @18% p.a. will be charged if payment is not made in time.");
-                    col.Item().Text("3. Subject to 'SURAT' jurisdiction only.");
+                    col.Item().Text("1. Goods once sold will be as per order confirmation.");
+                    col.Item().Text("2. Expected delivery dates are subject to material availability.");
                 });
-
-                // QR Code Placeholder (if possible to add QR logic here later)
-                if (false) // Dummy for QR box as per JS reference
-                {
-                    row.ConstantItem(80).AlignCenter().Column(col => { col.Item().Text("Payment QR").FontSize(8); });
-                }
 
                 // Signature
                 row.RelativeItem().AlignRight().Column(col =>
                 {
-                    col.Item().Text("Receiver's Signature :").FontSize(9);
-                    col.Item().PaddingTop(5).Text($"For {Bill.FirmName?.ToUpper() ?? "AVINYA AI"}").Bold();
-                    col.Item().PaddingTop(25).Text("Authorised Signatory").FontSize(8.5f);
+                    col.Item().PaddingTop(5).Text($"For {Order.FirmName?.ToUpper() ?? " "}").Bold();
+                    col.Item().PaddingTop(50).Text("Authorised Signatory").FontSize(8.5f);
                 });
             });
         }

@@ -4,6 +4,6 @@ namespace AvinyaAICRM.Application.Interfaces.ServiceInterface.Orders
 {
     public interface IOrderPdfService
     {
-        byte[] GenerateOrderBillPdf(OrderResponseDto order, Guid billId);
+        byte[] GenerateOrderPdf(OrderResponseDto order);
     }
 }

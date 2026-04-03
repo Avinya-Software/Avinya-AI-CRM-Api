@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Order;
+using AvinyaAICRM.Application.DTOs.Order;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Orders;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface;
 using AvinyaAICRM.Domain.Entities.Orders;
@@ -50,7 +50,9 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
                 join ct in _context.Cities.AsNoTracking()
                     on o.CityID equals ct.CityID into ctj
                 from ct in ctj.DefaultIfEmpty()
-                where o.TenantId.ToString() == tenantId
+                join t in _context.Tenants.AsNoTracking() on o.TenantId equals t.TenantId into tj
+                from t in tj.DefaultIfEmpty()
+                where o.TenantId.ToString() == tenantId && o.OrderID == id
 
                 select new OrderResponseDto
                 {
@@ -87,7 +89,13 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
                     EnableTax = o.EnableTax,
                     TotalAmount = o.SubTotal,
                     Taxes = o.TotalTaxes,
-                    GrandTotal = o.GrandTotal
+                    GrandTotal = o.GrandTotal,
+
+                    // Map Firm details from Tenant
+                    FirmName = t != null ? t.CompanyName : "AVINYA AI",
+                    FirmAddress = t != null ? t.Address : "-",
+                    FirmMobile = t != null ? t.CompanyPhone : "-",
+                    FirmGSTNo = "-" // Tenant entity might not have GSTNo yet
                 }
             ).FirstOrDefaultAsync();
 

@@ -65,26 +65,25 @@ namespace AvinyaAICRM.API.Controllers
             return new JsonResult(result) { StatusCode = result.StatusCode };
         }
 
-        [HttpGet("download-bill-pdf/{orderId}/{billId}")]
-        public async Task<IActionResult> DownloadBillPdf(Guid orderId, Guid billId)
+        [HttpGet("download-pdf/{id}")]
+        public async Task<IActionResult> DownloadPdf(Guid id)
         {
             var tenantId = User.FindFirst("tenantId")?.Value!;
-            var result = await _service.GetByIdAsync(orderId, tenantId);
+            var result = await _service.GetByIdAsync(id, tenantId);
             if (result.StatusCode != 200 || result.Data == null)
             {
                 return NotFound("Order not found.");
             }
 
             var order = (OrderResponseDto)result.Data;
-            var pdfBytes = _pdfService.GenerateOrderBillPdf(order, billId);
+            var pdfBytes = _pdfService.GenerateOrderPdf(order);
 
             if (pdfBytes == null)
             {
-                return NotFound("Bill not found within the order.");
+                return NotFound("Failed to generate PDF.");
             }
 
-            var bill = order.Bill.FirstOrDefault(b => b.BillID == billId);
-            return File(pdfBytes, "application/pdf", $"Invoice_{bill?.BillNo ?? "Bill"}.pdf");
+            return File(pdfBytes, "application/pdf", $"Order_{order.OrderNo ?? "Order"}.pdf");
         }
     }
 }
