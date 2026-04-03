@@ -40,7 +40,7 @@ namespace AvinyaAICRM.API.Controllers.Expense
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] CreateExpenseDto dto)
+        public async Task<IActionResult> Create([FromForm] CreateExpenseDto dto)
         {
             var tenantId = User.FindFirst("tenantId")?.Value!;
             var userId = Guid.Parse(User.FindFirst("userId")?.Value!);
@@ -50,7 +50,7 @@ namespace AvinyaAICRM.API.Controllers.Expense
         }
 
         [HttpPut]
-        public async Task<IActionResult> Update([FromBody] UpdateExpenseDto dto)
+        public async Task<IActionResult> Update([FromForm] UpdateExpenseDto dto)
         {
             var userId = Guid.Parse(User.FindFirst("userId")?.Value!);
             var response = await _expenseService.UpdateAsync(dto, userId);

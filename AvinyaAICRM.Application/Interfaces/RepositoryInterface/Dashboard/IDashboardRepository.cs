@@ -4,7 +4,7 @@ namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.Dashboard
 {
     public interface IDashboardRepository
     {
-        Task<DashboardDto> GetDashboardAsync();
+        Task<DashboardDto> GetDashboardAsync(string tenantId, string? role, string? userId);
 
     }
 }

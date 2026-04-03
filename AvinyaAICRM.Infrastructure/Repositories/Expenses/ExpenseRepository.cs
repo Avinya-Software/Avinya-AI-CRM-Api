@@ -88,8 +88,16 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Expenses
 
         public async Task<bool> CreateAsync(Expense expense)
         {
-            await _context.Expenses.AddAsync(expense);
-            return await _context.SaveChangesAsync() > 0;
+            try
+            {
+                await _context.Expenses.AddAsync(expense);
+                return await _context.SaveChangesAsync() > 0;
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
+           
         }
 
         public async Task<bool> UpdateAsync(Expense expense)
