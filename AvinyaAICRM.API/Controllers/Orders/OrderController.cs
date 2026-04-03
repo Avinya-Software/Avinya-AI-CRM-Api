@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Order;
+using AvinyaAICRM.Application.DTOs.Order;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Orders;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -11,11 +11,13 @@ namespace AvinyaAICRM.API.Controllers
     {
         private readonly IOrderService _service;
         private readonly IStatusDropDownServices _statusDropDownServices;
+        private readonly IOrderPdfService _pdfService;
 
-        public OrderController(IOrderService service, IStatusDropDownServices statusDropDownServices)
+        public OrderController(IOrderService service, IStatusDropDownServices statusDropDownServices, IOrderPdfService pdfService)
         {
             _service = service;
             _statusDropDownServices = statusDropDownServices;
+            _pdfService = pdfService;
         }
 
         [HttpGet("{id:guid}")]
@@ -61,6 +63,28 @@ namespace AvinyaAICRM.API.Controllers
         {
             var result = await _statusDropDownServices.GetAllDesignStatusAsync();
             return new JsonResult(result) { StatusCode = result.StatusCode };
+        }
+
+        [HttpGet("download-bill-pdf/{orderId}/{billId}")]
+        public async Task<IActionResult> DownloadBillPdf(Guid orderId, Guid billId)
+        {
+            var tenantId = User.FindFirst("tenantId")?.Value!;
+            var result = await _service.GetByIdAsync(orderId, tenantId);
+            if (result.StatusCode != 200 || result.Data == null)
+            {
+                return NotFound("Order not found.");
+            }
+
+            var order = (OrderResponseDto)result.Data;
+            var pdfBytes = _pdfService.GenerateOrderBillPdf(order, billId);
+
+            if (pdfBytes == null)
+            {
+                return NotFound("Bill not found within the order.");
+            }
+
+            var bill = order.Bill.FirstOrDefault(b => b.BillID == billId);
+            return File(pdfBytes, "application/pdf", $"Invoice_{bill?.BillNo ?? "Bill"}.pdf");
         }
     }
 }

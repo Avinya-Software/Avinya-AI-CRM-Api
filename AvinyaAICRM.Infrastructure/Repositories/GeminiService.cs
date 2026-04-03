@@ -105,7 +105,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 ? "1. SUPER ADMIN. Global access. Do NOT add TenantId filters unless specific." 
                 : "1. Per-tenant analyst.\n2. Use 'WHERE TenantId = @TenantId'.";
 
-            // Important: Explicitly tell AI the current year/date to prevent 2024/cutoff issues.
+           
             var currentTimeContext = $"Current Date/Time: {DateTime.Now:f} (Year {DateTime.Now.Year})";
 
             var prompt = $@"
@@ -117,7 +117,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 - Use the provided Current Date/Time context for ALL relative time calculations.
 
                 ACTIONS:
-                1. ""create_lead"": Extract 'CompanyName', 'Mobile', 'Email', 'Notes'.
+                1. ""create_lead"": Extract 'CompanyName', 'Mobile', 'Email', 'Notes', 'ClientType' (Company/Individual, default is Company).
+                   - CLARIFICATION RULES for leads:
+                     - ALWAYS ask for 'CompanyName' (the client or company name) if it's missing. Never create a lead without a name.
+
                 2. ""create_task"": User wants to create a task.
                    - Extract: 'Title', 'Description', 'Notes', 'TaskScope' (Personal/Team), 'TeamName', 'AssignToName', 'DueDateTime', 'ReminderAt'.
                    - CLARIFICATION RULES for tasks:
@@ -129,9 +132,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories
 
                 SQL RULES (MANDATORY):
                 1. {securityRule}
-                2. SECURITY: Include '@TenantId'. Ignore records with 'IsDeleted = 1'.
-                3. JOIN LOGIC: Join on IDs, SELECT readable Names.
-                4. COLUMN NAMES: Clients table column is 'CompanyName'.
+                2. SECURITY: Only include 'TenantId = @TenantId' for tables that have it in the schema. (e.g., Leads, Clients, AspNetUsers). Tables like LeadFollowups or master tables should be filtered via JOINs. Ignore records with 'IsDeleted = 1'.
+                3. PERSONALIZATION: If the user says 'my' (e.g., 'my followups', 'leads assigned to me'), use 'FollowUpBy = @CurrentUserId' or 'AssignedTo = @CurrentUserId' as appropriate.
+                4. JOIN LOGIC: Join on IDs, SELECT readable Names.
+                5. COLUMN NAMES: Clients table column is 'CompanyName'.
 
                 REPORTING STRUCTURE (ONLY if 'report' or 'summary' is asked):
                 Act like a BUSINESS ANALYST. Always return Summary, Breakdown (Leads/Quotes/Orders breakdowns), and Insights. Use {{Value}} placeholders.
@@ -139,7 +143,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 MODES:
                 - DATA LIST MODE (Default): Specific records.
                 - BUSINESS ANALYST MODE: 'report' or 'summary'. 
-
+                
+                SUGGESTIONS:
+                - Provide 2-3 short, actionable prompt starters (e.g., 'Show details of the last lead', 'Compare this to last month').
+                - Always tailor suggestions to the current context (e.g., if showing followups, suggest 'Schedule a follow-up').
                 JSON FORMAT:
                 {{
                   ""action"": ""create_lead"" | ""create_task"" | ""get_summary"" | ""message"",
@@ -148,7 +155,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                   ""isClarificationRequired"": boolean,
                   ""clarificationMessage"": ""str"",
                   ""successMessage"": ""str"",
-                  ""errorMessage"": ""str""
+                  ""errorMessage"": ""str"",
+                  ""suggestions"": [""suggestion 1"", ""suggestion 2""]
                 }}
 
                 Schema Context:

@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Quotation;
+using AvinyaAICRM.Application.DTOs.Quotation;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Quotations;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface;
 using AvinyaAICRM.Domain.Entities.Quotations;
@@ -363,6 +363,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
                                         .AsNoTracking()
                                         .FirstOrDefault(u => u.Id == q.CreatedBy)
 
+                                    let tenant = _context.Tenants
+                                        .AsNoTracking()
+                                        .FirstOrDefault(t => t.TenantId == q.TenantId)
+
                                     select new QuotationResponseDto
                                     {
                                         QuotationID = q.QuotationID,
@@ -394,6 +398,12 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
 
                                         CreatedBy = q.CreatedBy,
                                         CreatedByName = createdByUser.UserName,
+
+                                        // Firm Details from Tenant
+                                        FirmID = q.FirmID,
+                                        FirmName =  tenant.CompanyName,
+                                        FirmMobile = tenant.CompanyPhone,
+                                        FirmGSTNo = "-", // GST not yet in Tenant entity
 
                                         Items = (
                                             from i in _context.QuotationItems

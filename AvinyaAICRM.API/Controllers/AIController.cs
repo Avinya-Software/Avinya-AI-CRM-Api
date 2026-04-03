@@ -54,6 +54,7 @@ namespace AvinyaAICRM.API.Controllers
                         message = commandResult.ClarificationMessage,
                         isClarificationRequired = commandResult.IsClarificationRequired,
                         suggestedClients = commandResult.SuggestedClients,
+                        suggestions = commandResult.Suggestions,
                         data = new List<object>(),
                         count = 0
                     });
@@ -63,7 +64,7 @@ namespace AvinyaAICRM.API.Controllers
                 if (!string.IsNullOrEmpty(commandResult.Sql))
                 {
                     // Execute the query
-                    var data = await _crmService.ExecuteRawSqlAsync(commandResult.Sql, tenantId, isSuperAdmin);
+                    var data = await _crmService.ExecuteRawSqlAsync(commandResult.Sql, tenantId, userId ?? "", isSuperAdmin);
 
                     // Hydrate the template with data from the first row (for reports) or just {count}
                     var finalMessage = commandResult.SuccessMessage ?? "Here is what I found:";
@@ -89,13 +90,13 @@ namespace AvinyaAICRM.API.Controllers
                     {
                         finalMessage = commandResult.ErrorMessage ?? "No records found.";
                     }
-
                     return Ok(new
                     {
                         query = commandResult.Sql, 
                         data = data,
                         count = data.Count,
-                        message = finalMessage
+                        message = finalMessage,
+                        suggestions = commandResult.Suggestions
                     });
                 }
 
@@ -105,7 +106,8 @@ namespace AvinyaAICRM.API.Controllers
                     query = "",
                     data = new List<object>(),
                     count = 0,
-                    message = commandResult.ClarificationMessage ?? commandResult.ErrorMessage ?? "I'm not sure how to help with that. Can you rephrase it?"
+                    message = commandResult.ClarificationMessage ?? commandResult.ErrorMessage ?? "I'm not sure how to help with that. Can you rephrase it?",
+                    suggestions = commandResult.Suggestions
                 });
             }
             catch (UnauthorizedAccessException ex)

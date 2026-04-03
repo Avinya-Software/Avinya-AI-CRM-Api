@@ -19,6 +19,7 @@
 		</PackageReference>
 		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.0" />
 		<PackageReference Include="Microsoft.Extensions.Identity.Core" Version="8.0.23" />
+		<PackageReference Include="QuestPDF" Version="2026.2.4" />
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\AvinyaAICRM.Application\AvinyaAICRM.Application.csproj" />

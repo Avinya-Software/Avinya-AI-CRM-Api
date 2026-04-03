@@ -1,5 +1,6 @@
 using AvinyaAICRM.Application.DTOs.Lead;
 using AvinyaAICRM.Application.DTOs.Tasks;
+using AvinyaAICRM.Domain.Enums.Clients;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.AIChat;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Team;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.AICHAT;
@@ -34,7 +35,7 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             _teamRepo = teamRepo;
         }
 
-        public async Task<List<Dictionary<string, object>>> ExecuteRawSqlAsync(string sql, Guid tenantId, bool isSuperAdmin)
+        public async Task<List<Dictionary<string, object>>> ExecuteRawSqlAsync(string sql, Guid tenantId, string userId, bool isSuperAdmin)
         {
             if (string.IsNullOrWhiteSpace(sql)) return new List<Dictionary<string, object>>();
 
@@ -56,7 +57,7 @@ namespace AvinyaAICRM.Application.Services.AICHATS
 
             using (var connection = _context.Database.GetDbConnection())
             {
-                var queryParams = new { TenantId = tenantId };
+                var queryParams = new { TenantId = tenantId, CurrentUserId = userId };
                 
                 // Dapper handles the mapping to dynamic (DapperRow) automatically
                 var results = await connection.QueryAsync(sql, queryParams);
@@ -78,10 +79,72 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             
             if (aiResponse.Action == "create_task")
             {
-                return await HandleCreateTaskAsync(aiResponse, tenantId, userId, isSuperAdmin);
+                aiResponse = await HandleCreateTaskAsync(aiResponse, tenantId, userId, isSuperAdmin);
             }
 
+            // Generate suggestions based on the result
+            aiResponse.Suggestions = GenerateSuggestions(aiResponse, allowedModules);
+
             return aiResponse;
+        }
+
+        private List<string> GenerateSuggestions(AIResponse response, List<string> allowedModules)
+        {
+            var suggestions = response.Suggestions ?? new List<string>();
+            var action = response.Action?.ToLower();
+            var sql = response.Sql?.ToUpper() ?? "";
+
+            if (response.IsClarificationRequired)
+            {
+                return suggestions;
+            }
+
+            // 1. Contextual Suggestions based on SQL Tables
+            if (!string.IsNullOrEmpty(sql))
+            {
+                if (sql.Contains("LEADFOLLOWUPS"))
+                {
+                    suggestions.Add("Show my followups for today");
+                    if (allowedModules.Any(m => m.Contains("lead"))) suggestions.Add("Show latest leads");
+                    return suggestions;
+                }
+                if (sql.Contains("LEADS"))
+                {
+                    suggestions.Add("Show all leads added today");
+                    if (allowedModules.Any(m => m.Contains("task"))) suggestions.Add("Schedule a follow-up task");
+                    return suggestions;
+                }
+                if (sql.Contains("TASKS"))
+                {
+                    suggestions.Add("List my pending tasks");
+                    suggestions.Add("Show tasks for tomorrow");
+                    return suggestions;
+                }
+            }
+
+            // 2. Fallback Suggestions based on Action or General Onboarding
+            switch (action)
+            {
+                case "create_lead":
+                    suggestions.Add("Show all leads added today");
+                    if (allowedModules.Any(m => m.Contains("task"))) suggestions.Add("Schedule a follow-up for this lead");
+                    break;
+
+                case "create_task":
+                    suggestions.Add("Show my tasks for tomorrow");
+                    suggestions.Add("List all pending team tasks");
+                    break;
+
+                case "message":
+                default:
+                    // General onboarding
+                    if (allowedModules.Any(m => m.Contains("lead"))) suggestions.Add("Show my latest leads");
+                    if (allowedModules.Any(m => m.Contains("task"))) suggestions.Add("List upcoming meetings");
+                    if (allowedModules.Any(m => m.Contains("project"))) suggestions.Add("What's the status of current projects?");
+                    break;
+            }
+
+            return suggestions;
         }
 
         private async Task<AIResponse> HandleCreateTaskAsync(AIResponse aiResponse, Guid tenantId, string userId, bool isSuperAdmin)
@@ -165,59 +228,64 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             var parameters = aiResponse.Parameters ?? new Dictionary<string, string>();
             parameters.TryGetValue("CompanyName", out var clientName);
 
-            if (!string.IsNullOrEmpty(clientName))
+            if (string.IsNullOrEmpty(clientName))
             {
-                // check if it's already a client
-                var existingClients = await _context.Clients
-                    .Where(c => c.CompanyName.Contains(clientName) && (isSuperAdmin || c.TenantId == tenantId))
-                    .Select(c => new ClientDisambiguationDto
-                    {
-                        ClientID = c.ClientID,
-                        CompanyName = c.CompanyName,
-                        Email = c.Email,
-                        Mobile = c.Mobile
-                    })
-                    .ToListAsync();
-
-                if (existingClients.Count == 0)
-                {
-                    return await CreateLeadAndFinalize(aiResponse, null, tenantId, userId);
-                }
-                else if (existingClients.Count == 1)
-                {
-                    return await CreateLeadAndFinalize(aiResponse, existingClients[0].ClientID, tenantId, userId);
-                }
-                else
-                {
-                    parameters.TryGetValue("Email", out var email);
-                    parameters.TryGetValue("Mobile", out var mobile);
-
-                    if (!string.IsNullOrEmpty(email) || !string.IsNullOrEmpty(mobile))
-                    {
-                        var exactMatch = existingClients.FirstOrDefault(c => 
-                            (!string.IsNullOrEmpty(email) && c.Email == email) || 
-                            (!string.IsNullOrEmpty(mobile) && c.Mobile == mobile));
-
-                        if (exactMatch != null)
-                        {
-                            return await CreateLeadAndFinalize(aiResponse, exactMatch.ClientID, tenantId, userId);
-                        }
-                    }
-
-                    aiResponse.IsClarificationRequired = true;
-                    aiResponse.SuggestedClients = existingClients;
-                    aiResponse.ClarificationMessage = $"I found multiple clients named '{clientName}'. Please provide an email or phone number to identify the correct one, or select from the list below:";
-                    return aiResponse;
-                }
+                aiResponse.IsClarificationRequired = true;
+                aiResponse.ClarificationMessage = "To create a lead, I need at least a Company or Client Name. Who is this lead for?";
+                return aiResponse;
             }
 
-            return await CreateLeadAndFinalize(aiResponse, null, tenantId, userId);
+            // check if it's already a client
+            var existingClients = await _context.Clients
+                .Where(c => c.CompanyName.Contains(clientName) && (isSuperAdmin || c.TenantId == tenantId))
+                .Select(c => new ClientDisambiguationDto
+                {
+                    ClientID = c.ClientID,
+                    CompanyName = c.CompanyName,
+                    Email = c.Email,
+                    Mobile = c.Mobile
+                })
+                .ToListAsync();
+
+            if (existingClients.Count == 0)
+            {
+                return await CreateLeadAndFinalize(aiResponse, null, tenantId, userId);
+            }
+            else if (existingClients.Count == 1)
+            {
+                return await CreateLeadAndFinalize(aiResponse, existingClients[0].ClientID, tenantId, userId);
+            }
+            else
+            {
+                parameters.TryGetValue("Email", out var email);
+                parameters.TryGetValue("Mobile", out var mobile);
+
+                if (!string.IsNullOrEmpty(email) || !string.IsNullOrEmpty(mobile))
+                {
+                    var exactMatch = existingClients.FirstOrDefault(c => 
+                        (!string.IsNullOrEmpty(email) && c.Email == email) || 
+                        (!string.IsNullOrEmpty(mobile) && c.Mobile == mobile));
+
+                    if (exactMatch != null)
+                    {
+                        return await CreateLeadAndFinalize(aiResponse, exactMatch.ClientID, tenantId, userId);
+                    }
+                }
+
+                aiResponse.IsClarificationRequired = true;
+                aiResponse.SuggestedClients = existingClients;
+                aiResponse.ClarificationMessage = $"I found multiple clients named '{clientName}'. Please provide an email or phone number to identify the correct one, or select from the list below:";
+                return aiResponse;
+            }
         }
 
         private async Task<AIResponse> CreateLeadAndFinalize(AIResponse aiResponse, Guid? clientId, Guid tenantId, string userId)
         {
             var p = aiResponse.Parameters ?? new Dictionary<string, string>();
             
+            p.TryGetValue("ClientType", out var clientTypeStr);
+            var clientType = (clientTypeStr?.ToLower() == "individual") ? (int)ClientTypeEnum.Individual : (int)ClientTypeEnum.Company;
+
             var dto = new LeadRequestDto
             {
                 ClientID = clientId,
@@ -228,7 +296,8 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                 ContactPerson = p.GetValueOrDefault("ContactPerson"),
                 RequirementDetails = p.GetValueOrDefault("Notes"),
                 Date = DateTime.UtcNow,
-                CreatedBy = userId
+                CreatedBy = userId,
+                ClientType = clientType
             };
 
             var result = await _leadService.CreateAsync(dto, userId);

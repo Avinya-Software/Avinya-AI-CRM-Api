@@ -23,6 +23,7 @@ namespace AvinyaAICRM.Shared.AI
         public bool IsClarificationRequired { get; set; }
         public string? ClarificationMessage { get; set; }
         public List<ClientDisambiguationDto>? SuggestedClients { get; set; }
+        public List<string>? Suggestions { get; set; }
     }
 
     public class ClientDisambiguationDto
