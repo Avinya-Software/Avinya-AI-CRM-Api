@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Quotation;
+using AvinyaAICRM.Application.DTOs.Quotation;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Quotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,10 +12,27 @@ namespace AvinyaAICRM.Api.Controllers.Quotations
     public class QuotationController : ControllerBase
     {
         private readonly IQuotationService _quotationService;
+        private readonly IQuotationPdfService _pdfService;
 
-        public QuotationController(IQuotationService quotationService)
+        public QuotationController(IQuotationService quotationService, IQuotationPdfService pdfService)
         {
             _quotationService = quotationService;
+            _pdfService = pdfService;
+        }
+
+        [HttpGet("download-pdf/{id}")]
+        public async Task<IActionResult> DownloadPdf(Guid id)
+        {
+            var result = await _quotationService.GetByIdAsync(id);
+            if (result.StatusCode != 200 || result.Data == null)
+            {
+                return NotFound("Quotation not found.");
+            }
+
+            var quotation = (QuotationResponseDto)result.Data;
+            var pdfBytes = _pdfService.GenerateQuotationPdf(quotation);
+
+            return File(pdfBytes, "application/pdf", $"Quotation_{quotation.QuotationNo}.pdf");
         }
 
         [HttpGet("get-quotation-dropdown-list")]

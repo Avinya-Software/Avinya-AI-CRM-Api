@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Auth;
+using AvinyaAICRM.Application.DTOs.Auth;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.User;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -56,7 +56,19 @@ namespace AvinyaAICRM.API.Controllers.User
         [HttpGet("companies")]
         public async Task<IActionResult> GetMyCompanies()
         {
-            var result = await _service.GetMyCompaniesAsync();
+            var isSuperAdmin = User.IsInRole("SuperAdmin");
+            Guid? currentUserTenant = null;
+
+            if (!isSuperAdmin)
+            {
+                var tenantIdClaim = User.FindFirst("tenantId")?.Value;
+                if (Guid.TryParse(tenantIdClaim, out var parsed))
+                {
+                    currentUserTenant = parsed;
+                }
+            }
+
+            var result = await _service.GetMyCompaniesAsync(currentUserTenant);
             return new JsonResult(result) { StatusCode = result.StatusCode };
         }
 

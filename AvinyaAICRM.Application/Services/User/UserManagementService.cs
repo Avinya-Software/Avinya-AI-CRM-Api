@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Auth;
+using AvinyaAICRM.Application.DTOs.Auth;
 using AvinyaAICRM.Application.DTOs.User;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.User;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.User;
@@ -168,9 +168,9 @@ namespace AvinyaAICRM.Application.Services.User
             return CommonHelper.GetResponseMessage(result);
         }
 
-        public async Task<ResponseModel> GetMyCompaniesAsync()
+        public async Task<ResponseModel> GetMyCompaniesAsync(Guid? currentUserTenant)
         {
-            var companies = await _userRepo.GetMyCompaniesAsync();
+            var companies = await _userRepo.GetMyCompaniesAsync(currentUserTenant);
             return CommonHelper.GetResponseMessage(companies);
         }
 

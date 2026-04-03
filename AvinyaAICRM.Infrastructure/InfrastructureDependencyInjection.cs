@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.Interfaces.Clients;
+using AvinyaAICRM.Application.Interfaces.Clients;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.AIChat;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.City;
@@ -22,6 +22,8 @@ using AvinyaAICRM.Application.Interfaces.ServiceInterface;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.AICHAT;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Dashboard;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Settings;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.Quotations;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.Orders;
 using AvinyaAICRM.Application.Services.AICHATS;
 using AvinyaAICRM.Application.Services.Dashboard;
 using AvinyaAICRM.Application.Services.Settings;
@@ -48,6 +50,7 @@ using AvinyaAICRM.Infrastructure.Repositories.Team;
 using AvinyaAICRM.Infrastructure.Repositories.TeamMember;
 using AvinyaAICRM.Infrastructure.Repositories.Tenant;
 using AvinyaAICRM.Infrastructure.Repositories.User;
+using AvinyaAICRM.Infrastructure.Services;
 using AvinyaAICRM.Infrastructure.Service;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -166,6 +169,8 @@ namespace AvinyaAICRM.Infrastructure
             // ---------------- AIChat Services ----------------
             services.AddHttpClient<IAIService, GeminiService>();
             services.AddScoped<ICRMQueryService, CRMQueryService>();
+            services.AddScoped<IQuotationPdfService, QuotationPdfService>();
+            services.AddScoped<IOrderPdfService, OrderPdfService>();
             // ---------------- Permission System ----------------
             services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
             services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();

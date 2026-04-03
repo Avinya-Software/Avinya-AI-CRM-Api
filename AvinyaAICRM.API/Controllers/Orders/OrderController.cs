@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Order;
+using AvinyaAICRM.Application.DTOs.Order;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Orders;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -11,11 +11,13 @@ namespace AvinyaAICRM.API.Controllers
     {
         private readonly IOrderService _service;
         private readonly IStatusDropDownServices _statusDropDownServices;
+        private readonly IOrderPdfService _pdfService;
 
-        public OrderController(IOrderService service, IStatusDropDownServices statusDropDownServices)
+        public OrderController(IOrderService service, IStatusDropDownServices statusDropDownServices, IOrderPdfService pdfService)
         {
             _service = service;
             _statusDropDownServices = statusDropDownServices;
+            _pdfService = pdfService;
         }
 
         [HttpGet("{id:guid}")]
@@ -61,6 +63,27 @@ namespace AvinyaAICRM.API.Controllers
         {
             var result = await _statusDropDownServices.GetAllDesignStatusAsync();
             return new JsonResult(result) { StatusCode = result.StatusCode };
+        }
+
+        [HttpGet("download-pdf/{id}")]
+        public async Task<IActionResult> DownloadPdf(Guid id)
+        {
+            var tenantId = User.FindFirst("tenantId")?.Value!;
+            var result = await _service.GetByIdAsync(id, tenantId);
+            if (result.StatusCode != 200 || result.Data == null)
+            {
+                return NotFound("Order not found.");
+            }
+
+            var order = (OrderResponseDto)result.Data;
+            var pdfBytes = _pdfService.GenerateOrderPdf(order);
+
+            if (pdfBytes == null)
+            {
+                return NotFound("Failed to generate PDF.");
+            }
+
+            return File(pdfBytes, "application/pdf", $"Order_{order.OrderNo ?? "Order"}.pdf");
         }
     }
 }
