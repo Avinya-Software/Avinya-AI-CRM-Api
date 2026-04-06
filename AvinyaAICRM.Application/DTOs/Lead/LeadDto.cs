@@ -1,4 +1,6 @@
-﻿namespace AvinyaAICRM.Application.DTOs.Lead
+﻿using AvinyaAICRM.Application.DTOs.Reports;
+
+namespace AvinyaAICRM.Application.DTOs.Lead
 {
     public class LeadDto
     {
@@ -34,6 +36,10 @@
         public string? BillingAddress { get; set; }
         public string? Notes { get; set; }
         public string? Links { get; set; }
+
+        public List<LeadFollowupDetailsDto>? Followups { get; set; }
+
+        public int? FollowupCount { get; set; }
 
         public Guid? LatestLeadFollowupId { get; set; }
         public string? LatestFollowupStatus { get; set; }

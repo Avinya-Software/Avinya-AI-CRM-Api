@@ -95,6 +95,35 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                 .FirstOrDefault(s => s.LeadStatusID == lead.LeadStatusID)
                 ?.StatusName;
 
+            var followups = await (
+                from f in _context.LeadFollowups
+                join u in _context.Users on f.FollowUpBy equals u.Id into fu
+                from user in fu.DefaultIfEmpty()
+
+                join fs in _context.LeadFollowupStatuses
+                    on f.Status equals fs.LeadFollowupStatusID into fsj
+                from fs in fsj.DefaultIfEmpty()
+
+                where f.LeadID == id
+                orderby f.CreatedDate descending
+
+                select new LeadFollowupDetailsDto
+                {
+                    FollowUpID = f.FollowUpID,
+                    LeadID = f.LeadID,
+                    Notes = f.Notes,
+                    NextFollowupDate = f.NextFollowupDate,
+                    Status = f.Status,
+                    StatusName = fs != null ? fs.StatusName : null,
+                    FollowUpBy = f.FollowUpBy,
+                    FollowUpByName = user != null ? user.UserName : null,
+                    CreatedDate = f.CreatedDate,
+                    UpdatedDate = f.UpdatedDate
+                }
+            ).ToListAsync();
+
+            var latestFollowup = followups.FirstOrDefault();
+
             return new LeadDto
             {
                 LeadID = lead.LeadID,
@@ -124,12 +153,18 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
 
                 ClientType = client?.ClientType ?? 0,
                 clientTypeName = client != null
-        ? Enum.GetName(typeof(ClientTypeEnum), client.ClientType)
-        : "",
+                ? Enum.GetName(typeof(ClientTypeEnum), client.ClientType)
+                : "",
 
                 CompanyName = client?.CompanyName ?? "",
                 GSTNo = client?.GSTNo ?? "",
                 BillingAddress = client?.BillingAddress ?? "",
+
+                Followups = followups,
+                FollowupCount = followups.Count,
+
+                LatestLeadFollowupId = latestFollowup?.FollowUpID,
+                LatestFollowupStatus = latestFollowup?.StatusName,
 
                 NextFollowupDate = latestFollowupDate
             };
