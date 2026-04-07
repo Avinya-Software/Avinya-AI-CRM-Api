@@ -1,4 +1,4 @@
-﻿
+
 namespace AvinyaAICRM.Application.DTOs.Order
 {
   
@@ -66,6 +66,11 @@ namespace AvinyaAICRM.Application.DTOs.Order
         public List<WorkOrderData>? WorkOrder { get; set; }
 
         public List<BillData?> Bill { get; set; }
+
+        public bool ShowPaymentQR { get; set; }
+        public string? PaymentUPIId { get; set; }
+        public BankDetailsDto? Bank1 { get; set; }
+        public BankDetailsDto? Bank2 { get; set; }
     }
     public class WorkOrderData
     {

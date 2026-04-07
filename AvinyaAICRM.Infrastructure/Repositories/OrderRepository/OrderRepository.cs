@@ -141,6 +141,47 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
             ).ToListAsync();
             order.IsAssign = true;
 
+            var activeBanks = await _context.BankDetails.AsNoTracking()
+                .Where(b => b.TenantId == tenantId && b.IsActive)
+                .Take(2)
+                .ToListAsync();
+
+            if (activeBanks.Count > 0)
+            {
+                order.Bank1 = new BankDetailsDto
+                {
+                    BankAccountId = activeBanks[0].BankAccountId,
+                    BankName = activeBanks[0].BankName,
+                    AccountHolderName = activeBanks[0].AccountHolderName,
+                    AccountNumber = activeBanks[0].AccountNumber,
+                    IFSCCode = activeBanks[0].IFSCCode,
+                    BranchName = activeBanks[0].BranchName,
+                    IsActive = activeBanks[0].IsActive
+                };
+            }
+            if (activeBanks.Count > 1)
+            {
+                order.Bank2 = new BankDetailsDto
+                {
+                    BankAccountId = activeBanks[1].BankAccountId,
+                    BankName = activeBanks[1].BankName,
+                    AccountHolderName = activeBanks[1].AccountHolderName,
+                    AccountNumber = activeBanks[1].AccountNumber,
+                    IFSCCode = activeBanks[1].IFSCCode,
+                    BranchName = activeBanks[1].BranchName,
+                    IsActive = activeBanks[1].IsActive
+                };
+            }
+
+            var paymentQrSetting = await _context.Settings.AsNoTracking()
+                .FirstOrDefaultAsync(s => s.TenantId == tenantId && s.EntityType == "PaymentQR");
+
+            var paymentUpiSetting = await _context.Settings.AsNoTracking()
+                .FirstOrDefaultAsync(s => s.TenantId == tenantId && s.EntityType == "PaymentUPIId");
+
+            order.ShowPaymentQR = paymentQrSetting != null && (paymentQrSetting.Value == "1" || paymentQrSetting.Value.ToLower() == "true");
+            order.PaymentUPIId = paymentUpiSetting?.Value;
+
             return order;
         }
 
@@ -412,7 +453,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
                     order = new Order
                     {
                         OrderID = orderId,
-                        OrderNo = await _numberGeneratorService.GenerateNumberAsync("OrderNo"),
+                        OrderNo = await _numberGeneratorService.GenerateNumberAsync("OrderNo", userData.TenantId.ToString()),
                         ClientID = dto.ClientID ?? Guid.Empty,
                         QuotationID = dto.QuotationID,
                         OrderDate = dto.OrderDate ?? DateTime.Now,

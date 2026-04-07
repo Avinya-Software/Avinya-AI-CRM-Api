@@ -132,7 +132,7 @@ namespace AvinyaAICRM.Infrastructure.Services
 
         private void ComposeTable(IContainer container)
         {
-            container.MinHeight(500).Layers(layers =>
+            container.MinHeight(465).Layers(layers =>
             {
                 layers.Layer().Row(row =>
                 {
@@ -220,21 +220,95 @@ namespace AvinyaAICRM.Infrastructure.Services
 
         private void ComposeFooter(IContainer container)
         {
-            container.BorderTop(1).Padding(5).Row(row =>
+            container.BorderTop(1).Column(column =>
             {
-                // Terms
-                row.RelativeItem().Column(col =>
+                // Bank Details Row
+                if (Order.Bank1 != null || Order.Bank2 != null)
                 {
-                    col.Item().Text("Terms & Conditions").Bold().FontSize(8.5f);
-                    col.Item().Text("1. Goods once sold will be as per order confirmation.");
-                    col.Item().Text("2. Expected delivery dates are subject to material availability.");
-                });
+                    column.Item().BorderBottom(1).Row(row =>
+                    {
+                        if (Order.Bank1 != null)
+                        {
+                            row.RelativeItem().Padding(5).Column(col =>
+                            {
+                                col.Item().Text(text =>
+                                {
+                                    text.Span("Bank Details : BANK NAME : ").Bold().FontSize(8.5f);
+                                    text.Span(Order.Bank1.BankName ?? "-").FontSize(8.5f);
+                                });
+                                col.Item().PaddingLeft(60).Text($"A/C NO : {Order.Bank1.AccountNumber ?? "-"}").FontSize(8.5f);
+                                col.Item().PaddingLeft(60).Text($"IFSC CODE : {Order.Bank1.IFSCCode ?? "-"}").FontSize(8.5f);
+                            });
+                        }
 
-                // Signature
-                row.RelativeItem().AlignRight().Column(col =>
+                        if (Order.Bank2 != null)
+                        {
+                            row.RelativeItem().BorderLeft(Order.Bank1 != null ? 1 : 0).Padding(5).Column(col =>
+                            {
+                                col.Item().Text(text =>
+                                {
+                                    text.Span("Bank Details : BANK NAME : ").Bold().FontSize(8.5f);
+                                    text.Span(Order.Bank2.BankName ?? "-").FontSize(8.5f);
+                                });
+                                col.Item().PaddingLeft(60).Text($"A/C NO : {Order.Bank2.AccountNumber ?? "-"}").FontSize(8.5f);
+                                col.Item().PaddingLeft(60).Text($"IFSC CODE : {Order.Bank2.IFSCCode ?? "-"}").FontSize(8.5f);
+                            });
+                        }
+                    });
+                }
+
+                column.Item().Layers(layers =>
                 {
-                    col.Item().PaddingTop(5).Text($"For {Order.FirmName?.ToUpper() ?? " "}").Bold();
-                    col.Item().PaddingTop(50).Text("Authorised Signatory").FontSize(8.5f);
+                    // Border layer — spans full height regardless of content
+                    layers.Layer().Row(row =>
+                    {
+                        row.RelativeItem();                    // Terms (no left border)
+                        row.RelativeItem().BorderLeft(1);      // QR Code
+                        row.RelativeItem().BorderLeft(1);      // Signature
+                    });
+
+                    // Content layer
+                    layers.PrimaryLayer().Row(row =>
+                    {
+                        // Terms
+                        row.RelativeItem().Padding(5).Column(col =>
+                        {
+                            col.Item().Text("Terms & Conditions").Bold().FontSize(8.5f);
+                            col.Item().PaddingTop(3).Text("E. & O. E.").FontSize(7.5f);
+                            col.Item().PaddingTop(3).Text("1. Goods once sold will not be taken back.").FontSize(7.5f);
+                            col.Item().PaddingTop(3).Text("2. Interest @18% p.a. will be charged").FontSize(7.5f);
+                            col.Item().PaddingTop(1).PaddingLeft(8).Text("if the payment is not made in time.").FontSize(7.5f);
+                            col.Item().PaddingTop(3).Text("3. Subject to 'SURAT' jurisdiction only.").FontSize(7.5f);
+                        });
+
+                        // QR Code — remove BorderLeft(1), now handled by layer
+                        row.RelativeItem().Padding(5).AlignCenter().Column(col =>
+                        {
+                            col.Item().AlignCenter().Text("Payment QR Code").Bold().FontSize(8.5f);
+                            if (Order.ShowPaymentQR && !string.IsNullOrWhiteSpace(Order.PaymentUPIId))
+                            {
+                                try
+                                {
+                                    string upiString = $"upi://pay?pa={Order.PaymentUPIId}&pn={Order.FirmName?.Replace(" ", "%20")}&am={Order.GrandTotal}&cu=INR";
+                                    using var qrGenerator = new QRCoder.QRCodeGenerator();
+                                    using var qrCodeData = qrGenerator.CreateQrCode(upiString, QRCoder.QRCodeGenerator.ECCLevel.Q);
+                                    using var qrCode = new QRCoder.PngByteQRCode(qrCodeData);
+                                    byte[] qrCodeImage = qrCode.GetGraphic(5);
+                                    col.Item().PaddingTop(5).AlignCenter().Width(60).Height(60).Image(qrCodeImage);
+                                }
+                                catch { col.Item().PaddingTop(5).Text("QR Error").FontSize(7f); }
+                            }
+                            else { col.Item().PaddingTop(5).Text(" ").FontSize(8f); }
+                        });
+
+                        // Signature — remove BorderLeft(1), now handled by layer
+                        row.RelativeItem().Column(col =>
+                        {
+                            col.Item().BorderBottom(1).Padding(5).Text("Receiver's Signature :").Bold().FontSize(8.5f);
+                            col.Item().Padding(5).AlignRight().Text($"For {Order.FirmName?.ToUpper() ?? " "}").Bold().FontSize(8.5f);
+                            col.Item().Padding(5).PaddingTop(30).AlignRight().Text("Authorised Signatory").Bold().FontSize(8.5f);
+                        });
+                    });
                 });
             });
         }

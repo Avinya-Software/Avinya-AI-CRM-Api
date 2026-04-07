@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Lead;
+using AvinyaAICRM.Application.DTOs.Lead;
 using AvinyaAICRM.Application.DTOs.Reports;
 using AvinyaAICRM.Application.DTOs.User;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Leads;
@@ -306,7 +306,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                 //    }
                 //}
 
-                lead.LeadNo = await _numberGeneratorService.GenerateNumberAsync("LeadNo");
+                lead.LeadNo = await _numberGeneratorService.GenerateNumberAsync("LeadNo", userData.TenantId.ToString());
 
                 await _context.Leads.AddAsync(lead);
                 await _context.SaveChangesAsync();

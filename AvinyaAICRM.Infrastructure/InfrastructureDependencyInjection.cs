@@ -62,6 +62,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using System.ComponentModel;
 using System.Text;
+using AvinyaAICRM.Application.Interfaces.RepositoryInterface.BankDetail;
+using AvinyaAICRM.Infrastructure.Repositories.BankDetail;
 
 namespace AvinyaAICRM.Infrastructure
 {
@@ -174,6 +176,7 @@ namespace AvinyaAICRM.Infrastructure
             // ---------------- Permission System ----------------
             services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
             services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
+            services.AddScoped<IBankDetailRepository, BankDetailRepository>();
 
             return services;
         }

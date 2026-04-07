@@ -1,8 +1,9 @@
-﻿
+
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Client;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.AI;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Auth;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.BankDetail;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.City;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Dashboard;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Expense;
@@ -19,10 +20,12 @@ using AvinyaAICRM.Application.Interfaces.ServiceInterface.Tasks;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.TaxCategories;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Team;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.TeamMember;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.Tenants;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.User;
 using AvinyaAICRM.Application.Services;
 using AvinyaAICRM.Application.Services.AI;
 using AvinyaAICRM.Application.Services.Auth;
+using AvinyaAICRM.Application.Services.BankDetail;
 using AvinyaAICRM.Application.Services.City;
 using AvinyaAICRM.Application.Services.Client;
 using AvinyaAICRM.Application.Services.Dashboard;
@@ -40,6 +43,7 @@ using AvinyaAICRM.Application.Services.Tasks;
 using AvinyaAICRM.Application.Services.TaxCategories;
 using AvinyaAICRM.Application.Services.Team;
 using AvinyaAICRM.Application.Services.TeamMember;
+using AvinyaAICRM.Application.Services.Tenants;
 using AvinyaAICRM.Application.Services.User;
 using AvinyaAICRM.Infrastructure.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -76,7 +80,8 @@ namespace AvinyaAICRM.Application
             services.AddScoped<IProjectService, ProjectService>();
             services.AddScoped<IExpenseService, ExpenseService>();
             services.AddScoped<IDashbaordService, DashbaordService>();
-
+            services.AddScoped<ITenantService, TenantService>();
+            services.AddScoped<IBankDetailService, BankDetailService>();
             return services;
         }
     }
