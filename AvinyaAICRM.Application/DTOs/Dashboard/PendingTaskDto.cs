@@ -5,5 +5,6 @@
         public long OccurrenceId { get; set; }
         public string Title { get; set; }
         public DateTime? DueDateTime { get; set; }
+        public bool IsOverdue { get; set; }
     }
 }

@@ -19,5 +19,6 @@ namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.Leads
      int pageNumber,
      int pageSize);
         Task<(bool leadExists, List<LeadFollowupDto>? followups)> GetFollowupHistoryAsync(Guid leadId);
+        Task<List<LeadFollowupDto>> GetFollowupHistoryListAsync(string tenantId, string? role, bool isToday, bool isOverDue);
     }
 }

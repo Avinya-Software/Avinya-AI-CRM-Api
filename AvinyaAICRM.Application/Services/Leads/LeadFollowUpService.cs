@@ -164,6 +164,19 @@ namespace AvinyaAICRM.Application.Services.Leads
             }
         }
 
+        public async Task<ResponseModel> GetFollowupHistoryListAsync(string tenantId, string? role, bool isToday, bool isOverDue)
+        {
+            try
+            {
+                var followups = await _repository.GetFollowupHistoryListAsync(tenantId, role, isToday, isOverDue);
+                return CommonHelper.GetResponseMessage(followups);
+            }
+            catch (Exception ex)
+            {
+                return CommonHelper.ExceptionMessage(ex);
+            }
+        }
+
         public async Task<ResponseModel> GetAllLeadFollowupStatusesAsync()
         {
             try

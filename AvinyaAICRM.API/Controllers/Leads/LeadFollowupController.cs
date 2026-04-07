@@ -84,5 +84,18 @@ namespace AvinyaAICRM.API.Controllers
 
             return new JsonResult(result) { StatusCode = result.StatusCode };
         }
+
+        [HttpGet("list-followup-history")]
+        public async Task<IActionResult> GetFollowupHistoryList(bool isToday, bool isOverDue)
+        {
+            var tenantId = User.FindFirst("tenantId")?.Value!;
+            var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+            var result = await _service.GetFollowupHistoryListAsync(tenantId, role, isToday, isOverDue);
+
+            if (result.StatusCode == 404)
+                return NotFound(result);
+
+            return new JsonResult(result) { StatusCode = result.StatusCode };
+        }
     }
 }

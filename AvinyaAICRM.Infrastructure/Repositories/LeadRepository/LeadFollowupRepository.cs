@@ -4,6 +4,7 @@ using AvinyaAICRM.Domain.Entities.Leads;
 using AvinyaAICRM.Infrastructure.Persistence;
 using AvinyaAICRM.Shared.Model;
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 
 namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
 {
@@ -361,6 +362,41 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                                        }).ToListAsync();
 
                 return (true, followups);
+        }
+
+        public async Task<List<LeadFollowupDto>> GetFollowupHistoryListAsync(string tenantId, string? role,bool isToday, bool isOverDue)
+        {
+            var today = DateTime.Today;
+            bool isSuperAdmin = role == "SuperAdmin";
+
+            var followups = await (from f in _context.LeadFollowups
+                                   join l in _context.Leads on f.LeadID equals l.LeadID
+                                   join c in _context.Clients on l.ClientID equals c.ClientID
+                                   join s in _context.LeadFollowupStatuses on f.Status equals s.LeadFollowupStatusID
+                                   join u in _context.Users on f.FollowUpBy equals u.Id into users
+                                   from cu in users.DefaultIfEmpty()
+                                   where (isToday && f.NextFollowupDate == today) || (isOverDue && f.NextFollowupDate < today)
+                                     && (isSuperAdmin || l.TenantId.ToString() == tenantId)
+                                   orderby f.CreatedDate descending
+                                   select new LeadFollowupDto
+                                   {
+                                       FollowUpID = f.FollowUpID,
+                                       LeadID = f.LeadID,
+                                       LeadNo = l.LeadNo,
+                                       Notes = f.Notes,
+                                       NextFollowupDate = f.NextFollowupDate,
+                                       Status = f.Status,
+                                       StatusName = s.StatusName,
+                                       FollowUpBy = f.FollowUpBy,
+                                       FollowUpByName = cu != null ? cu.UserName : null,
+                                       CreatedDate = f.CreatedDate,
+                                       ClientName = c.ContactPerson,
+                                       Mobile = c.Mobile,
+                                       Email = c.Email,
+                                       CompanyName = c.CompanyName,
+                                   }).ToListAsync();
+
+            return followups;
         }
     }
 }

@@ -60,11 +60,12 @@ namespace AvinyaAICRM.Application.Services.Leads
                     throw new Exception("Session expired. Please login again.");
                 }
 
-                var validation = await _repository.ValidateClientAsync(dto);
-
-
-                if (!validation.IsValid)
-                    return new ResponseModel(400, validation.Message);
+                if (dto.ClientID == Guid.Empty || dto.ClientID == null)
+                {
+                    var validation = await _repository.ValidateClientAsync(dto);
+                    if (!validation.IsValid)
+                        return new ResponseModel(400, validation.Message);
+                }
 
                 var created = await _repository.AddAsync(dto, userId);
 
