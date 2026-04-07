@@ -18,7 +18,7 @@ namespace AvinyaAICRM.Api.Controllers.Setting
         }
 
         [HttpGet("get-all-settings")]
-        public async Task<IActionResult> GetAllSettings([FromQuery] string? search)
+        public async Task<IActionResult> GetAllSettings([FromQuery] string? search , [FromQuery] string? TenantId)
         {
             var tenantId = User.FindFirst("tenantId")?.Value!;
             var response = await _settingsServices.GetAllAsync(search, tenantId);

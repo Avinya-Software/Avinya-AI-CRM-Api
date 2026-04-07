@@ -38,10 +38,11 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tenant
             await _context.SaveChangesAsync();
         }
 
-        public async Task UpdateAsync(AvinyaAICRM.Domain.Entities.Tenant.Tenant tenant)
+        public async Task<AvinyaAICRM.Domain.Entities.Tenant.Tenant> UpdateAsync(AvinyaAICRM.Domain.Entities.Tenant.Tenant tenant)
         {
             _context.Tenants.Update(tenant);
             await _context.SaveChangesAsync();
+            return tenant;
         }
     }
 

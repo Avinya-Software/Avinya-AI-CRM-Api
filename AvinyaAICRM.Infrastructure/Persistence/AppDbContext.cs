@@ -1,5 +1,6 @@
-﻿using AvinyaAICRM.Domain.Entities;
+using AvinyaAICRM.Domain.Entities;
 using AvinyaAICRM.Domain.Entities.Action;
+using AvinyaAICRM.Domain.Entities.BankDetail;
 using AvinyaAICRM.Domain.Entities.City;
 using AvinyaAICRM.Domain.Entities.Client;
 using AvinyaAICRM.Domain.Entities.ErrorLogs;
@@ -67,5 +68,6 @@ namespace AvinyaAICRM.Infrastructure.Persistence
         public DbSet<ExpenseCategory> ExpenseCategories { get; set; }
         public DbSet<Project> Projects { get; set; }
         public DbSet<QuickBooksConnection> QuickBooksConnections { get; set; }
+        public DbSet<BankDetails> BankDetails { get; set; }
     }
 }

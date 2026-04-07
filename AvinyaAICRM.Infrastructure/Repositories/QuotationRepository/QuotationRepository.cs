@@ -57,7 +57,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
                     quotation = new Quotation
                     {
                         QuotationID = Guid.NewGuid(),
-                        QuotationNo = await _numberGeneratorService.GenerateNumberAsync("QuotationNo"),
+                        QuotationNo = await _numberGeneratorService.GenerateNumberAsync("QuotationNo", userData.TenantId.ToString()),
                         ClientID = dto.ClientID,
                         LeadID = dto.LeadID,
                         FirmID= dto.FirmID,
@@ -402,6 +402,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
                                         // Firm Details from Tenant
                                         FirmID = q.FirmID,
                                         FirmName =  tenant.CompanyName,
+                                        FirmAddress=tenant.Address,
                                         FirmMobile = tenant.CompanyPhone,
                                         FirmGSTNo = "-", // GST not yet in Tenant entity
 

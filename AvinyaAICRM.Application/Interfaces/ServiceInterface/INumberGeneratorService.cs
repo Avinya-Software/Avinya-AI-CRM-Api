@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,6 +8,6 @@ namespace AvinyaAICRM.Application.Interfaces.ServiceInterface
 {
     public interface INumberGeneratorService
     {
-        Task<string> GenerateNumberAsync(string entityType);
+        Task<string> GenerateNumberAsync(string entityType, string tenantId);
     }
 }

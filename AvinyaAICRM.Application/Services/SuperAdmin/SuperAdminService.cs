@@ -1,6 +1,8 @@
-﻿using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Tenant;
+﻿using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Settings;
+using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Tenant;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.User;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.SuperAdmin;
+using AvinyaAICRM.Domain.Entities;
 using AvinyaAICRM.Shared.Helper;
 using AvinyaAICRM.Shared.Model;
 
@@ -8,14 +10,27 @@ public class SuperAdminService : ISuperAdminService
 {
     private readonly ITenantRepository _tenantRepository;
     private readonly IUserRepository _userRepository;
+    private readonly ISettingsRepository _settingsRepository;
 
     public SuperAdminService(
         ITenantRepository tenantRepository,
-        IUserRepository userRepository)
+        IUserRepository userRepository, ISettingsRepository settingsRepository)
     {
         _tenantRepository = tenantRepository;
         _userRepository = userRepository;
+        _settingsRepository = settingsRepository;
     }
+
+    private string GetFinancialYear()
+    {
+        var now = DateTime.Now;
+
+        int startYear = now.Month >= 4 ? now.Year : now.Year - 1;
+        int endYear = startYear + 1;
+
+        return $"{startYear}-{endYear.ToString().Substring(2)}";
+    }
+
 
     public async Task<ResponseModel> ApproveAdminAsync(Guid tenantId)
     {
@@ -47,6 +62,24 @@ public class SuperAdminService : ISuperAdminService
 
         await _tenantRepository.UpdateAsync(tenant);
         await _userRepository.UpdateAsync(adminUser);
+
+        var fy = GetFinancialYear();
+
+        var defaultSettings = new List<Setting>
+            {
+                new Setting { EntityType = "WorkOrderSecond", Value = "0" , TenantId = tenantId.ToString() },
+                new Setting { EntityType = "PaymentQR", Value = "0", TenantId = tenantId.ToString() },
+                new Setting { EntityType = "FollowUp", Value = "0", TenantId = tenantId.ToString() },
+                new Setting { EntityType = "WorkOrderFirst", Value = "0", TenantId = tenantId.ToString() },
+                new Setting { EntityType = "WorkOrderNo", Value = $"{{'FinancialYear':'{fy}','LastNumber':0}}",PreFix = "W-NO",Digits=4, TenantId = tenantId.ToString() },
+                new Setting { EntityType = "TermsAndConditions", Value = "These are the default terms and conditions for VaraPrints. You can update this text from the admin panel.", TenantId = tenantId.ToString() },
+                new Setting { EntityType = "QuotationNo", Value = $"{{'FinancialYear':'{fy}','LastNumber':0}}",PreFix = "Q-NO",Digits=4, TenantId = tenantId.ToString() },
+                new Setting { EntityType = "OrderNo", Value = $"{{'FinancialYear':'{fy}','LastNumber':0}}",PreFix = "O-NO",Digits=4, TenantId = tenantId.ToString() },
+                new Setting { EntityType = "PaymentUPIId", Value = "", TenantId = tenantId.ToString() },
+                new Setting { EntityType = "LeadNo", Value = $"{{'FinancialYear':'{fy}','LastNumber':0}}",PreFix = "L-NO",Digits=4, TenantId = tenantId.ToString() }
+            };
+
+        await _settingsRepository.CreateSettingsAsync(defaultSettings);
 
         return CommonHelper.SuccessResponseMessage("Admin approved successfully",null);
     }

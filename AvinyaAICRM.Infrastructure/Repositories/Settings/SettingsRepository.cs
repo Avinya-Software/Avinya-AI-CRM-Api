@@ -13,9 +13,24 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Settings
         {
             _context = context;
         }
+
+        public async Task<List<Setting>> CreateSettingsAsync(List<Setting> settings)
+        {
+            try
+            {
+                await _context.Settings.AddRangeAsync(settings);
+                await _context.SaveChangesAsync();
+                return settings;
+            }
+            catch (Exception ex)
+            {
+                return new List<Setting>();
+            }
+        }
+
         public async Task<IEnumerable<Setting>> GetAllAsync(string? search, string tenantId)
         {
-            var query = _context.Settings.AsQueryable();
+            var query = _context.Settings.Where(e => e.TenantId == tenantId).AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(search))
             {

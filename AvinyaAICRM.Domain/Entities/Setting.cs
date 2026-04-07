@@ -14,7 +14,10 @@ namespace AvinyaAICRM.Domain.Entities
         public string EntityType { get; set; } = null!; 
 
         [Required]
-        public string Value { get; set; } = null!; 
+        public string Value { get; set; } = null!;
+
+        [Required]
+        public string TenantId { get; set; } = null!;
 
         [Required]
         public DateTime CreatedAt { get; set; } = DateTime.Now;
@@ -22,6 +25,5 @@ namespace AvinyaAICRM.Domain.Entities
         public DateTime? UpdatedAt { get; set; }
         public string? PreFix { get; set; }
         public int? Digits { get; set; }
-        public Guid? TenantId { get; set; }
     }
 }
