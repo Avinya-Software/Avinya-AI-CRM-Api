@@ -71,7 +71,7 @@ public class SuperAdminService : ISuperAdminService
                 new Setting { EntityType = "PaymentQR", Value = "0", TenantId = tenantId.ToString() },
                 new Setting { EntityType = "FollowUp", Value = "0", TenantId = tenantId.ToString() },
                 new Setting { EntityType = "WorkOrderFirst", Value = "0", TenantId = tenantId.ToString() },
-                new Setting { EntityType = "WorkOrderNo", Value = $"{{'FinancialYear':'{fy}','LastNumber':0}}",PreFix = "W-NO",Digits=4, TenantId = tenantId.ToString() },
+                new Setting { EntityType = "InvoiceNo", Value = $"{{'FinancialYear':'{fy}','LastNumber':0}}",PreFix = "IN-NO",Digits=4, TenantId = tenantId.ToString() },
                 new Setting { EntityType = "TermsAndConditions", Value = "These are the default terms and conditions for VaraPrints. You can update this text from the admin panel.", TenantId = tenantId.ToString() },
                 new Setting { EntityType = "QuotationNo", Value = $"{{'FinancialYear':'{fy}','LastNumber':0}}",PreFix = "Q-NO",Digits=4, TenantId = tenantId.ToString() },
                 new Setting { EntityType = "OrderNo", Value = $"{{'FinancialYear':'{fy}','LastNumber':0}}",PreFix = "O-NO",Digits=4, TenantId = tenantId.ToString() },

@@ -1,12 +1,15 @@
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.AIChat;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.AICHAT;
+using AvinyaAICRM.Domain.Entities.ErrorLogs;
 using AvinyaAICRM.Shared.AI;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore; 
-using AvinyaAICRM.Infrastructure.Persistence; 
+using Microsoft.EntityFrameworkCore;
+using AvinyaAICRM.Infrastructure.Persistence;
+using System.Diagnostics;
 
-namespace AvinyaAICRM.API.Controllers
+namespace AvinyaAICRM.API.Controllers.AI
 {
     [Authorize]
     [ApiController]
@@ -15,11 +18,19 @@ namespace AvinyaAICRM.API.Controllers
     {
         private readonly IAIService _aiService;
         private readonly ICRMQueryService _crmService;
+        private readonly IErrorLogService _errorLogService;
+        private readonly ILogger<AIController> _logger;
 
-        public AIController(IAIService aiService, ICRMQueryService crmService) 
+        public AIController(
+            IAIService aiService, 
+            ICRMQueryService crmService,
+            IErrorLogService errorLogService,
+            ILogger<AIController> logger) 
         {
             _aiService = aiService;
             _crmService = crmService;
+            _errorLogService = errorLogService;
+            _logger = logger;
         }
 
         [HttpPost("chat")]
@@ -63,8 +74,30 @@ namespace AvinyaAICRM.API.Controllers
                 // 4. Handle any Query Execution (If SQL is present, execute it)
                 if (!string.IsNullOrEmpty(commandResult.Sql))
                 {
-                    // Execute the query
-                    var data = await _crmService.ExecuteRawSqlAsync(commandResult.Sql, tenantId, userId ?? "", isSuperAdmin);
+                    List<Dictionary<string, object>> data;
+
+                    // Wrap SQL execution in its own try-catch to handle bad AI-generated SQL gracefully
+                    try
+                    {
+                        data = await _crmService.ExecuteRawSqlAsync(commandResult.Sql, tenantId, userId ?? "", isSuperAdmin);
+                    }
+                    catch (Exception sqlEx)
+                    {
+                        _logger.LogError(sqlEx, "[AIController] AI-generated SQL execution failed. SQL: {Sql}", commandResult.Sql);
+
+                        // Log to DB
+                        await LogErrorToDatabaseAsync(sqlEx, $"AI SQL Execution Failed | SQL: {commandResult.Sql}");
+
+                        // Return a friendly message instead of a 500
+                        return Ok(new
+                        {
+                            query = commandResult.Sql,
+                            data = new List<object>(),
+                            count = 0,
+                            message = "Sorry, I generated an invalid query. Could you rephrase your question?",
+                            suggestions = new List<string> { "Show my latest leads", "List pending tasks", "Show today's followups" }
+                        });
+                    }
 
                     // Hydrate the template with data from the first row (for reports) or just {count}
                     var finalMessage = commandResult.SuccessMessage ?? "Here is what I found:";
@@ -116,7 +149,41 @@ namespace AvinyaAICRM.API.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"An error occurred: {ex.Message}");
+                _logger.LogError(ex, "[AIController] Unhandled exception in Chat endpoint");
+                await LogErrorToDatabaseAsync(ex);
+
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "An unexpected error occurred.",
+                    error = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Logs an exception to the ErrorLogs table. Failures are swallowed to prevent cascading errors.
+        /// </summary>
+        private async System.Threading.Tasks.Task LogErrorToDatabaseAsync(Exception ex, string? additionalContext = null)
+        {
+            try
+            {
+                var stackTrace = new StackTrace(ex, true);
+                var frame = stackTrace.GetFrames()?.FirstOrDefault(f => f.GetFileLineNumber() > 0);
+
+                await _errorLogService.LogAsync(new ErrorLogs
+                {
+                    Message = string.IsNullOrEmpty(additionalContext) ? ex.Message : $"{additionalContext} | {ex.Message}",
+                    Method = frame?.GetMethod()?.Name ?? string.Empty,
+                    FileName = frame?.GetFileName() ?? string.Empty,
+                    LineNumber = frame?.GetFileLineNumber() ?? 0,
+                    Path = HttpContext.Request.Path,
+                    StackTrace = ex.StackTrace
+                });
+            }
+            catch (Exception logEx)
+            {
+                _logger.LogError(logEx, "[AIController] Failed to write error log to database.");
             }
         }
     }

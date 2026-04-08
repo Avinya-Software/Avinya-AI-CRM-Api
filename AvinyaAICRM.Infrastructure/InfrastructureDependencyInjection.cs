@@ -64,6 +64,10 @@ using System.ComponentModel;
 using System.Text;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.BankDetail;
 using AvinyaAICRM.Infrastructure.Repositories.BankDetail;
+using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Invoice;
+using AvinyaAICRM.Infrastructure.Repositories.Invoice;
+using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Payment;
+using AvinyaAICRM.Infrastructure.Repositories.Payment;
 
 namespace AvinyaAICRM.Infrastructure
 {
@@ -173,10 +177,13 @@ namespace AvinyaAICRM.Infrastructure
             services.AddScoped<ICRMQueryService, CRMQueryService>();
             services.AddScoped<IQuotationPdfService, QuotationPdfService>();
             services.AddScoped<IOrderPdfService, OrderPdfService>();
+            services.AddScoped<AvinyaAICRM.Application.Interfaces.ServiceInterface.Invoice.IInvoicePdfService, InvoicePdfService>();
             // ---------------- Permission System ----------------
             services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
             services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
             services.AddScoped<IBankDetailRepository, BankDetailRepository>();
+            services.AddScoped<IInvoiceRepository, InvoiceRepository>();
+            services.AddScoped<IPaymentRepository, PaymentRepository>();
 
             return services;
         }
