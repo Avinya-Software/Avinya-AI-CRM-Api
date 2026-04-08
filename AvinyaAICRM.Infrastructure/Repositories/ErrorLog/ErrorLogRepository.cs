@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.Interfaces.RepositoryInterface;
+using AvinyaAICRM.Application.Interfaces.RepositoryInterface;
 using AvinyaAICRM.Domain.Entities.ErrorLogs;
 using AvinyaAICRM.Infrastructure.Persistence;
 using Microsoft.Extensions.Logging;
@@ -22,12 +22,13 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ErrorLog
             {
                 await _context.ErrorLogs.AddAsync(errorLog);
                 await _context.SaveChangesAsync();
-
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error while logging details in ErrorLog Table");
-                throw;
+                // ⚠️ Do NOT re-throw here.
+                // Re-throwing would crash the GlobalExceptionMiddleware's catch block,
+                // preventing the HTTP 500 response from being sent to the client.
+                _logger.LogError(ex, "[ErrorLogRepository] Failed to persist error log to DB. Original error already captured above.");
             }
         }
     }

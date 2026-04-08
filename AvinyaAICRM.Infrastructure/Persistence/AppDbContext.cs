@@ -21,6 +21,8 @@ using AvinyaAICRM.Domain.Entities.Team;
 using AvinyaAICRM.Domain.Entities.TeamMember;
 using AvinyaAICRM.Domain.Entities.Tenant;
 using AvinyaAICRM.Domain.Entities.User;
+using AvinyaAICRM.Domain.Entities.Invoice;
+using AvinyaAICRM.Domain.Entities.Payments;
 using AvinyaAICRM.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -69,5 +71,8 @@ namespace AvinyaAICRM.Infrastructure.Persistence
         public DbSet<Project> Projects { get; set; }
         public DbSet<QuickBooksConnection> QuickBooksConnections { get; set; }
         public DbSet<BankDetails> BankDetails { get; set; }
+        public DbSet<Domain.Entities.Invoice.Invoice> Invoices { get; set; }
+        public DbSet<InvoiceStatus> InvoiceStatuses { get; set; }
+        public DbSet<Domain.Entities.Payments.Payment> Payments { get; set; }
     }
 }

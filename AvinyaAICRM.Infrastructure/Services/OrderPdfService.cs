@@ -1,4 +1,4 @@
-using AvinyaAICRM.Application.DTOs.Order;
+﻿using AvinyaAICRM.Application.DTOs.Order;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Orders;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -40,26 +40,29 @@ namespace AvinyaAICRM.Infrastructure.Services
                 page.Size(PageSizes.A4);
                 page.DefaultTextStyle(x => x.FontSize(9).FontFamily(Fonts.Arial));
 
+                // ✅ CONTENT (Stretches down to the footer)
                 page.Content().Border(1).Column(column =>
                 {
-                    // 1. Header
                     column.Item().Element(ComposeHeader);
-                    
-                    // 2. Order Details
                     column.Item().Element(ComposeOrderDetails);
-                    
-                    // 3. Shipping / Billing Details
                     column.Item().Element(ComposePartyDetails);
 
-                    // 4. Table
-                    column.Item().Element(ComposeTable);
-
-                    // 5. Total Section
-                    column.Item().Element(ComposeTotalSection);
-
-                    // 6. Footer (Terms, QR Placeholder, Signature)
-                    column.Item().Element(ComposeFooter);
+                    // Table takes remaining space
+                    column.Item().ExtendVertical().Element(ComposeTable);
                 });
+
+                // ✅ FIXED FOOTER (Anchors exactly at the bottom of the page)
+                page.Footer().Element(ComposeTotalsAndFooter);
+            });
+        }
+
+        private void ComposeTotalsAndFooter(IContainer container)
+        {
+            // Applies the outer borders to seal the bottom of the PDF
+            container.BorderLeft(1).BorderRight(1).BorderBottom(1).Column(column =>
+            {
+                column.Item().Element(ComposeTotalSection);
+                column.Item().Element(ComposeFooter);
             });
         }
 
@@ -132,17 +135,19 @@ namespace AvinyaAICRM.Infrastructure.Services
 
         private void ComposeTable(IContainer container)
         {
-            container.MinHeight(465).Layers(layers =>
+            // 👇 Removed MinHeight(465) — ExtendVertical handles the height dynamically now
+            container.Layers(layers =>
             {
                 layers.Layer().Row(row =>
                 {
-                    row.ConstantItem(30).BorderRight(1);  // S.N.
-                    row.RelativeItem().BorderRight(1);    // Description
-                    row.ConstantItem(70).BorderRight(1);  // HSN
-                    row.ConstantItem(50).BorderRight(1);  // Qty
-                    row.ConstantItem(70).BorderRight(1);  // Price
-                    row.ConstantItem(50).BorderRight(1);  // Tax %
-                    row.ConstantItem(80);                  // Amount
+                    // 👇 CRITICAL 2: Added .ExtendVertical() to EVERY item so the lines pull all the way down
+                    row.ConstantItem(30).BorderRight(1).ExtendVertical();  // S.N.
+                    row.RelativeItem().BorderRight(1).ExtendVertical();    // Description
+                    row.ConstantItem(70).BorderRight(1).ExtendVertical();  // HSN
+                    row.ConstantItem(50).BorderRight(1).ExtendVertical();  // Qty
+                    row.ConstantItem(70).BorderRight(1).ExtendVertical();  // Price
+                    row.ConstantItem(50).BorderRight(1).ExtendVertical();  // Tax %
+                    row.ConstantItem(80).ExtendVertical();                 // Amount
                 });
 
                 layers.PrimaryLayer().Table(table =>

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,7 +8,7 @@ namespace AvinyaAICRM.Domain.Entities.ErrorLogs
 {
     public class ErrorLogs
     {
-        public Guid Id { get; set; }
+        public Guid Id { get; set; } = Guid.NewGuid();
         public string Message { get; set; }
         public string Method { get; set; }
         public string FileName { get; set; }

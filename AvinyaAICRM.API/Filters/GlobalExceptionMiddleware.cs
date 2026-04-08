@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.Interfaces.ServiceInterface;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface;
 using AvinyaAICRM.Domain.Entities.ErrorLogs;
 using System.Diagnostics;
 using System.Net;
@@ -28,29 +28,39 @@ namespace AvinyaAICRM.API.Filters
             }
             catch (Exception ex)
             {
-                using var scope = _scopeFactory.CreateScope();
-                var errorLogService = scope.ServiceProvider
-                    .GetRequiredService<IErrorLogService>();
-                var exceptionDetails = GetExceptionDetails(ex);
+                _logger.LogError(ex, "[GlobalExceptionMiddleware] Unhandled exception on {Path}", context.Request.Path);
 
-                _logger.LogError("Exception caught by global handler \n" + "Message : {Message}" + "Method : {Method}" + "File: {File}"
-                    + "Line: {Line}"
-                    + "Path: {Path}",
-                    exceptionDetails.Message,
-                    exceptionDetails.Method,
-                    exceptionDetails.File,
-                    exceptionDetails.Line,
-                    context.Request.Path);
-
-                await errorLogService.LogAsync(new ErrorLogs
+                // Try to persist the error log — but never let this crash the middleware
+                try
                 {
-                    Message = exceptionDetails.Message,
-                    Method = exceptionDetails.Method,
-                    FileName = exceptionDetails.File,
-                    LineNumber = exceptionDetails.Line,
-                    Path = context.Request.Path,
-                    StackTrace = ex.StackTrace
-                });
+                    using var scope = _scopeFactory.CreateScope();
+                    var errorLogService = scope.ServiceProvider
+                        .GetRequiredService<IErrorLogService>();
+
+                    var exceptionDetails = GetExceptionDetails(ex);
+                    _logger.LogError("Exception caught by global handler \n" + "Message : {Message}" + "Method : {Method}" + "File: {File}"
+                        + "Line: {Line}"
+                        + "Path: {Path}",
+                        exceptionDetails.Message,
+                        exceptionDetails.Method,
+                        exceptionDetails.File,
+                        exceptionDetails.Line,
+                        context.Request.Path);
+                    await errorLogService.LogAsync(new ErrorLogs
+                    {
+                        Message = exceptionDetails.Message,
+                        Method = exceptionDetails.Method,
+                        FileName = exceptionDetails.File,
+                        LineNumber = exceptionDetails.Line,
+                        Path = context.Request.Path,
+                        StackTrace = ex.StackTrace
+                    });
+                }
+                catch (Exception logEx)
+                {
+                    // If DB logging fails for any reason, fall back to console/file logger only
+                    _logger.LogError(logEx, "[GlobalExceptionMiddleware] Failed to write error log to database.");
+                }
 
                 await HandleExceptionAsync(context, ex);
             }
