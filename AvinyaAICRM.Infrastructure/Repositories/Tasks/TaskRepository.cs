@@ -26,11 +26,6 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
                     ? await GetOrCreateDefaultListAsync(userId)
                     : dto.ListId;
 
-                // 🧠 Normalize dates
-                var dueDateUtc = dto.DueDateTime;
-                var recurrenceStartUtc = dto.RecurrenceStartDate?.ToUniversalTime();
-                var recurrenceEndUtc = dto.RecurrenceEndDate?.ToUniversalTime(); // NULL = Never Ends
-
                 var series = new TaskSeries
                 {
                     Title = dto.Title,
@@ -41,16 +36,19 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
                     IsRecurring = dto.IsRecurring,
                     RecurrenceRule = dto.IsRecurring ? dto.RecurrenceRule : null,
                     StartDate = dto.IsRecurring
-                        ? (recurrenceStartUtc ?? dueDateUtc)
+                        ? (dto.RecurrenceStartDate ?? dto.DueDateTime)
                         : null,
 
-                    EndDate = dto.IsRecurring ? recurrenceEndUtc : null,
+                    EndDate = dto.IsRecurring ? dto.RecurrenceEndDate : null,
+
                     TeamId = dto.TeamId,
                     TaskScope = dto.TeamId > 0 ? "Team" : "Personal",
                     CreatedBy = userId,
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
-                    ProjectId = !string.IsNullOrWhiteSpace(dto.ProjectId) ? Guid.Parse(dto.ProjectId) : null
+                    ProjectId = !string.IsNullOrWhiteSpace(dto.ProjectId)
+                        ? Guid.Parse(dto.ProjectId)
+                        : null
                 };
 
                 _context.TaskSeries.Add(series);
@@ -59,7 +57,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
                 var occurrence = new TaskOccurrence
                 {
                     TaskSeriesId = series.Id,
-                    DueDateTime = dueDateUtc,
+                    DueDateTime = dto.DueDateTime,                    // UTC
                     Status = string.IsNullOrEmpty(dto.Status) ? "Pending" : dto.Status,
                     CreatedAt = DateTime.UtcNow,
                     AssignedTo = dto.AssignToId
@@ -68,15 +66,14 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
                 _context.TaskOccurrences.Add(occurrence);
                 await _context.SaveChangesAsync();
 
-                if (dto.ReminderAt.HasValue && dueDateUtc.HasValue)
+                // Reminder handling
+                if (dto.ReminderAt.HasValue && dto.DueDateTime.HasValue)
                 {
-                    var reminderUtc = dto.ReminderAt.Value.ToUniversalTime();
+                    var reminderUtc = dto.ReminderAt.Value;   // Already UTC
 
-                   // Safety check
-                    if (reminderUtc < dueDateUtc.Value)
+                    if (reminderUtc < dto.DueDateTime.Value)
                     {
-                        var offsetMinutes =
-                            (int)(dueDateUtc.Value - reminderUtc).TotalMinutes;
+                        var offsetMinutes = (int)(dto.DueDateTime.Value - reminderUtc).TotalMinutes;
 
                         var reminder = new NotificationRule
                         {
@@ -104,10 +101,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
 
 
         public async Task<List<TaskDto>> GetTasksAsync(
-    string userId,
-    DateTime? from,
-    DateTime? to,
-    string? scope)
+     string userId,
+     DateTime? from,
+     DateTime? to,
+     string? scope)
         {
             var userGuid = Guid.Parse(userId);
 
@@ -125,25 +122,23 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
                     )
                 );
 
+            var istTimeZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
+
+            // =========================
+            // ✅ FIX: FILTER (IMPORTANT)
+            // =========================
             if (from.HasValue && to.HasValue)
             {
-                var fromUtc = from.Value.Kind == DateTimeKind.Utc
-                    ? from.Value
-                    : DateTime.SpecifyKind(from.Value, DateTimeKind.Utc);
+                // 🔥 FORCE Unspecified (CRITICAL FIX)
+                var fromUnspecified = DateTime.SpecifyKind(from.Value, DateTimeKind.Unspecified);
+                var toUnspecified = DateTime.SpecifyKind(to.Value, DateTimeKind.Unspecified);
 
-                var toUtc = to.Value.Kind == DateTimeKind.Utc
-                    ? to.Value
-                    : DateTime.SpecifyKind(to.Value, DateTimeKind.Utc);
+                var fromUtc = TimeZoneInfo.ConvertTimeToUtc(fromUnspecified, istTimeZone);
+                var toUtc = TimeZoneInfo.ConvertTimeToUtc(toUnspecified, istTimeZone);
 
                 query = query.Where(x =>
                     x.DueDateTime >= fromUtc &&
                     x.DueDateTime <= toUtc);
-            }
-
-            if (!string.IsNullOrWhiteSpace(scope))
-            {
-                query = query.Where(x =>
-                    x.TaskSeries.TaskScope.ToLower() == scope.ToLower());
             }
 
             var data = await query
@@ -153,15 +148,16 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
                     OccurrenceId = x.Id,
                     Title = x.TaskSeries.Title,
                     TeamId = x.TaskSeries.TeamId,
-                    DueDateTime = x.DueDateTime, // keep UTC
+                    DueDateTime = x.DueDateTime, // stored UTC
                     Status = x.Status,
                     IsRecurring = x.TaskSeries.IsRecurring,
                     AssignedTo = x.AssignedTo
                 })
                 .ToListAsync();
 
-            var istTimeZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
-
+            // =========================
+            // ✅ FIX: DISPLAY
+            // =========================
             foreach (var item in data)
             {
                 if (item.DueDateTime.HasValue)

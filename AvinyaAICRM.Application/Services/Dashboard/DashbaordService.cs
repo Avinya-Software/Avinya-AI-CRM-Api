@@ -16,9 +16,10 @@ namespace AvinyaAICRM.Application.Services.Dashboard
             _repo = repo;
         }
 
-        public async Task<ResponseModel> GetDashboardAsync(string tenantId, string? role, string? userId)
+        public async Task<ResponseModel> GetDashboardAsync(string tenantId, string? role, string? userId, DateTime? fromDate,
+     DateTime? toDate)
         {
-            var data = await _repo.GetDashboardAsync(tenantId, role, userId);
+            var data = await _repo.GetDashboardAsync(tenantId, role, userId, fromDate, toDate);
             return CommonHelper.GetResponseMessage(data);
         }
     }

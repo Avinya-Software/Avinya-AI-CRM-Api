@@ -15,176 +15,61 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Dashboard
             _context = context;
         }
 
-        //public async Task<DashboardDto> GetDashboardAsync(string tenantId, string? role, string? userId)
-        //{
-        //    bool isSuperAdmin = role == "SuperAdmin";
+        // Preserve interface method signature by delegating to the richer overload
+       
 
-        //    var today = DateTime.Today;
-
-
-        //    var counts = new DashboardCounts
-        //    {
-        //        Clients = await _context.Clients.CountAsync(x => !x.IsDeleted && (isSuperAdmin || x.TenantId.ToString() == tenantId)),
-        //        Leads = await _context.Leads.CountAsync(x => !x.IsDeleted && (isSuperAdmin || x.TenantId.ToString() == tenantId)),
-        //        Quotations = await _context.Quotations.CountAsync(x => !x.IsDeleted && (isSuperAdmin || x.TenantId.ToString() == tenantId)),
-        //        Orders = await _context.Orders.CountAsync(x => !x.IsDeleted && (isSuperAdmin || x.TenantId.ToString() == tenantId)),
-        //        Products = await _context.Products.CountAsync(x => !x.IsDeleted && (isSuperAdmin || x.TenantId.ToString() == tenantId)),
-        //        Expenses = await _context.Expenses.CountAsync(x => !x.IsDeleted && (isSuperAdmin || x.TenantId.ToString() == tenantId)),
-        //        Tasks = await _context.TaskOccurrences.CountAsync(t => isSuperAdmin ||
-        //            _context.TaskSeries
-        //                .Any(l => l.Id == t.TaskSeriesId &&
-        //                          l.CreatedBy.ToString() == userId))
-        //    };
-
-
-        //    var clientSummary = new ClientSummaryDto
-        //    {
-        //        TotalClients = await _context.Clients.CountAsync(x => !x.IsDeleted && (isSuperAdmin || x.TenantId.ToString() == tenantId)),
-
-        //        ActiveClients = await _context.Clients
-        //            .CountAsync(x => !x.IsDeleted && x.Status == true && (isSuperAdmin || x.TenantId.ToString() == tenantId)),
-
-        //        InactiveClients = await _context.Clients
-        //            .CountAsync(x => !x.IsDeleted && x.Status == false && (isSuperAdmin || x.TenantId.ToString() == tenantId))
-        //    };
-
-        //    var overdueFollowups = await _context.LeadFollowups
-        //        .CountAsync(lf =>
-        //         lf.NextFollowupDate < today
-        //            && lf.Status != 3 &&
-        //            (isSuperAdmin ||
-        //            _context.Leads
-        //                .Any(l => l.LeadID == lf.LeadID &&
-        //                          l.TenantId.ToString() == tenantId))
-        //        );
-
-
-        //    var pendingQuotations = await _context.Quotations
-        //        .CountAsync(x =>
-        //            !x.IsDeleted && (isSuperAdmin || x.TenantId.ToString() == tenantId) 
-        //            && _context.QuotationStatusMaster
-        //                .Where(s => s.QuotationStatusID == x.QuotationStatusID)
-        //                .Select(s => s.StatusName)
-        //                .FirstOrDefault() == "Pending");
-
-        //    var totalOrders = await _context.Orders
-        //    .CountAsync(x => !x.IsDeleted && (isSuperAdmin || x.TenantId.ToString() == tenantId));
-
-        //    var pendingOrders = await _context.Orders
-        //        .CountAsync(x =>
-        //            !x.IsDeleted &&
-        //            x.Status == 1
-        //            && (isSuperAdmin || x.TenantId.ToString() == tenantId)
-        //        );
-
-        //    var recentOrders = await _context.Orders
-        //          .Where(x => isSuperAdmin || x.TenantId.ToString() == tenantId)
-        //        .OrderByDescending(x => x.CreatedDate)
-        //        .Take(5)
-        //        .Select(o => new RecentOrderDto
-        //        {
-        //            OrderID = o.OrderID,
-        //            OrderNo = o.OrderNo,
-
-        //            ClientName = _context.Clients
-        //                .Where(c => c.ClientID == o.ClientID)
-        //                .Select(c => c.ContactPerson)
-        //                .FirstOrDefault(),
-
-        //            GrandTotal = o.GrandTotal,
-        //            OrderDate = o.OrderDate
-        //        })
-        //        .ToListAsync();
-
-        //    var recentQuotations = await _context.Quotations
-        //          .Where(x => isSuperAdmin || x.TenantId.ToString() == tenantId)
-        //        .OrderByDescending(x => x.CreatedDate)
-        //        .Take(5)
-        //        .Select(q => new RecentQuotationDto
-        //        {
-        //            QuotationID = q.QuotationID,
-        //            QuotationNo = q.QuotationNo,
-
-        //            ClientName = _context.Clients
-        //                .Where(c => c.ClientID == q.ClientID)
-        //                .Select(c => c.ContactPerson)
-        //                .FirstOrDefault(),
-
-        //            GrandTotal = q.GrandTotal
-        //        })
-        //        .ToListAsync();
-
-        //    var upcomingFollowups = await (
-        //             from lf in _context.LeadFollowups
-        //             join l in _context.Leads on lf.LeadID equals l.LeadID
-        //             where lf.NextFollowupDate >= today
-        //                   && (isSuperAdmin || l.TenantId.ToString() == tenantId)
-        //             orderby lf.NextFollowupDate
-        //             select new UpcomingFollowupDto
-        //             {
-        //                 LeadID = lf.LeadID,
-        //                 LeadNo = l.LeadNo,
-        //                 NextFollowupDate = lf.NextFollowupDate
-        //             }
-        //         )
-        //         .Take(5)
-        //         .ToListAsync();
-
-        //    var pendingTasks = await _context.TaskOccurrences
-        //        .Where(x => x.Status != "Completed")
-        //        .OrderBy(x => x.DueDateTime)
-        //        .Take(5)
-        //        .Select(x => new PendingTaskDto
-        //        {
-        //            OccurrenceId = x.Id,
-        //            Title = x.TaskSeries.Title,
-        //            DueDateTime = x.DueDateTime
-        //        })
-        //        .ToListAsync();
-
-
-        //    return new DashboardDto
-        //    {
-        //        Counts = counts,
-
-        //        ClientSummary = clientSummary,
-
-        //        OverdueFollowupsCount = overdueFollowups,
-
-        //        PendingQuotationsCount = pendingQuotations,
-
-        //        TotalOrdersCount = totalOrders,
-
-        //        PendingOrdersCount = pendingOrders,
-
-        //        RecentOrders = recentOrders,
-
-        //        RecentQuotations = recentQuotations,
-
-        //        UpcomingFollowups = upcomingFollowups,
-
-        //        PendingTasks = pendingTasks
-        //    };
-        //}
-
-        public async Task<DashboardDto> GetDashboardAsync(string tenantId, string? role, string? userId)
+        public async Task<DashboardDto> GetDashboardAsync(
+     string tenantId,
+     string? role,
+     string? userId,
+     DateTime? fromDate,
+     DateTime? toDate)
         {
             bool isSuperAdmin = role == "SuperAdmin";
             var today = DateTime.Today;
             var now = DateTime.Now;
 
+            // Normalize date range
+            DateTime start = fromDate?.Date ?? DateTime.MinValue;
+            DateTime end = toDate?.Date.AddDays(1).AddTicks(-1) ?? DateTime.MaxValue;
+
             // =========================
-            // 📊 BASIC COUNTS (KEEP)
+            // 📊 BASIC COUNTS
             // =========================
             var counts = new DashboardCounts
             {
-                Clients = await _context.Clients.CountAsync(x => !x.IsDeleted && (isSuperAdmin || x.TenantId.ToString() == tenantId)),
-                Leads = await _context.Leads.CountAsync(x => !x.IsDeleted && (isSuperAdmin || x.TenantId.ToString() == tenantId)),
-                Quotations = await _context.Quotations.CountAsync(x => !x.IsDeleted && (isSuperAdmin || x.TenantId.ToString() == tenantId)),
-                Orders = await _context.Orders.CountAsync(x => !x.IsDeleted && (isSuperAdmin || x.TenantId.ToString() == tenantId)),
-                Products = await _context.Products.CountAsync(x => !x.IsDeleted && (isSuperAdmin || x.TenantId.ToString() == tenantId)),
-                Expenses = await _context.Expenses.CountAsync(x => !x.IsDeleted && (isSuperAdmin || x.TenantId.ToString() == tenantId)),
-                Tasks = await _context.TaskOccurrences.CountAsync(t => isSuperAdmin ||
+                Clients = await _context.Clients.CountAsync(x =>
+                    !x.IsDeleted &&
+                    x.CreatedDate >= start && x.CreatedDate <= end &&
+                    (isSuperAdmin || x.TenantId.ToString() == tenantId)),
+
+                Leads = await _context.Leads.CountAsync(x =>
+                    !x.IsDeleted &&
+                    x.CreatedDate >= start && x.CreatedDate <= end &&
+                    (isSuperAdmin || x.TenantId.ToString() == tenantId)),
+
+                Quotations = await _context.Quotations.CountAsync(x =>
+                    !x.IsDeleted &&
+                    x.CreatedDate >= start && x.CreatedDate <= end &&
+                    (isSuperAdmin || x.TenantId.ToString() == tenantId)),
+
+                Orders = await _context.Orders.CountAsync(x =>
+                    !x.IsDeleted &&
+                    x.CreatedDate >= start && x.CreatedDate <= end &&
+                    (isSuperAdmin || x.TenantId.ToString() == tenantId)),
+
+                Products = await _context.Products.CountAsync(x =>
+                    !x.IsDeleted &&
+                    (isSuperAdmin || x.TenantId.ToString() == tenantId)),
+
+                Expenses = await _context.Expenses.CountAsync(x =>
+                    !x.IsDeleted &&
+                    x.CreatedDate >= start && x.CreatedDate <= end &&
+                    (isSuperAdmin || x.TenantId.ToString() == tenantId)),
+
+                // Fixed Tasks count
+                Tasks = await _context.TaskOccurrences.CountAsync(t =>
+                    isSuperAdmin ||
                     _context.TaskSeries.Any(s => s.Id == t.TaskSeriesId && s.CreatedBy.ToString() == userId))
             };
 
@@ -194,80 +79,92 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Dashboard
             var clientSummary = new ClientSummaryDto
             {
                 TotalClients = counts.Clients,
-                ActiveClients = await _context.Clients.CountAsync(x => !x.IsDeleted && x.Status && (isSuperAdmin || x.TenantId.ToString() == tenantId)),
-                InactiveClients = await _context.Clients.CountAsync(x => !x.IsDeleted && !x.Status && (isSuperAdmin || x.TenantId.ToString() == tenantId))
+
+                ActiveClients = await _context.Clients.CountAsync(x =>
+                    !x.IsDeleted && x.Status &&
+                    x.CreatedDate >= start && x.CreatedDate <= end &&
+                    (isSuperAdmin || x.TenantId.ToString() == tenantId)),
+
+                InactiveClients = await _context.Clients.CountAsync(x =>
+                    !x.IsDeleted && !x.Status &&
+                    x.CreatedDate >= start && x.CreatedDate <= end &&
+                    (isSuperAdmin || x.TenantId.ToString() == tenantId))
             };
 
             // =========================
             // 🔴 TODAY ACTION CENTER
             // =========================
-            var overdueFollowups = await _context.LeadFollowups
-                .CountAsync(lf =>
-                    lf.NextFollowupDate < today &&
-                    lf.Status != 3 &&
-                    (isSuperAdmin ||
-                     _context.Leads.Any(l => l.LeadID == lf.LeadID && l.TenantId.ToString() == tenantId)));
+            var overdueFollowups = await _context.LeadFollowups.CountAsync(lf =>
+                lf.NextFollowupDate < today &&
+                lf.Status != 3 &&
+                (isSuperAdmin ||
+                 _context.Leads.Any(l => l.LeadID == lf.LeadID && l.TenantId.ToString() == tenantId)));
 
-            var todayFollowups = await _context.LeadFollowups
-                .CountAsync(lf =>
-                    lf.NextFollowupDate == today &&
-                    lf.Status != 3 &&
-                    (isSuperAdmin ||
-                     _context.Leads.Any(l => l.LeadID == lf.LeadID && l.TenantId.ToString() == tenantId)));
+            // Use HasValue and Value.Date for nullable DateTime
+            var todayFollowups = await _context.LeadFollowups.CountAsync(lf =>
+                lf.NextFollowupDate.HasValue &&
+                lf.NextFollowupDate.Value.Date == today &&
+                lf.Status != 3 &&
+                (isSuperAdmin ||
+                 _context.Leads.Any(l => l.LeadID == lf.LeadID && l.TenantId.ToString() == tenantId)));
 
-            var pendingQuotations = await _context.Quotations
-                .CountAsync(q =>
-                    !q.IsDeleted &&
-                    (isSuperAdmin || q.TenantId.ToString() == tenantId) &&
-                    _context.QuotationStatusMaster
-                        .Where(s => s.QuotationStatusID == q.QuotationStatusID)
-                        .Select(s => s.StatusName)
-                        .FirstOrDefault() == "Sent");
+            var pendingQuotations = await _context.Quotations.CountAsync(q =>
+                !q.IsDeleted &&
+                q.CreatedDate >= start && q.CreatedDate <= end &&
+                (isSuperAdmin || q.TenantId.ToString() == tenantId) &&
+                _context.QuotationStatusMaster
+                    .Where(s => s.QuotationStatusID == q.QuotationStatusID)
+                    .Select(s => s.StatusName)
+                    .FirstOrDefault() == "Sent");
 
-            var inactiveLeads = await _context.Leads
-                .CountAsync(l =>
-                    !l.IsDeleted &&
-                    (isSuperAdmin || l.TenantId.ToString() == tenantId) &&
-                    !_context.LeadFollowups.Any(f =>
-                        f.LeadID == l.LeadID &&
-                        f.NextFollowupDate >= today.AddDays(-10)));
+            var inactiveLeads = await _context.Leads.CountAsync(l =>
+                !l.IsDeleted &&
+                l.CreatedDate >= start && l.CreatedDate <= end &&
+                (isSuperAdmin || l.TenantId.ToString() == tenantId) &&
+                !_context.LeadFollowups.Any(f =>
+                    f.LeadID == l.LeadID &&
+                    f.NextFollowupDate >= today.AddDays(-10)));
 
             // =========================
-            // 📋 TASK LIST (UPGRADED)
+            // 📋 PENDING TASK LIST (Top 10)
             // =========================
             var pendingTasks = await _context.TaskOccurrences
-                .Where(x => x.Status != "Completed" &&
-                    (isSuperAdmin ||
-                     _context.TaskSeries.Any(s => s.Id == x.TaskSeriesId && s.CreatedBy.ToString() == userId)))
-                .OrderBy(x => x.DueDateTime)
-                .Take(10)
-                .Select(x => new PendingTaskDto
-                {
-                    OccurrenceId = x.Id,
-                    Title = x.TaskSeries.Title,
-                    DueDateTime = x.DueDateTime,
-                    IsOverdue = x.DueDateTime < now
-                })
-                .ToListAsync();
+         .Where(x => x.Status != "Completed" &&
+                     x.DueDateTime.HasValue &&                                   // Ensure DueDate exists
+                     x.DueDateTime.Value.Date >= start.Date &&                   // Filter by Due Date (not Created)
+                     x.DueDateTime.Value.Date <= end.Date &&                     // Important fix
+                     (isSuperAdmin ||
+                      _context.TaskSeries.Any(s => s.Id == x.TaskSeriesId &&
+                                                  s.CreatedBy.ToString() == userId)))
+         .OrderBy(x => x.DueDateTime)
+         .Take(10)
+         .Select(x => new PendingTaskDto
+         {
+             OccurrenceId = x.Id,
+             Title = x.TaskSeries.Title,
+             DueDateTime = x.DueDateTime,
+             IsOverdue = x.DueDateTime < now
+         })
+         .ToListAsync();
 
             // =========================
             // 🔥 HOT LEADS
             // =========================
             var hotLeads = await (
-                        from l in _context.Leads
-                        join c in _context.Clients on l.ClientID equals c.ClientID
-                        where !l.IsDeleted &&
-                              (isSuperAdmin || l.TenantId.ToString() == tenantId)
-                        orderby l.CreatedDate descending
-                        select new HotLeadDto
-                        {
-                            LeadId = l.LeadID,
-                            LeadName = c.ContactPerson, 
-                            LastActivity = l.CreatedDate
-                        }
-                    )
-                    .Take(5)
-                    .ToListAsync();
+                from l in _context.Leads
+                join c in _context.Clients on l.ClientID equals c.ClientID
+                where !l.IsDeleted
+                   && l.CreatedDate >= start
+                   && l.CreatedDate <= end
+                   && (isSuperAdmin || l.TenantId.ToString() == tenantId)
+                orderby l.CreatedDate descending
+                select new HotLeadDto
+                {
+                    LeadId = l.LeadID,
+                    LeadName = c.ContactPerson,
+                    LastActivity = l.CreatedDate
+                }
+            ).Take(5).ToListAsync();
 
             // =========================
             // 🚨 NEEDS ATTENTION
@@ -276,6 +173,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Dashboard
                 from q in _context.Quotations
                 join c in _context.Clients on q.ClientID equals c.ClientID
                 where !q.IsDeleted &&
+                      q.CreatedDate >= start && q.CreatedDate <= end &&
                       q.CreatedDate < now.AddDays(-5) &&
                       (isSuperAdmin || q.TenantId.ToString() == tenantId)
                 select new AttentionDto
@@ -289,7 +187,6 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Dashboard
             // 🧠 SMART SUGGESTIONS
             // =========================
             var suggestions = new List<string>();
-
             if (overdueFollowups > 0)
                 suggestions.Add($"{overdueFollowups} follow-ups are overdue");
 
@@ -300,12 +197,13 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Dashboard
                 suggestions.Add("You have overdue tasks");
 
             // =========================
-            // 📦 RECENT ORDERS (OPTIMIZED JOIN)
+            // 📦 RECENT ORDERS
             // =========================
             var recentOrders = await (
                 from o in _context.Orders
                 join c in _context.Clients on o.ClientID equals c.ClientID
-                where isSuperAdmin || o.TenantId.ToString() == tenantId
+                where (isSuperAdmin || o.TenantId.ToString() == tenantId)
+                      && o.CreatedDate >= start && o.CreatedDate <= end
                 orderby o.CreatedDate descending
                 select new RecentOrderDto
                 {
@@ -318,12 +216,13 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Dashboard
             ).Take(5).ToListAsync();
 
             // =========================
-            // 📄 RECENT QUOTATIONS (OPTIMIZED JOIN)
+            // 📄 RECENT QUOTATIONS
             // =========================
             var recentQuotations = await (
                 from q in _context.Quotations
                 join c in _context.Clients on q.ClientID equals c.ClientID
-                where isSuperAdmin || q.TenantId.ToString() == tenantId
+                where (isSuperAdmin || q.TenantId.ToString() == tenantId)
+                      && q.CreatedDate >= start && q.CreatedDate <= end
                 orderby q.CreatedDate descending
                 select new RecentQuotationDto
                 {
@@ -358,8 +257,6 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Dashboard
             {
                 Counts = counts,
                 ClientSummary = clientSummary,
-
-                // 🔴 ACTION SECTION
                 TodayActions = new TodayActionDto
                 {
                     TodayFollowups = todayFollowups,
@@ -367,20 +264,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Dashboard
                     PendingQuotations = pendingQuotations,
                     InactiveLeads = inactiveLeads
                 },
-
-                // 📋
                 PendingTasks = pendingTasks,
-
-                // 🔥
                 HotLeads = hotLeads,
-
-                // 🚨
                 NeedsAttention = attentionLeads,
-
-                // 🧠
                 Suggestions = suggestions,
-
-                // existing
                 RecentOrders = recentOrders,
                 RecentQuotations = recentQuotations,
                 UpcomingFollowups = upcomingFollowups

@@ -81,45 +81,39 @@ namespace AvinyaAICRM.Application.Services.Tasks
             if (intent == "Unknown")
                 return CommonHelper.BadRequestResponseMessage("Unable to understand");
 
-            var dueDateLocal = VoiceDateTimeExtractor.ExtractDueDate(text);
+            // Extract due date directly as UTC
+            var dueDateUtc = VoiceDateTimeExtractor.ExtractDueDate(text);
 
-            var dueDate = dueDateLocal?.Kind == DateTimeKind.Utc
-                ? dueDateLocal
-                : DateTime.SpecifyKind(dueDateLocal.Value, DateTimeKind.Local).ToUniversalTime();
+            // Reminder resolution (assuming it returns local IST time)
+            var reminderLocalIst = VoiceReminderResolver.ResolveReminder(text, dueDateUtc);
 
-            var reminderLocal = VoiceReminderResolver.ResolveReminder(text, dueDate);
+            DateTime? reminderUtc = null;
 
-            var reminder = reminderLocal.HasValue
-                ? (reminderLocal.Value.Kind == DateTimeKind.Utc
-                    ? reminderLocal
-                    : DateTime.SpecifyKind(reminderLocal.Value, DateTimeKind.Local).ToUniversalTime())
-                : null;
+            if (reminderLocalIst.HasValue)
+            {
+                var istZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
+
+                var cleanReminder = DateTime.SpecifyKind(reminderLocalIst.Value, DateTimeKind.Unspecified);
+                reminderUtc = TimeZoneInfo.ConvertTimeToUtc(cleanReminder, istZone);
+            }
 
             var (isRecurring, rule) = VoiceRecurrenceParser.Parse(text);
-
             var entities = VoiceEntityExtractor.Extract(text);
-
             var status = VoiceStatusParser.ExtractStatus(text);
-
-
 
             string? assignToId = null;
             long? teamId = null;
 
-            // Resolve assignee
             if (!string.IsNullOrEmpty(entities.AssigneeName))
             {
                 var user = await _userRepo.GetUserName(entities.AssigneeName);
-
                 assignToId = user?.Id;
             }
 
-            // Resolve team
             if (entities.IsTeamTask)
             {
                 teamId = await _teamRepo.ResolveTeamId(userId, entities.TeamName);
             }
-
 
             var taskDto = new CreateTaskDto
             {
@@ -127,15 +121,18 @@ namespace AvinyaAICRM.Application.Services.Tasks
                 Description = "Created via voice",
                 ListId = 0,
                 Status = status,
-                DueDateTime = dueDate,
-                ReminderAt = reminder,
+                DueDateTime = dueDateUtc,        // Already in UTC
+                ReminderAt = reminderUtc,        // Already in UTC
                 AssignToId = assignToId,
                 TeamId = teamId,
                 IsRecurring = isRecurring,
                 RecurrenceRule = rule
+                // Add other fields if needed (RecurrenceStartDate, etc.)
             };
-            var task = await _taskRepo.CreateTaskAsync(taskDto, userId);
-            return CommonHelper.GetResponseMessage(task);
+
+            var taskId = await _taskRepo.CreateTaskAsync(taskDto, userId);
+
+            return CommonHelper.GetResponseMessage(taskId);   // Assuming it returns the ID or model
         }
 
     }

@@ -18,12 +18,12 @@ namespace AvinyaAICRM.API.Controllers.Dashboard
         }
 
         [HttpGet("overview")]
-        public async Task<IActionResult> GetDashbaord()
+        public async Task<IActionResult> GetDashbaord(DateTime? fromDate, DateTime? toDate)
         {
             var userId = User.FindFirst("userId")?.Value!;
             var tenantId = User.FindFirst("tenantId")?.Value!;
             var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
-            var data = await _dashboardService.GetDashboardAsync(tenantId, role, userId);
+            var data = await _dashboardService.GetDashboardAsync(tenantId, role, userId, fromDate, toDate);
 
             return new JsonResult(data) { StatusCode = data.StatusCode };
         }

@@ -5,7 +5,7 @@ namespace AvinyaAICRM.Application.Interfaces.ServiceInterface.Dashboard
 {
     public interface IDashbaordService
     {
-        Task<ResponseModel> GetDashboardAsync(string tenantId, string? role, string? userId);
+        Task<ResponseModel> GetDashboardAsync(string tenantId, string? role, string? userId, DateTime? fromDate, DateTime? toDate);
 
     }
 }

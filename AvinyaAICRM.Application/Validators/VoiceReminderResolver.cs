@@ -1,22 +1,22 @@
-﻿
-namespace AvinyaAICRM.Application.Validators
+﻿namespace AvinyaAICRM.Application.Validators
 {
     public static class VoiceReminderResolver
     {
-        public static DateTime? ResolveReminder(string text, DateTime? dueDate)
+        public static DateTime? ResolveReminder(string text, DateTime? dueDateUtc)
         {
-            if (!dueDate.HasValue) return null;
+            if (!dueDateUtc.HasValue)
+                return null;
 
-            text = text.ToLower();
+            text = text.ToLowerInvariant();
 
-            if (text.Contains("yaad dila") || text.Contains("remind"))
+            if (text.Contains("remind") || text.Contains("yaad dila"))
             {
-                // default: 30 minutes before
-                return dueDate.Value.AddMinutes(-30);
+                // Default: 30 minutes before due date
+                return dueDateUtc.Value.AddMinutes(-30);
             }
 
+            // You can add more rules here later (e.g. "remind me 1 hour before", "night before")
             return null;
         }
     }
-
 }
