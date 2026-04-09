@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "D:\\Pintu\\AvinyaAICRM\\AvinyaAICRM.Shared\\AvinyaAICRM.Shared.csproj": {}
+    "D:\\Avinya AI CRM\\Avinya-AI-CRM-Api\\AvinyaAICRM.Shared\\AvinyaAICRM.Shared.csproj": {}
   },
   "projects": {
-    "D:\\Pintu\\AvinyaAICRM\\AvinyaAICRM.Domain\\AvinyaAICRM.Domain.csproj": {
+    "D:\\Avinya AI CRM\\Avinya-AI-CRM-Api\\AvinyaAICRM.Domain\\AvinyaAICRM.Domain.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\Pintu\\AvinyaAICRM\\AvinyaAICRM.Domain\\AvinyaAICRM.Domain.csproj",
+        "projectUniqueName": "D:\\Avinya AI CRM\\Avinya-AI-CRM-Api\\AvinyaAICRM.Domain\\AvinyaAICRM.Domain.csproj",
         "projectName": "AvinyaAICRM.Domain",
-        "projectPath": "D:\\Pintu\\AvinyaAICRM\\AvinyaAICRM.Domain\\AvinyaAICRM.Domain.csproj",
-        "packagesPath": "C:\\Users\\Admin\\.nuget\\packages\\",
-        "outputPath": "D:\\Pintu\\AvinyaAICRM\\AvinyaAICRM.Domain\\obj\\",
+        "projectPath": "D:\\Avinya AI CRM\\Avinya-AI-CRM-Api\\AvinyaAICRM.Domain\\AvinyaAICRM.Domain.csproj",
+        "packagesPath": "C:\\Users\\DELL\\.nuget\\packages\\",
+        "outputPath": "D:\\Avinya AI CRM\\Avinya-AI-CRM-Api\\AvinyaAICRM.Domain\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\Admin\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\DELL\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -71,24 +71,24 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.103/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.104/PortableRuntimeIdentifierGraph.json"
         }
       }
     },
-    "D:\\Pintu\\AvinyaAICRM\\AvinyaAICRM.Shared\\AvinyaAICRM.Shared.csproj": {
+    "D:\\Avinya AI CRM\\Avinya-AI-CRM-Api\\AvinyaAICRM.Shared\\AvinyaAICRM.Shared.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\Pintu\\AvinyaAICRM\\AvinyaAICRM.Shared\\AvinyaAICRM.Shared.csproj",
+        "projectUniqueName": "D:\\Avinya AI CRM\\Avinya-AI-CRM-Api\\AvinyaAICRM.Shared\\AvinyaAICRM.Shared.csproj",
         "projectName": "AvinyaAICRM.Shared",
-        "projectPath": "D:\\Pintu\\AvinyaAICRM\\AvinyaAICRM.Shared\\AvinyaAICRM.Shared.csproj",
-        "packagesPath": "C:\\Users\\Admin\\.nuget\\packages\\",
-        "outputPath": "D:\\Pintu\\AvinyaAICRM\\AvinyaAICRM.Shared\\obj\\",
+        "projectPath": "D:\\Avinya AI CRM\\Avinya-AI-CRM-Api\\AvinyaAICRM.Shared\\AvinyaAICRM.Shared.csproj",
+        "packagesPath": "C:\\Users\\DELL\\.nuget\\packages\\",
+        "outputPath": "D:\\Avinya AI CRM\\Avinya-AI-CRM-Api\\AvinyaAICRM.Shared\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\Admin\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\DELL\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -103,8 +103,8 @@
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "D:\\Pintu\\AvinyaAICRM\\AvinyaAICRM.Domain\\AvinyaAICRM.Domain.csproj": {
-                "projectPath": "D:\\Pintu\\AvinyaAICRM\\AvinyaAICRM.Domain\\AvinyaAICRM.Domain.csproj"
+              "D:\\Avinya AI CRM\\Avinya-AI-CRM-Api\\AvinyaAICRM.Domain\\AvinyaAICRM.Domain.csproj": {
+                "projectPath": "D:\\Avinya AI CRM\\Avinya-AI-CRM-Api\\AvinyaAICRM.Domain\\AvinyaAICRM.Domain.csproj"
               }
             }
           }
@@ -146,7 +146,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.103/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.104/PortableRuntimeIdentifierGraph.json"
         }
       }
     }
