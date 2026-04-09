@@ -63,6 +63,7 @@ namespace AvinyaAICRM.Application.Services.Invoice
             };
 
             var created = await _invoiceRepository.AddInvoiceAsync(invoice);
+
             return MapToDto(created);
         }
 

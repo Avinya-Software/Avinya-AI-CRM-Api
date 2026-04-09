@@ -34,6 +34,22 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Invoice
         public async Task<Domain.Entities.Invoice.Invoice> AddInvoiceAsync(Domain.Entities.Invoice.Invoice invoice)
         {
             _context.Invoices.Add(invoice);
+
+            // ✅ Convert string → Guid
+            if (Guid.TryParse(invoice.OrderID.ToString(), out Guid orderId))
+            {
+                var order = await _context.Orders.FindAsync(orderId);
+
+                if (order != null)
+                {
+                    order.isInvoiceCreated = true;
+                }
+            }
+            else
+            {
+                throw new Exception("Invalid OrderID format");
+            }
+
             await _context.SaveChangesAsync();
             return invoice;
         }

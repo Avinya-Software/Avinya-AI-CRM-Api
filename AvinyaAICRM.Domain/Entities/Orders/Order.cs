@@ -51,7 +51,8 @@ namespace AvinyaAICRM.Domain.Entities.Orders
         public decimal TotalTaxes { get; set; }
         public decimal GrandTotal { get; set; }
 
-        public bool IsUseBillingAddress { get; set; }       
+        public bool IsUseBillingAddress { get; set; }
+        public bool isInvoiceCreated { get; set; }
         public string? ShippingAddress { get; set; }
         public Guid? TenantId { get; set; }
     }

@@ -293,6 +293,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
                         Taxes = o.TotalTaxes,
                         TotalAmount = o.SubTotal,
                         GrandTotal = o.GrandTotal,
+                        isInvoiceCreated=o.isInvoiceCreated,
                         EnableTax = o.EnableTax,
                         CreatedDate = o.CreatedDate,
 
@@ -464,7 +465,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
                         FirmID = dto.FirmID,
                         DesignStatusID = dto.DesignStatus ?? 0,
                         CreatedBy = userId,
-
+                        isInvoiceCreated = false,
                         EnableTax = dto.EnableTax.GetValueOrDefault(),
 
                         AssignedDesignTo = string.IsNullOrWhiteSpace(dto.AssignedDesignTo) ? null : dto.AssignedDesignTo,

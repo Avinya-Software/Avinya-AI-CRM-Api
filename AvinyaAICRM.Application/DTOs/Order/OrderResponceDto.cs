@@ -14,8 +14,8 @@ namespace AvinyaAICRM.Application.DTOs.Order
         public string? mobile { get; set; }
         public string? GstNo { get; set; }
         public string? BillAddress { get; set; }
-
         public bool IsUseBillingAddress { get; set; }
+        public bool isInvoiceCreated { get; set; }
         public string? ShippingAddress { get; set; }
 
         public int? StateID { get; set; }
