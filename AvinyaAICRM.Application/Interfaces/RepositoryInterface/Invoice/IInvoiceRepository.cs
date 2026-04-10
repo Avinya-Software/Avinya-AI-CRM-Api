@@ -1,18 +1,19 @@
 using AvinyaAICRM.Domain.Entities.Invoice;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+using AvinyaAICRM.Shared.Model;
+using AvinyaAICRM.Application.DTOs.Invoice;
 
-namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.Invoice
+
+namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.Invoices
 {
     public interface IInvoiceRepository
     {
-        Task<IEnumerable<Domain.Entities.Invoice.Invoice>> GetAllInvoicesAsync(string tenantId);
-        Task<Domain.Entities.Invoice.Invoice?> GetInvoiceByIdAsync(Guid invoiceId, string tenantId);
-        Task<Domain.Entities.Invoice.Invoice> AddInvoiceAsync(Domain.Entities.Invoice.Invoice invoice);
-        Task<Domain.Entities.Invoice.Invoice> UpdateInvoiceAsync(Domain.Entities.Invoice.Invoice invoice);
-        Task<bool> DeleteInvoiceAsync(Guid invoiceId, string tenantId);
-        Task<AvinyaAICRM.Shared.Model.PagedResult<AvinyaAICRM.Application.DTOs.Invoice.InvoiceDto>> GetFilteredAsync(
+        Task<IEnumerable<Invoice>> GetAllInvoicesAsync(string tenantId);
+        Task<Invoice?> GetInvoiceByIdAsync(Guid invoiceId, string tenantId);
+        Task<InvoiceDto> GetInvoiceWithIteamByIdAsync(Guid invoiceId, string tenantId);
+        Task<Invoice> AddInvoiceAsync(Invoice invoice);
+        Task<Invoice> UpdateInvoiceAsync(Invoice invoice);
+
+        Task<PagedResult<InvoiceDto>> GetFilteredAsync(
             string? search,
             string? statusFilter,
             DateTime? startDate,

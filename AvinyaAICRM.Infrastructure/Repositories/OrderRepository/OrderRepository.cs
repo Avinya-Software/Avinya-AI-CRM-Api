@@ -280,11 +280,17 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
                             .Select(c => c.BillingAddress)
                             .FirstOrDefault(),
 
+                        InvoiceId = _context.Invoices
+                            .Where(u => u.OrderID == o.OrderID.ToString())
+                            .Select(u => u.InvoiceID)
+                            .FirstOrDefault(),
+
                         ShippingAddress = o.ShippingAddress,
                         IsUseBillingAddress = o.IsUseBillingAddress,
                         StateID = o.StateID,
                         CityID = o.CityID,
                         QuotationID = o.QuotationID,
+                        QuotationNo = _context.Quotations.Where(q=> q.QuotationID == o.QuotationID).Select(q => q.QuotationNo).FirstOrDefault(),
                         OrderDate = o.OrderDate,
                         IsDesignByUs = o.IsDesignByUs,
                         DesigningCharge = o.DesigningCharge,
@@ -310,6 +316,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
                             .FirstOrDefault(),
 
                         CreatedBy = o.CreatedBy,
+
+                      
 
                         CreatedByName = _context.Users
                             .Where(u => u.Id == o.CreatedBy)

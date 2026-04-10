@@ -47,6 +47,15 @@ namespace AvinyaAICRM.API.Controllers.Invoice
             return Ok(invoice);
         }
 
+        [HttpGet("getinvoicewithitems/{id}")]
+        public async Task<IActionResult> GetInvoiceWithIteamByIdAsync(Guid id)
+        {
+            var tenantId = GetTenantId();
+            var invoice = await _invoiceService.GetInvoiceWithIteamByIdAsync(id, tenantId);
+            if (invoice == null) return NotFound("Invoice not found.");
+            return Ok(invoice);
+        }
+
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateInvoiceDto dto)
         {
@@ -70,14 +79,7 @@ namespace AvinyaAICRM.API.Controllers.Invoice
             }
         }
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(Guid id)
-        {
-            var tenantId = GetTenantId();
-            var success = await _invoiceService.DeleteInvoiceAsync(id, tenantId);
-            if (!success) return NotFound("Invoice not found.");
-            return NoContent();
-        }
+    
 
         [HttpGet("filter")]
         public async Task<IActionResult> GetFiltered(

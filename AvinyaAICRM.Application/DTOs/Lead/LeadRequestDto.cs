@@ -1,5 +1,7 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using AvinyaAICRM.Shared.Helper;
 
 
 namespace AvinyaAICRM.Application.DTOs.Lead
@@ -23,9 +25,7 @@ namespace AvinyaAICRM.Application.DTOs.Lead
         public int? CityID { get; set; }
         public DateTime? Date { get; set; }
         public DateTime? NextFollowupDate { get; set; }
-
         public string? RequirementDetails { get; set; }
-
         public Guid? LeadSourceID { get; set; }
         public string? OtherSources { get; set; }
 

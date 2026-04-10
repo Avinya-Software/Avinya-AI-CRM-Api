@@ -92,7 +92,6 @@ namespace AvinyaAICRM.Infrastructure.Services
                 {
                     col.Item().Row(r => { r.ConstantItem(90).Text("Order No."); r.RelativeItem().Text($": {Order.OrderNo}").Bold(); });
                     col.Item().Row(r => { r.ConstantItem(90).Text("Order Date"); r.RelativeItem().Text($": {Order.OrderDate:dd/MM/yyyy}"); });
-                    col.Item().Row(r => { r.ConstantItem(90).Text("State Name"); r.RelativeItem().Text($": {Order.StateName ?? "-"}"); });
                     col.Item().Row(r => { r.ConstantItem(90).Text("Quotation Ref."); r.RelativeItem().Text($": {Order.QuotationNo ?? "-"}"); });
                 });
 
@@ -100,9 +99,8 @@ namespace AvinyaAICRM.Infrastructure.Services
                 row.RelativeItem().Padding(5).Column(col =>
                 {
                     col.Item().Row(r => { r.ConstantItem(120).Text("Expected Delivery"); r.RelativeItem().Text($": {Order.ExpectedDeliveryDate?.ToString("dd/MM/yyyy") ?? "-"}"); });
-                    col.Item().Row(r => { r.ConstantItem(120).Text("Design Status"); r.RelativeItem().Text($": {Order.DesignStatusName ?? "-"}"); });
                     col.Item().Row(r => { r.ConstantItem(120).Text("Order Status"); r.RelativeItem().Text($": {Order.StatusName ?? "-"}"); });
-                    col.Item().PaddingTop(5).Text($"Created By: {Order.CreatedByName ?? "-"}").FontSize(8);
+
                 });
             });
         }
@@ -190,7 +188,7 @@ namespace AvinyaAICRM.Infrastructure.Services
                         table.Cell().Element(ItemStyle).Text(item.HsnCode ?? "-");
                         table.Cell().Element(ItemStyle).Text(item.Quantity.ToString("F2"));
                         table.Cell().Element(ItemStyle).Text(item.UnitPrice.ToString("F2"));
-                        table.Cell().Element(ItemStyle).Text(Order.EnableTax ? "18%" : "-");
+                        table.Cell().Element(ItemStyle).Text(item.TaxCategoryName ?? "-");
                         table.Cell().Element(ItemStyle).Text((item.Quantity * item.UnitPrice).ToString("F2"));
 
                         static IContainer ItemStyle(IContainer sub) => sub.PaddingHorizontal(5).PaddingVertical(3).AlignCenter();

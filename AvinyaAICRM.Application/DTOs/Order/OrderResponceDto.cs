@@ -7,7 +7,7 @@ namespace AvinyaAICRM.Application.DTOs.Order
         public Guid OrderID { get; set; }
         public string? OrderNo { get; set; }
         public Guid ClientID { get; set; }
-
+        public Guid? InvoiceId { get; set; }
         public string? ClientName { get; set; }
         public string? CompanyName { get; set; }
         public string? Email { get; set; }
@@ -61,6 +61,7 @@ namespace AvinyaAICRM.Application.DTOs.Order
         public string FirmMobile { get; set; }
 
         public Guid? BillID { get; set; }
+      
 
         public List<OrderItemReponceDto>? OrderItems { get; set; }
         public List<WorkOrderData>? WorkOrder { get; set; }

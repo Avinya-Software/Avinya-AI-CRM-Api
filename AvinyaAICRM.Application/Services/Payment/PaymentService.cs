@@ -1,5 +1,5 @@
 using AvinyaAICRM.Application.DTOs.Payment;
-using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Invoice;
+using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Invoices;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Payment;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Payment;
 using AvinyaAICRM.Domain.Entities.Invoice;

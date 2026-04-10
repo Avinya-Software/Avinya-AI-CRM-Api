@@ -123,6 +123,7 @@ namespace AvinyaAICRM.Infrastructure.Services
                         columns.ConstantColumn(80);
                         columns.ConstantColumn(50);
                         columns.ConstantColumn(50);
+                        columns.ConstantColumn(50);
                         columns.ConstantColumn(70);
                         columns.ConstantColumn(80);
                     });
@@ -135,6 +136,7 @@ namespace AvinyaAICRM.Infrastructure.Services
                         header.Cell().Element(HeaderCellStyle).Text("HSN/SAC Code");
                         header.Cell().Element(HeaderCellStyle).Text("Qty.");
                         header.Cell().Element(HeaderCellStyle).Text("Unit");
+                        header.Cell().Element(HeaderCellStyle).Text("Tax");
                         header.Cell().Element(HeaderCellStyle).Text("Rate");
                         header.Cell().Element(HeaderCellStyle).Text("Amount(`)");
 
@@ -156,6 +158,7 @@ namespace AvinyaAICRM.Infrastructure.Services
                         table.Cell().Element(ItemCellStyle).Text(item.value.HsnCode ?? "-");
                         table.Cell().Element(ItemCellStyle).Text(item.value.Quantity.ToString("F2"));
                         table.Cell().Element(ItemCellStyle).Text(item.value.UnitName ?? "Pcs");
+                        table.Cell().Element(ItemCellStyle).Text(item.value.TaxCategoryName ?? "-");
                         table.Cell().Element(ItemCellStyle).Text(item.value.UnitPrice.ToString("F2"));
                         table.Cell().Element(ItemCellStyle).Text(item.value.LineTotal.ToString("F2"));
 

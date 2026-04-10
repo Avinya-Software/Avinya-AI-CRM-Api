@@ -1,3 +1,4 @@
+using AvinyaAICRM.Application.DTOs.Order;
 using System;
 
 namespace AvinyaAICRM.Application.DTOs.Invoice
@@ -7,6 +8,7 @@ namespace AvinyaAICRM.Application.DTOs.Invoice
         public Guid InvoiceID { get; set; }
         public string InvoiceNo { get; set; } = string.Empty;
         public string OrderID { get; set; } = string.Empty;
+        public string OrderNO { get; set; }
         public string ClientID { get; set; } = string.Empty;
         public DateTime InvoiceDate { get; set; }
         public decimal SubTotal { get; set; }
@@ -30,6 +32,7 @@ namespace AvinyaAICRM.Application.DTOs.Invoice
         public string? StatusName { get; set; }
         public int? TotalCount { get; set; }
         public decimal OutstandingAmount { get; set; }
+        public List<OrderItemReponceDto>? OrderItems { get; set; }
     }
 
     public class CreateInvoiceDto

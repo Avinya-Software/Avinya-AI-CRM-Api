@@ -64,8 +64,8 @@ using System.ComponentModel;
 using System.Text;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.BankDetail;
 using AvinyaAICRM.Infrastructure.Repositories.BankDetail;
-using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Invoice;
-using AvinyaAICRM.Infrastructure.Repositories.Invoice;
+using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Invoices;
+using AvinyaAICRM.Infrastructure.Repositories.Invoices;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Payment;
 using AvinyaAICRM.Infrastructure.Repositories.Payment;
 

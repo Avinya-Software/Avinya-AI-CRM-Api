@@ -1,11 +1,8 @@
 using AvinyaAICRM.Application.DTOs.Invoice;
-using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Invoice;
+using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Invoices;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Invoice;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using AvinyaAICRM.Shared.Model;
 
 namespace AvinyaAICRM.Application.Services.Invoice
 {
@@ -30,6 +27,12 @@ namespace AvinyaAICRM.Application.Services.Invoice
         {
             var invoice = await _invoiceRepository.GetInvoiceByIdAsync(invoiceId, tenantId);
             return invoice != null ? MapToDto(invoice) : null;
+        }
+
+        public async Task<InvoiceDto> GetInvoiceWithIteamByIdAsync(Guid invoiceId, string tenantId)
+        {
+            var invoice = await _invoiceRepository.GetInvoiceWithIteamByIdAsync(invoiceId, tenantId);
+            return invoice;
         }
 
         public async Task<InvoiceDto> CreateInvoiceAsync(CreateInvoiceDto dto, string tenantId)
@@ -96,12 +99,8 @@ namespace AvinyaAICRM.Application.Services.Invoice
             return MapToDto(updated);
         }
 
-        public async Task<bool> DeleteInvoiceAsync(Guid invoiceId, string tenantId)
-        {
-            return await _invoiceRepository.DeleteInvoiceAsync(invoiceId, tenantId);
-        }
-
-        public async Task<AvinyaAICRM.Shared.Model.ResponseModel> GetFilteredAsync(
+      
+        public async Task<ResponseModel> GetFilteredAsync(
             string? search,
             string? statusFilter,
             DateTime? startDate,
@@ -111,7 +110,7 @@ namespace AvinyaAICRM.Application.Services.Invoice
             string userId)
         {
             var pagedResult = await _invoiceRepository.GetFilteredAsync(search, statusFilter, startDate, endDate, pageNumber, pageSize, userId);
-            return new AvinyaAICRM.Shared.Model.ResponseModel
+            return new ResponseModel
             {
                 StatusCode = 200,
                 StatusMessage = "Invoices retrieved successfully",
@@ -119,10 +118,10 @@ namespace AvinyaAICRM.Application.Services.Invoice
             };
         }
 
-        public async Task<AvinyaAICRM.Shared.Model.ResponseModel> GetAllInvoiceStatusesAsync()
+        public async Task<ResponseModel> GetAllInvoiceStatusesAsync()
         {
             var statuses = await _invoiceRepository.GetAllInvoiceStatusesAsync();
-            return new AvinyaAICRM.Shared.Model.ResponseModel
+            return new ResponseModel
             {
                 StatusCode = 200,
                 StatusMessage = "Invoice statuses retrieved successfully",
@@ -158,5 +157,7 @@ namespace AvinyaAICRM.Application.Services.Invoice
                 OutstandingAmount = invoice.OutstandingAmount
             };
         }
+
+       
     }
 }
