@@ -96,7 +96,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
                 {
                     User = u,
                     RoleName = r.Name,
-                    TenantName = t != null ? t.CompanyName : "System"
+                    TenantName = t != null ? t.CompanyName : "System",
+                    IsApproved = t != null && t.IsApproved
                 };
 
             if (currentUserTenantId.HasValue)
@@ -132,7 +133,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
                     TenantName = x.TenantName,
                     IsActive = x.User.IsActive,
                     CreatedAt = x.User.CreatedAt,
-
+                    IsApproved = x.IsApproved,
                     PermissionIds = _context.UserPermissions
                         .Where(up => up.UserId == x.User.Id)
                         .Select(up => up.PermissionId)

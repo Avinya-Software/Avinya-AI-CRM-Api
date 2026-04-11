@@ -84,18 +84,28 @@ namespace AvinyaAICRM.Application.Services.Projects
 
         public async Task<ResponseModel> UpdateAsync(ProjectCreateUpdateDto dto, string tenantId)
         {
-            var existing = await _projectRepository.GetByIdAsync(dto.ProjectID!.Value, tenantId);
+            if (dto.ProjectID == null || dto.ProjectID == Guid.Empty)
+                return CommonHelper.BadRequestResponseMessage("ProjectID is required");
+
+            var existing = await _projectRepository.GetByIdAsync(dto.ProjectID.Value, tenantId);
             if (existing == null)
                 return CommonHelper.BadRequestResponseMessage("Project not found");
 
             existing.ProjectName = dto.ProjectName;
             existing.Description = dto.Description;
-            existing.Status = dto.Status;
-            existing.PriorityID = dto.Priority;
-            existing.ProgressPercent = dto.ProgressPercent;
+            existing.Location = dto.Location;
+            existing.ClientID = dto.ClientID;
             existing.ProjectManagerId = dto.ProjectManagerId;
             existing.AssignedToUserId = dto.AssignedToUserId;
             existing.TeamId = dto.TeamId;
+            existing.Status = dto.Status;
+            existing.PriorityID = dto.Priority;
+            existing.ProgressPercent = dto.ProgressPercent;
+            existing.StartDate = dto.StartDate;
+            existing.EndDate = dto.EndDate;
+            existing.Deadline = dto.Deadline;
+            existing.EstimatedValue = dto.EstimatedValue;
+            existing.Notes = dto.Notes;
             existing.UpdatedAt = DateTime.Now;
 
             await _projectRepository.UpdateAsync(existing);

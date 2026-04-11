@@ -1,12 +1,9 @@
 ﻿using AvinyaAICRM.Application.DTOs.Lead;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Leads;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Leads;
-using AvinyaAICRM.Domain.Entities.Leads;
 using AvinyaAICRM.Shared.Helper;
 using AvinyaAICRM.Shared.Model;
 using Microsoft.AspNetCore.Http;
-using System.Security.Claims;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Model;
 
 namespace AvinyaAICRM.Application.Services.Leads
 {

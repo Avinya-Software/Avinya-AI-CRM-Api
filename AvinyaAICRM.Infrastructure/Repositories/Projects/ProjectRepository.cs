@@ -199,8 +199,6 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Projects
 
             var result = projects.Select(p =>
             {
-                var client = clients.FirstOrDefault(c => c.ClientID == p.ClientID);
-
                 var managerName =
                     users.FirstOrDefault(u => u.Id == p.ProjectManagerId)?.UserName;
 
@@ -214,7 +212,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Projects
                     Description = p.Description,
 
                     ClientID = p.ClientID,
-                    ClientName = client?.CompanyName,
+                    ClientName = _context.Clients.Where(c=> c.ClientID == p.ClientID).Select(c=> c.CompanyName).FirstOrDefault(),
 
                     Location = p.Location,
                     Status = p.Status,

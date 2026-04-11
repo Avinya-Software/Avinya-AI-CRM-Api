@@ -122,6 +122,11 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
                     )
                 );
 
+            if (!string.IsNullOrEmpty(scope))
+            {
+                query = query.Where(x => x.TaskSeries.TaskScope == scope);
+            }
+
             var istTimeZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
 
             // =========================
