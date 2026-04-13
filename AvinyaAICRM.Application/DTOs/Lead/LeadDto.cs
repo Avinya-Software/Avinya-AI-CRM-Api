@@ -1,5 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Reports;
-
+﻿
 namespace AvinyaAICRM.Application.DTOs.Lead
 {
     public class LeadDto

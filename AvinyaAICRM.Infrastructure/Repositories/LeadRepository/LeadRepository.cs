@@ -1,6 +1,4 @@
 using AvinyaAICRM.Application.DTOs.Lead;
-using AvinyaAICRM.Application.DTOs.Reports;
-using AvinyaAICRM.Application.DTOs.User;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Leads;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface;
 using AvinyaAICRM.Domain.Entities.Client;

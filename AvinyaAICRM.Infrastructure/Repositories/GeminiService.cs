@@ -58,7 +58,13 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 { "overall", new[] { "Leads", "Quotations", "Orders", "Expenses", "Projects", "TaskSeries", "TaskOccurrences", "LeadFollowups" } },
                 { "report", new[] { "Leads", "Quotations", "Orders", "Expenses", "Projects", "TaskSeries", "TaskOccurrences", "LeadFollowups" } },
                 { "summary", new[] { "Leads", "Quotations", "Orders", "Expenses", "Projects", "TaskSeries", "TaskOccurrences", "LeadFollowups" } },
-                { "activity", new[] { "Leads", "LeadFollowups", "TaskOccurrences", "Orders" } }
+                { "activity", new[] { "Leads", "LeadFollowups", "TaskOccurrences", "Orders" } },
+                { "invoice", new[] { "Invoices", "InvoiceStatuses", "Clients", "Orders" } },
+                { "invoices", new[] { "Invoices", "InvoiceStatuses", "Clients", "Orders" } },
+                { "billing", new[] { "Invoices", "Payments" } },
+                { "receive payment", new[] { "Payments", "Invoices", "BankDetails" } },
+                { "payment", new[] { "Payments", "Invoices", "BankDetails" } },
+                { "payments", new[] { "Payments", "Invoices", "BankDetails" } }
             };
 
             var baseTables = new HashSet<string> { 
@@ -79,7 +85,9 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 { "project", new[] { "Projects" } },
                 { "expense", new[] { "Expenses", "ExpenseCategories" } },
                 { "team", new[] { "Teams" } },
-                { "user", new[] { "AspNetUsers" } }
+                { "user", new[] { "AspNetUsers" } },
+                { "invoice", new[] { "Invoices" } },
+                { "payment", new[] { "Payments" } }
             };
 
             foreach (var entry in mapping)

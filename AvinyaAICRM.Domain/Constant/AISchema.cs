@@ -27,6 +27,10 @@ namespace AvinyaAICRM.Domain.Constant
             { "TaxCategoryMaster", "dbo.TaxCategoryMaster(TaxCategoryID, TaxName, Rate, IsCompound)" },
             { "Expenses", "dbo.Expenses(ExpenseId, ExpenseDate, CategoryId [ref: dbo.ExpenseCategories], Amount, PaymentMode, Description, Status, CreatedBy [ref: dbo.AspNetUsers], CreatedDate, TenantId)" },
             { "ExpenseCategories", "dbo.ExpenseCategories(CategoryId, CategoryName, IsActive, CreatedDate)" },
+            { "Invoices", "dbo.Invoices(InvoiceID, InvoiceNo, OrderID, ClientID, InvoiceDate, SubTotal, Taxes, Discount, GrandTotal, InvoiceStatusID [ref: dbo.InvoiceStatuses], RemainingPayment, PaidAmount, OutstandingAmount, DueDate, TenantId)" },
+            { "InvoiceStatuses", "dbo.InvoiceStatuses(InvoiceStatusID, InvoiceStatusName)" },
+            { "Payments", "dbo.Payments(PaymentID, InvoiceID [ref: dbo.Invoices], PaymentDate, Amount, PaymentMode [Values: Online, UPI, Card, Cash], TransactionRef, ReceivedBy)" },
+            { "BankDetails", "dbo.BankDetails(BankAccountId, BankName, AccountHolderName, AccountNumber, IFSCCode, BranchName, IsActive, TenantId)" },
             { "Projects", "dbo.Projects(ProjectID, ProjectName, Description, ClientID [ref: dbo.Clients], Location, Status [ref: dbo.ProjectStatusMaster], ProgressPercent, ProjectManagerId [ref: dbo.AspNetUsers], AssignedToUserId [ref: dbo.AspNetUsers], TeamId [ref: dbo.Teams], StartDate, EndDate, Deadline, EstimatedValue, CreatedBy [ref: dbo.AspNetUsers], CreatedDate, PriorityID [ref: dbo.ProjectPriorityMaster], TenantId)" },
             { "ProjectStatusMaster", "dbo.ProjectStatusMaster(StatusID, StatusName)" },
             { "ProjectPriorityMaster", "dbo.ProjectPriorityMaster(PriorityID, PriorityName)" },
@@ -39,7 +43,11 @@ namespace AvinyaAICRM.Domain.Constant
             { "TaskSeries", "dbo.TaskSeries(Id, Title, Description, Notes, IsRecurring, RecurrenceRule, StartDate, EndDate, CreatedBy [ref: dbo.AspNetUsers], TeamId [ref: dbo.Teams], IsActive, CreatedAt, TaskScope, Priority, ProjectId [ref: dbo.Projects])" },
             { "TaskOccurrences", "dbo.TaskOccurrences(Id, TaskSeriesId [ref: dbo.TaskSeries], DueDateTime, StartDateTime, EndDateTime, Status, AssignedTo [ref: dbo.AspNetUsers], CreatedAt)" },
             { "TaskLists", "dbo.TaskLists(Id, Name, OwnerId [ref: dbo.AspNetUsers], CreatedAt)" },
-            { "Tenants", "dbo.Tenants(TenantId, CompanyName, IndustryType, CompanyEmail, CompanyPhone, Address, IsApproved, IsActive, CreatedAt)" }
+            { "Tenants", "dbo.Tenants(TenantId, CompanyName, IndustryType, CompanyEmail, CompanyPhone, Address, IsApproved, IsActive, CreatedAt)" },
+            { "Modules", "dbo.Modules(ModuleId, ModuleKey, ModuleName, IsActive)" },
+            { "Permissions", "dbo.Permissions(PermissionId, ModuleId [ref: dbo.Modules], ActionId [ref: dbo.Actions])" },
+            { "Actions", "dbo.Actions(ActionId, ActionKey, ActionName)" },
+            { "Settings", "dbo.Settings(SettingID, EntityType, Value, PreFix, Digits, TenantId)" }
         };
 
         public static string CRM => GetTables(Tables.Keys);
@@ -97,6 +105,8 @@ namespace AvinyaAICRM.Domain.Constant
                 "Orders.AssignedDesignTo=AspNetUsers.Id",
                 "OrderItems.OrderID=Orders.OrderID",
                 "OrderItems.ProductID=Products.ProductID",
+                "Invoices.InvoiceStatusID=InvoiceStatuses.InvoiceStatusID",
+                "Payments.InvoiceID=Invoices.InvoiceID",
                 "Products.TaxCategoryID=TaxCategoryMaster.TaxCategoryID",
                 "Products.UnitTypeID=UnitTypeMaster.UnitTypeID",
                 "Products.CreatedBy=AspNetUsers.Id",
@@ -120,7 +130,9 @@ namespace AvinyaAICRM.Domain.Constant
                 "TaskOccurrences.TaskSeriesId=TaskSeries.Id",
                 "TaskOccurrences.ParentOccurrenceId=TaskOccurrences.Id",
                 "TaskOccurrences.AssignedTo=AspNetUsers.Id",
-                "TaskLists.OwnerId=AspNetUsers.Id"
+                "TaskLists.OwnerId=AspNetUsers.Id",
+                "Permissions.ModuleId=Modules.ModuleId",
+                "Permissions.ActionId=Actions.ActionId"
             };
 
             var validRels = allRelationships.Where(rel => {

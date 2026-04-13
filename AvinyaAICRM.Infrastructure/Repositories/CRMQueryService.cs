@@ -120,6 +120,18 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                     suggestions.Add("Show tasks for tomorrow");
                     return suggestions;
                 }
+                if (sql.Contains("INVOICES"))
+                {
+                    suggestions.Add("Show my unpaid invoices");
+                    suggestions.Add("List total outstanding amount");
+                    return suggestions;
+                }
+                if (sql.Contains("PAYMENTS"))
+                {
+                    suggestions.Add("Show latest payments");
+                    suggestions.Add("How much payment received today?");
+                    return suggestions;
+                }
             }
 
             // 2. Fallback Suggestions based on Action or General Onboarding
@@ -141,6 +153,8 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                     if (allowedModules.Any(m => m.Contains("lead"))) suggestions.Add("Show my latest leads");
                     if (allowedModules.Any(m => m.Contains("task"))) suggestions.Add("List upcoming meetings");
                     if (allowedModules.Any(m => m.Contains("project"))) suggestions.Add("What's the status of current projects?");
+                    if (allowedModules.Any(m => m.Contains("invoice"))) suggestions.Add("Show total outstanding balance");
+                    if (allowedModules.Any(m => m.Contains("payment"))) suggestions.Add("Show recent payments received");
                     break;
             }
 
