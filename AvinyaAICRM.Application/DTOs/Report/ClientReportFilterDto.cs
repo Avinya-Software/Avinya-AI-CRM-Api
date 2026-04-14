@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -22,5 +22,9 @@ namespace AvinyaAICRM.Application.DTOs.Report
 
         // Injected from JWT
         public Guid TenantId { get; set; }
+
+        // Pagination for Client 360 list
+        public int PageNumber { get; set; } = 1;
+        public int PageSize { get; set; } = 10;
     }
 }

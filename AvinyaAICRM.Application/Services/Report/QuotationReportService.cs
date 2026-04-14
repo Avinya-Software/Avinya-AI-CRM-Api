@@ -2,20 +2,24 @@ using AvinyaAICRM.Application.DTOs.Report;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Report;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Report;
 using AvinyaAICRM.Shared.Model;
-
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace AvinyaAICRM.Application.Services.Report
 {
-    public class ClientReportService : IClientReportService
+    public class QuotationReportService : IQuotationReportService
     {
-        private readonly IClientReportRepository _repository;
+        private readonly IQuotationReportRepository _repository;
 
-        public ClientReportService(IClientReportRepository repository)
+        public QuotationReportService(IQuotationReportRepository repository)
         {
             _repository = repository;
         }
 
-        public async Task<ResponseModel> GetClientReportAsync(ClientReportFilterDto filter)
+        public async Task<ResponseModel> GetQuotationReportAsync(QuotationReportFilterDto filter)
         {
             // Default: current quarter
             if (filter.DateFrom is null && filter.DateTo is null)
@@ -29,25 +33,28 @@ namespace AvinyaAICRM.Application.Services.Report
             if (filter.DateTo.HasValue)
                 filter.DateTo = filter.DateTo.Value.Date.AddDays(1).AddTicks(-1);
 
-            var report = await _repository.GetClientReportAsync(filter);
+            var report = await _repository.GetQuotationReportAsync(filter);
 
             return new ResponseModel
             {
                 StatusCode = 200,
-                StatusMessage = "Client report fetched successfully.",
+                StatusMessage = "Quotation report fetched successfully.",
                 Data = report
             };
         }
 
-        public async Task<ResponseModel> GetClientDrillDownAsync(Guid clientId, Guid tenantId)
+        public async Task<ResponseModel> GetQuotationLifecycleReportAsync(QuotationReportFilterDto filter)
         {
-            var drillDown = await _repository.GetClientDrillDownAsync(clientId, tenantId);
+            if (filter.DateTo.HasValue)
+                filter.DateTo = filter.DateTo.Value.Date.AddDays(1).AddTicks(-1);
+
+            var report = await _repository.GetQuotationLifecycleReportAsync(filter);
 
             return new ResponseModel
             {
                 StatusCode = 200,
-                StatusMessage = "Client drill-down data fetched successfully.",
-                Data = drillDown
+                StatusMessage = "Quotation lifecycle report fetched successfully.",
+                Data = report
             };
         }
     }
