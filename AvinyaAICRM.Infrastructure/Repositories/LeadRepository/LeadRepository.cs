@@ -133,7 +133,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                 Email = client?.Email ?? "",
                 StateID = client?.StateID,
                 CityID = client?.CityID,
-
+                StateName = _context.States.Where(s=>s.StateID == client.StateID).Select(s=> s.StateName).FirstOrDefault() ?? "",
+                CityName = _context.Cities.Where(s=>s.CityID == client.CityID).Select(c=> c.CityName).FirstOrDefault()??"",
                 Date = lead.Date,
                 Notes = lead.Notes,
                 Links = lead.Links,

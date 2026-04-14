@@ -36,19 +36,20 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ClientRepository
 
             return await query
                 .OrderByDescending(c => c.CreatedDate)
+                .Where(c=> c.IsDeleted == false)
                 .Select(c => new ClientDropDownDto
                 {
                     ClientID = c.ClientID,
-                    CompanyName = c.CompanyName,
-                    ContactPerson = c.ContactPerson,
-                    Email = c.Email,
-                    MobileNumber = c.Mobile,
-                    StateID = c.StateID,
-                    CityID = c.CityID,
-                    GstNo = c.GSTNo,
-                    BillAddress = c.BillingAddress,
-                    ClientTypeName = ((ClientTypeEnum)c.ClientType).ToString(),
-                    ClientType = c.ClientType
+                    CompanyName = c.CompanyName ?? "",
+                    ContactPerson = c.ContactPerson ?? "",
+                    Email = c.Email ?? "",
+                    MobileNumber = c.Mobile ?? "",
+                    StateID = c.StateID ?? null,
+                    CityID = c.CityID ?? null,
+                    GstNo = c.GSTNo ?? "",
+                    BillAddress = c.BillingAddress ?? "",
+                    ClientTypeName = ((ClientTypeEnum)c.ClientType).ToString() ?? "",
+                    ClientType = c.ClientType 
                 })
                 .ToListAsync();
         }

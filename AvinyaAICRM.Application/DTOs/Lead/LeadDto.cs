@@ -11,10 +11,11 @@ namespace AvinyaAICRM.Application.DTOs.Lead
         public string? Mobile { get; set; }
         public string? Email { get; set; }
         public int? StateID { get; set; }
+        public string? CityName { get; set; }
+        public string? StateName { get; set; }
         public int? CityID { get; set; }
         public DateTime? Date { get; set; }
         public string? RequirementDetails { get; set; }
-
         public Guid? LeadSourceID { get; set; }
         public string? LeadSourceName { get; set; }
         public string? OtherSources { get; set; }

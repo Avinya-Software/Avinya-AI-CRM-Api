@@ -15,11 +15,15 @@ namespace AvinyaAICRM.API.Controllers.Reports
         private readonly ILeadReportService _leadReportService;
         private readonly IClientReportService _clientReportService;
         private readonly IQuotationReportService _quotationReportService;
-        public ReportController(ILeadReportService leadReportService, IClientReportService clientReportService, IQuotationReportService quotationReportService)
+        private readonly IOrderReportService _orderReportService;
+        private readonly IFinanceReportService _financeReportService;
+        public ReportController(ILeadReportService leadReportService, IClientReportService clientReportService, IQuotationReportService quotationReportService, IOrderReportService orderReportService, IFinanceReportService financeReportService)
         {
             _leadReportService = leadReportService;
             _clientReportService = clientReportService;
             _quotationReportService = quotationReportService;
+            _orderReportService = orderReportService;
+            _financeReportService = financeReportService;
         }
 
         [HttpGet("lead-pipeline")]
@@ -177,6 +181,102 @@ namespace AvinyaAICRM.API.Controllers.Reports
             };
 
             var result = await _quotationReportService.GetQuotationLifecycleReportAsync(filter);
+            return Ok(result);
+        }
+
+        [HttpGet("order")]
+        public async Task<IActionResult> GetOrderReport(
+        [FromQuery] DateTime? dateFrom,
+        [FromQuery] DateTime? dateTo,
+        [FromQuery] int? orderStatusId,
+        [FromQuery] int? designStatusId,
+        [FromQuery] Guid? clientId,
+        [FromQuery] string? assignedDesignTo,
+        [FromQuery] int? firmId,
+        [FromQuery] bool overdueOnly = false)
+        {
+            var tenantIdClaim = User.FindFirstValue("TenantId");
+            if (!Guid.TryParse(tenantIdClaim, out var tenantId))
+                return Unauthorized(new { StatusCode = 401, StatusMessage = "Invalid tenant." });
+
+            var filter = new OrderReportFilterDto
+            {
+                DateFrom = dateFrom,
+                DateTo = dateTo,
+                OrderStatusId = orderStatusId,
+                DesignStatusId = designStatusId,
+                ClientId = clientId,
+                AssignedDesignTo = assignedDesignTo,
+                FirmId = firmId,
+                OverdueOnly = overdueOnly,
+                TenantId = tenantId
+            };
+
+            var result = await _orderReportService.GetOrderReportAsync(filter);
+            return Ok(result);
+        }
+
+        [HttpGet("order-lifecycle")]
+        public async Task<IActionResult> GetOrderLifecycleReport(
+        [FromQuery] DateTime? dateFrom,
+        [FromQuery] DateTime? dateTo,
+        [FromQuery] int? orderStatusId,
+        [FromQuery] int? designStatusId,
+        [FromQuery] Guid? clientId,
+        [FromQuery] string? assignedDesignTo,
+        [FromQuery] int? firmId,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10)
+        {
+            var tenantIdClaim = User.FindFirstValue("TenantId");
+            if (!Guid.TryParse(tenantIdClaim, out var tenantId))
+                return Unauthorized(new { StatusCode = 401, StatusMessage = "Invalid tenant." });
+
+            var filter = new OrderReportFilterDto
+            {
+                DateFrom = dateFrom,
+                DateTo = dateTo,
+                OrderStatusId = orderStatusId,
+                DesignStatusId = designStatusId,
+                ClientId = clientId,
+                AssignedDesignTo = assignedDesignTo,
+                FirmId = firmId,
+                TenantId = tenantId,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
+
+            var result = await _orderReportService.GetOrderLifecycleReportAsync(filter);
+            return Ok(result);
+        }
+
+        [HttpGet("finance")]
+        public async Task<IActionResult> GetFinanceReport(
+        [FromQuery] DateTime? dateFrom,
+        [FromQuery] DateTime? dateTo,
+        [FromQuery] int? invoiceStatusId,
+        [FromQuery] Guid? clientId,
+        [FromQuery] int? expenseCategoryId,
+        [FromQuery] string? paymentMode,
+        [FromQuery] bool overdueOnly = false)
+        {
+            var tenantIdClaim = User.FindFirstValue("TenantId");
+            if (!Guid.TryParse(tenantIdClaim, out var tenantId))
+                return Unauthorized(new { StatusCode = 401, StatusMessage = "Invalid tenant." });
+
+            var filter = new FinanceReportFilterDto
+            {
+                DateFrom = dateFrom,
+                DateTo = dateTo,
+                InvoiceStatusId = invoiceStatusId,
+                ClientId = clientId,
+                ExpenseCategoryId = expenseCategoryId,
+                PaymentMode = paymentMode,
+                OverdueOnly = overdueOnly,
+                TenantId = tenantId
+            };
+
+            var result = await _financeReportService.GetFinanceReportAsync(filter);
             return Ok(result);
         }
     }

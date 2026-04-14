@@ -92,6 +92,8 @@ namespace AvinyaAICRM.Application
             services.AddScoped<ILeadReportService, LeadReportService>();
             services.AddScoped<IClientReportService, ClientReportService>();
             services.AddScoped<IQuotationReportService, QuotationReportService>();
+            services.AddScoped<IOrderReportService, OrderReportService>();
+            services.AddScoped<IFinanceReportService, FinanceReportService>();
             return services;
         }
     }
