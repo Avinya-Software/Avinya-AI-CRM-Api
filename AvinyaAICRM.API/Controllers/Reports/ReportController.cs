@@ -17,13 +17,15 @@ namespace AvinyaAICRM.API.Controllers.Reports
         private readonly IQuotationReportService _quotationReportService;
         private readonly IOrderReportService _orderReportService;
         private readonly IFinanceReportService _financeReportService;
-        public ReportController(ILeadReportService leadReportService, IClientReportService clientReportService, IQuotationReportService quotationReportService, IOrderReportService orderReportService, IFinanceReportService financeReportService)
+        private readonly ITaskProjectReportService _taskProjectReportService;
+        public ReportController(ILeadReportService leadReportService, IClientReportService clientReportService, IQuotationReportService quotationReportService, IOrderReportService orderReportService, IFinanceReportService financeReportService, ITaskProjectReportService taskProjectReportService)
         {
             _leadReportService = leadReportService;
             _clientReportService = clientReportService;
             _quotationReportService = quotationReportService;
             _orderReportService = orderReportService;
             _financeReportService = financeReportService;
+            _taskProjectReportService = taskProjectReportService;
         }
 
         [HttpGet("lead-pipeline")]
@@ -277,6 +279,44 @@ namespace AvinyaAICRM.API.Controllers.Reports
             };
 
             var result = await _financeReportService.GetFinanceReportAsync(filter);
+            return Ok(result);
+        }
+
+        [HttpGet("task-project")]
+        public async Task<IActionResult> GetTaskProjectReport(
+        [FromQuery] DateTime? dateFrom,
+        [FromQuery] DateTime? dateTo,
+        [FromQuery] int? projectStatusId,
+        [FromQuery] int? priorityId,
+        [FromQuery] Guid? clientId,
+        [FromQuery] string? projectManagerId,
+        [FromQuery] long? teamId,
+        [FromQuery] string? taskScope,
+        [FromQuery] string? assignedTo,
+        [FromQuery] bool atRiskOnly = false,
+        [FromQuery] Guid? projectId = null)
+        {
+            var tenantIdClaim = User.FindFirstValue("TenantId");
+            if (!Guid.TryParse(tenantIdClaim, out var tenantId))
+                return Unauthorized(new { StatusCode = 401, StatusMessage = "Invalid tenant." });
+
+            var filter = new TaskProjectReportFilterDto
+            {
+                DateFrom = dateFrom,
+                DateTo = dateTo,
+                ProjectStatusId = projectStatusId,
+                PriorityId = priorityId,
+                ClientId = clientId,
+                ProjectManagerId = projectManagerId,
+                TeamId = teamId,
+                TaskScope = taskScope,
+                AssignedTo = assignedTo,
+                AtRiskOnly = atRiskOnly,
+                ProjectId = projectId,
+                TenantId = tenantId
+            };
+
+            var result = await _taskProjectReportService.GetTaskProjectReportAsync(filter);
             return Ok(result);
         }
     }

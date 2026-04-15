@@ -177,6 +177,7 @@ namespace AvinyaAICRM.Infrastructure
             services.AddScoped<IQuotationReportRepository, QuotationReportRepository>();
             services.AddScoped<IOrderReportRepository, OrderReportRepository>();
             services.AddScoped<IFinanceReportRepository, FinanceReportRepository>();
+            services.AddScoped<ITaskProjectReportRepository, TaskProjectReportRepository>();
             // ---------------- AIChat Services ----------------
             services.AddHttpClient<IAIService, GeminiService>();
             services.AddScoped<ICRMQueryService, CRMQueryService>();

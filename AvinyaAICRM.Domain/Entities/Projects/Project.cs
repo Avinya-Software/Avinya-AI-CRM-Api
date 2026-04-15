@@ -25,9 +25,9 @@ namespace AvinyaAICRM.Domain.Entities.Projects
         [MaxLength(200)]
         public string? Location { get; set; }
         public int Status { get; set; }
-        public int PriorityID { get; set; }
+        public int? PriorityID { get; set; }
 
-        public int ProgressPercent { get; set; } = 0;
+        public int? ProgressPercent { get; set; } = 0;
 
         // Manager
         public string? ProjectManagerId { get; set; }

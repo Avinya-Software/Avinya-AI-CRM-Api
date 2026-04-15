@@ -340,8 +340,51 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
             return true;
         }
 
+        private async Task AutoRejectExpiredQuotationsAsync(Guid tenantId)
+        {
+            try
+            {
+                var sentStatus = await _context.QuotationStatusMaster
+                    .FirstOrDefaultAsync(s => s.StatusName == "Sent");
+                var rejectedStatus = await _context.QuotationStatusMaster
+                    .FirstOrDefaultAsync(s => s.StatusName == "Rejected");
+
+                if (sentStatus == null || rejectedStatus == null) return;
+
+                var now = DateTime.UtcNow;
+
+                // Find quotations that have expired (ValidTill < now) and are currently "Sent"
+                var expiredQuotations = await _context.Quotations
+                    .Where(q => q.TenantId == tenantId &&
+                                !q.IsDeleted &&
+                                q.QuotationStatusID == sentStatus.QuotationStatusID &&
+                                q.ValidTill < now)
+                    .ToListAsync();
+
+                if (expiredQuotations.Any())
+                {
+                    foreach (var q in expiredQuotations)
+                    {
+                        q.QuotationStatusID = rejectedStatus.QuotationStatusID;
+                        q.RejectedNotes = (string.IsNullOrEmpty(q.RejectedNotes) ? "" : q.RejectedNotes + " ") +
+                                          "[System: Automatically rejected due to expiration (Valid Till date passed)]";
+                    }
+                    await _context.SaveChangesAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error auto-rejecting expired quotations for tenant {TenantId}", tenantId);
+            }
+        }
+
         public async Task<QuotationResponseDto?> GetByIdAsync(Guid id)
         {
+            var quot = await _context.Quotations.FirstOrDefaultAsync(q => q.QuotationID == id && !q.IsDeleted);
+            if (quot != null && quot.TenantId.HasValue)
+            {
+                await AutoRejectExpiredQuotationsAsync(quot.TenantId.Value);
+            }
 
             var quotation = await (
                                     from q in _context.Quotations.AsNoTracking()
@@ -474,6 +517,11 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
      string userId)
         {
             var userData = await _context.Users.FindAsync(userId);
+            if (userData?.TenantId != null)
+            {
+                await AutoRejectExpiredQuotationsAsync(userData.TenantId.Value);
+            }
+
             var query = _context.Quotations
                 .AsNoTracking()
                 .Where(q => !q.IsDeleted && q.TenantId == userData.TenantId);
