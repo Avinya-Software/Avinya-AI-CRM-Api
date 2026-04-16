@@ -181,6 +181,8 @@ namespace AvinyaAICRM.Infrastructure
             // ---------------- AIChat Services ----------------
             services.AddHttpClient<IAIService, GeminiService>();
             services.AddScoped<ICRMQueryService, CRMQueryService>();
+            services.AddScoped<IDynamicQueryBuilder, DynamicQueryBuilder>();
+            services.AddScoped<ICreditService, CreditService>();
             services.AddScoped<IQuotationPdfService, QuotationPdfService>();
             services.AddScoped<IOrderPdfService, OrderPdfService>();
             services.AddScoped<AvinyaAICRM.Application.Interfaces.ServiceInterface.Invoice.IInvoicePdfService, InvoicePdfService>();

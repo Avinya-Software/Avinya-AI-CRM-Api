@@ -77,6 +77,11 @@ namespace AvinyaAICRM.Shared.Helper
             return ResponseMessage(ResponseType.Forbidden.ToString(), string.Format(MessageResources.Status, statusName), string.Empty, null);
         }
 
+        public static ResponseModel AdminLoginForbiddenResponseMessage(string statusName)
+        {
+            return ResponseMessage(ResponseType.Forbidden.ToString(), string.Format(MessageResources.AdminLogin, statusName), string.Empty, null);
+        }
+
         private static ResponseModel ResponseMessage(string response, string message, string module, dynamic? data)
         {
             var enumValue = (ResponseType)Enum.Parse(typeof(ResponseType), response);

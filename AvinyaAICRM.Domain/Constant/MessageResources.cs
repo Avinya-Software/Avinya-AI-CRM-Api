@@ -15,6 +15,7 @@ namespace AvinyaAICRM.Domain
         public static readonly string UserNotActive = "User not Active.";
         public static readonly string InvalidToken = "Invalid Token";
         public static readonly string NoDataFound = "No data found.";
+        public static readonly string AdminLogin = "Sorry only {0} can be login";
         public static readonly string Status = "Your account is currently {0}. Please wait for admin approval, or contact the administrator for more details.";
         public static readonly string TwillioFailureGeneralMessage = "SMS delivery failed. Check your network and recipient's number, or contact your service provider.";
         public static readonly string SendGridFailureGeneralMessage = "Email not sent. Verify address and connection, or contact your email service provider for assistance.";

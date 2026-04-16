@@ -18,7 +18,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories
             _config = config;
         }
 
-        public async Task<AIResponse> AnalyzeMessageAsync(string userMessage, Guid tenantId, bool isSuperAdmin, List<string> allowedModules)
+        public async Task<AIResponse> AnalyzeMessageAsync(string userMessage, Guid tenantId, bool isAdmin, List<string> allowedModules)
         {
             var apiKey = _config["Gemini:ApiKey"];
 
@@ -97,7 +97,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                     foreach (var table in entry.Value)
                     {
                         if (baseTables.Contains(table)) { finalTables.Add(table); continue; }
-                        if (isSuperAdmin) { finalTables.Add(table); continue; }
+                        if (isAdmin) { finalTables.Add(table); continue; }
 
                         var module = moduleTableMap.FirstOrDefault(x => x.Value.Contains(table)).Key;
                         if (module != null && allowedModules.Contains(module)) finalTables.Add(table);
@@ -105,65 +105,50 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 }
             }
 
-            var targetedSchema = finalTables.Any() ? AISchema.GetTables(finalTables) : (isSuperAdmin ? AISchema.CRM : AISchema.GetTables(baseTables));
+            var targetedSchema = finalTables.Any() ? AISchema.GetTables(finalTables) : (isAdmin ? AISchema.CRM : AISchema.GetTables(baseTables));
             bool isReportMode = lowerMessage.Contains("report") || lowerMessage.Contains("summary") || lowerMessage.Contains("overall");
             if (isReportMode) targetedSchema = AISchema.CRM;
 
-            var securityRule = isSuperAdmin 
-                ? "1. SUPER ADMIN. Global access. Do NOT add TenantId filters unless specific." 
-                : "1. Per-tenant analyst.\n2. Use 'WHERE TenantId = @TenantId'.";
+             var currentTimeContext = $"Current Date/Time: {DateTime.Now:f}. Use this for all relative time queries like 'today', 'last week', etc.";
 
-           
-            var currentTimeContext = $"Current Date/Time: {DateTime.Now:f} (Year {DateTime.Now.Year})";
-
-            var prompt = $@"
-                You are a CRM assistant. Analyze input and return ONLY valid JSON.
+             var prompt = $@"
+                You are a CRM Intent Parser. Analyze the user's input and return ONLY valid JSON.
                 {currentTimeContext}
 
-                TIME RULES: 
-                - If the user specifies a date like ""15 April"", always assume the current year ({DateTime.Now.Year}) unless they say otherwise.
-                - Use the provided Current Date/Time context for ALL relative time calculations.
+                STRICT RULES:
+                1. DO NOT GENERATE SQL. The backend handles all database logic.
+                2. NEVER name database tables or columns directly.
+                3. Return ONLY the intent, type, entities, and filters in the JSON.
+                4. Use the provided Current Date/Time context for ALL relative time calculations.
 
                 ACTIONS:
                 1. ""create_lead"": Extract 'CompanyName', 'Mobile', 'Email', 'Notes', 'ClientType' (Company/Individual, default is Company).
-                   - CLARIFICATION RULES for leads:
-                     - ALWAYS ask for 'CompanyName' (the client or company name) if it's missing. Never create a lead without a name.
+                2. ""create_task"": User wants to create a task. Extract: 'Title', 'Description', 'Notes', 'TaskScope' (Personal/Team), 'DueDateTime'.
+                3. ""get_data"": Map user request to one or more conceptual entities.
+                   - ENTITIES: ""Leads"", ""Clients"", ""Quotations"", ""Orders"", ""Expenses"", ""Invoices"", ""Projects"", ""LeadFollowups"".
+                   - TYPES: 
+                     - ""LIST"": Specific records (e.g., ""show"", ""list"", ""get"", ""find"").
+                     - ""SUMMARY"": Aggregates or dashboard reports (e.g., ""summary"", ""report"", ""overall"", ""dashboard"", ""total"", ""count"").
+                       IF THE USER ASKS FOR AN ""OVERALL"" OR ""DASHBOARD"" SUMMARY WITHOUT A SPECIFIC SUBJECT, INCLUDE MULTIPLE RELEVANT ENTITIES (Leads, Quotations, Invoices, Projects, Tasks).
+                     - ""DETAIL"": Single record details (e.g., ""details of"", ""tell me more about"").
+                   - FILTERS: 
+                     - ""dateRange"": (e.g., ""last 7 days"", ""this month"", ""today"", ""yesterday"").
+                     - ""assignedTo"": set to ""me"" if the user says ""my"".
+                     - ""status"": (e.g., ""converted"", ""pending"", ""lost"").
+                     - ""search"": specific names, ID strings, or search terms.
+                   - IMPORTANT: ALL filter values MUST be simple strings, NOT objects.
 
-                2. ""create_task"": User wants to create a task.
-                   - Extract: 'Title', 'Description', 'Notes', 'TaskScope' (Personal/Team), 'TeamName', 'AssignToName', 'DueDateTime', 'ReminderAt'.
-                   - CLARIFICATION RULES for tasks:
-                     - If scope is 'Team': ONLY ask for 'TeamName' or 'DueDateTime' if missing. Do NOT ask for 'AssignToName'.
-                     - If scope is 'Personal': ONLY ask for 'AssignToName' or 'DueDateTime' if missing.
-                     - If you can't determine the scope from context (default is Personal), ask what type of task it is.
-                3. ""get_summary"": Generate a T-SQL SELECT query (Analytics/Reports).
-                4. ""message"": General conversation.
+                4. ""message"": Greeting or general talk.
 
-                SQL RULES (MANDATORY):
-                1. {securityRule}
-                2. SECURITY: Only include 'TenantId = @TenantId' for tables that have it in the schema. (e.g., Leads, Clients, AspNetUsers). Tables like LeadFollowups or master tables should be filtered via JOINs. Ignore records with 'IsDeleted = 1'.
-                3. PERSONALIZATION: If the user says 'my' (e.g., 'my followups', 'leads assigned to me'), use 'FollowUpBy = @CurrentUserId' or 'AssignedTo = @CurrentUserId' as appropriate.
-                4. JOIN LOGIC: Join on IDs, SELECT readable Names.
-                5. COLUMN NAMES: Clients table column is 'CompanyName'.
-
-                REPORTING STRUCTURE (ONLY if 'report' or 'summary' is asked):
-                Act like a BUSINESS ANALYST. Always return Summary, Breakdown (Leads/Quotes/Orders breakdowns), and Insights. Use {{Value}} placeholders.
-
-                MODES:
-                - DATA LIST MODE (Default): Specific records.
-                - BUSINESS ANALYST MODE: 'report' or 'summary'. 
-                
-                SUGGESTIONS:
-                - Provide 2-3 short, actionable prompt starters (e.g., 'Show details of the last lead', 'Compare this to last month').
-                - Always tailor suggestions to the current context (e.g., if showing followups, suggest 'Schedule a follow-up').
                 JSON FORMAT:
                 {{
-                  ""action"": ""create_lead"" | ""create_task"" | ""get_summary"" | ""message"",
-                  ""parameters"": {{ ... }},
-                  ""sql"": ""SELECT ..."",
+                  ""action"": ""create_lead"" | ""create_task"" | ""get_data"" | ""message"",
+                  ""entities"": [""Leads"", ...],
+                  ""type"": ""LIST"" | ""SUMMARY"" | ""DETAIL"",
+                  ""filters"": {{ ""field"": ""value"" }},
+                  ""parameters"": {{ ""field"": ""value"" }},
                   ""isClarificationRequired"": boolean,
                   ""clarificationMessage"": ""str"",
-                  ""successMessage"": ""str"",
-                  ""errorMessage"": ""str"",
                   ""suggestions"": [""suggestion 1"", ""suggestion 2""]
                 }}
 

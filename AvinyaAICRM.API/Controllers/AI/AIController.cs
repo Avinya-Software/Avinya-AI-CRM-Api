@@ -41,9 +41,9 @@ namespace AvinyaAICRM.API.Controllers.AI
                 // Extract TenantId from claims
                 var userId = User.FindFirst("userId")?.Value;
                 var tenantIdClaim = User.FindFirst("tenantId")?.Value;
-                var isSuperAdmin = User.IsInRole("SuperAdmin");
+                var isAdmin = User.IsInRole("SuperAdmin") || User.IsInRole("Admin");
 
-                if (string.IsNullOrEmpty(tenantIdClaim) && !isSuperAdmin) 
+                if (string.IsNullOrEmpty(tenantIdClaim) && !isAdmin) 
                 {
                     return Unauthorized("User is not assigned to a valid tenant.");
                 }
@@ -54,7 +54,7 @@ namespace AvinyaAICRM.API.Controllers.AI
                 var allowedModules = await _crmService.GetUserAllowedModulesAsync(userId ?? "");
 
                 // 2. Process Command (Intent + SQL Generation in ONE call)
-                var commandResult = await _crmService.ProcessCommandAsync(request.Message, tenantId, userId ?? "", isSuperAdmin, allowedModules);
+                var commandResult = await _crmService.ProcessCommandAsync(request.Message, tenantId, userId ?? "", isAdmin, allowedModules);
 
                 // 3. Handle Create Lead special flow
                 if (commandResult.Action == "create_lead")
@@ -79,7 +79,7 @@ namespace AvinyaAICRM.API.Controllers.AI
                     // Wrap SQL execution in its own try-catch to handle bad AI-generated SQL gracefully
                     try
                     {
-                        data = await _crmService.ExecuteRawSqlAsync(commandResult.Sql, tenantId, userId ?? "", isSuperAdmin);
+                        data = await _crmService.ExecuteRawSqlAsync(commandResult.Sql, tenantId, userId ?? "", isAdmin, commandResult.SqlQueryParameters);
                     }
                     catch (Exception sqlEx)
                     {
@@ -94,7 +94,7 @@ namespace AvinyaAICRM.API.Controllers.AI
                             query = commandResult.Sql,
                             data = new List<object>(),
                             count = 0,
-                            message = "Sorry, I generated an invalid query. Could you rephrase your question?",
+                            message = "I encountered an error while running that query. Could you try rephrasing your request?",
                             suggestions = new List<string> { "Show my latest leads", "List pending tasks", "Show today's followups" }
                         });
                     }
@@ -104,25 +104,30 @@ namespace AvinyaAICRM.API.Controllers.AI
                     
                     if (data.Count > 0)
                     {
-                        finalMessage = finalMessage.Replace("{count}", data.Count.ToString());
-
-                        // Support for complex reports: replace {FieldName} or {{FieldName}} with data from the first row
-                        var firstRow = data[0];
-                        foreach (var kvp in firstRow)
+                        // Architect Refinement: If data[0] contains a "Message" (fallback from ExecuteRawSql), use it
+                        if (data[0].ContainsKey("Message") && data.Count == 1)
                         {
-                            var valueStr = kvp.Value?.ToString() ?? "0";
-                            
-                            // Replace {{FieldName}}
-                            finalMessage = finalMessage.Replace("{{" + kvp.Key + "}}", valueStr);
-                            
-                            // Replace {FieldName} (single brace)
-                            finalMessage = finalMessage.Replace("{" + kvp.Key + "}", valueStr);
+                            finalMessage = data[0]["Message"].ToString()!;
+                        }
+                        else 
+                        {
+                            finalMessage = finalMessage.Replace("{count}", data.Count.ToString());
+
+                            // Support for complex reports: replace {FieldName} or {{FieldName}} with data from the first row
+                            var firstRow = data[0];
+                            foreach (var kvp in firstRow)
+                            {
+                                var valueStr = kvp.Value?.ToString() ?? "0";
+                                finalMessage = finalMessage.Replace("{{" + kvp.Key + "}}", valueStr);
+                                finalMessage = finalMessage.Replace("{" + kvp.Key + "}", valueStr);
+                            }
                         }
                     }
                     else
                     {
-                        finalMessage = commandResult.ErrorMessage ?? "No records found.";
+                        finalMessage = commandResult.ErrorMessage ?? "No records found matching your criteria.";
                     }
+
                     return Ok(new
                     {
                         query = commandResult.Sql, 

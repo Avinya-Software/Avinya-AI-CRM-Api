@@ -12,5 +12,6 @@ namespace AvinyaAICRM.Application.Interfaces.ServiceInterface.Auth
     {
         Task<ResponseModel> RegisterUser(UserRegisterRequestModel request);
         Task<ResponseModel> Login(UserLoginRequestModel model);
+        Task<ResponseModel> AdminLogin(UserLoginRequestModel model);
     }
 }

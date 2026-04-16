@@ -3,6 +3,7 @@ using AvinyaAICRM.Application.DTOs.Tasks;
 using AvinyaAICRM.Domain.Enums.Clients;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.AIChat;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Team;
+using AvinyaAICRM.Application.Interfaces.RepositoryInterface.User;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.AICHAT;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Leads;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Tasks;
@@ -16,70 +17,117 @@ namespace AvinyaAICRM.Application.Services.AICHATS
     public class CRMQueryService : ICRMQueryService
     {
         private readonly AppDbContext _context;
-        private readonly IAIService _aiService;
         private readonly ILeadService _leadService;
         private readonly ITaskService _taskService;
         private readonly ITeamRepository _teamRepo;
+        private readonly ICreditService _creditService;
+        private readonly IDynamicQueryBuilder _queryBuilder;
+        private readonly IAIService _aiService;
 
         public CRMQueryService(
             AppDbContext context, 
             IAIService aiService, 
             ILeadService leadService, 
             ITaskService taskService,
-            ITeamRepository teamRepo)
+            ITeamRepository teamRepo,
+            ICreditService creditService,
+            IDynamicQueryBuilder queryBuilder)
         {
             _context = context;
             _aiService = aiService;
             _leadService = leadService;
             _taskService = taskService;
             _teamRepo = teamRepo;
+            _creditService = creditService;
+            _queryBuilder = queryBuilder;
         }
 
-        public async Task<List<Dictionary<string, object>>> ExecuteRawSqlAsync(string sql, Guid tenantId, string userId, bool isSuperAdmin)
+        public async Task<List<Dictionary<string, object>>> ExecuteRawSqlAsync(string sql, Guid tenantId, string userId, bool isAdmin, Dictionary<string, object>? parameters = null)
         {
             if (string.IsNullOrWhiteSpace(sql)) return new List<Dictionary<string, object>>();
 
             // Basic safety check (Server side)
             var forbidden = new[] { "UPDATE", "DELETE", "DROP", "INSERT", "ALTER", "TRUNCATE", "CREATE" };
-            if (!isSuperAdmin && sql.ToUpper().Split(' ', System.StringSplitOptions.RemoveEmptyEntries).Any(word => forbidden.Contains(word)))
+            if (!isAdmin && sql.ToUpper().Split(' ', System.StringSplitOptions.RemoveEmptyEntries).Any(word => forbidden.Contains(word)))
             {
                 throw new UnauthorizedAccessException("Only SELECT queries are allowed for safety.");
             }
 
-            // Security Guard: For regular users, the AI must have included the @TenantId parameter
-            if (!isSuperAdmin)
-            {
-                if (!sql.Contains("@TenantId", StringComparison.OrdinalIgnoreCase) && !sql.Contains(tenantId.ToString(), StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new UnauthorizedAccessException("Security Error: Query must be filtered by TenantId.");
-                }
-            }
-
             using (var connection = _context.Database.GetDbConnection())
             {
-                var queryParams = new { TenantId = tenantId, CurrentUserId = userId };
+                var queryParams = parameters ?? new Dictionary<string, object>();
+                queryParams["TenantId"] = tenantId;
+                queryParams["UserId"] = userId;
                 
-                // Dapper handles the mapping to dynamic (DapperRow) automatically
-                var results = await connection.QueryAsync(sql, queryParams);
+                // Security Guard: 30 second timeout
+                var results = await connection.QueryAsync(sql, queryParams, commandTimeout: 30);
 
                 // Convert DapperRow to Dictionary<string, object> for the UI
-                return results.Select(x => (Dictionary<string, object>)new Dictionary<string, object>((IDictionary<string, object>)x)).ToList();
+                var data = results.Select(x => (Dictionary<string, object>)new Dictionary<string, object>((IDictionary<string, object>)x)).ToList();
+
+                // Architect Refinement: Empty Result Fallback
+                if (!data.Any())
+                {
+                    data.Add(new Dictionary<string, object>
+                    {
+                        ["Message"] = "No data found for your request.",
+                        ["Suggestion"] = "Try a different date range or remove filters."
+                    });
+                }
+
+                return data;
             }
         }
 
-        public async Task<AIResponse> ProcessCommandAsync(string message, Guid tenantId, string userId, bool isSuperAdmin, List<string> allowedModules)
+        public async Task<AIResponse> ProcessCommandAsync(string message, Guid tenantId, string userId, bool isAdmin, List<string> allowedModules)
         {
-            // 1. Unified Analysis (Intent + Data + SQL if summary)
-            var aiResponse = await _aiService.AnalyzeMessageAsync(message, tenantId, isSuperAdmin, allowedModules);
+            // 0. Ensure Credit Record exists
+            await _creditService.EnsureUserCreditExistsAsync(userId, tenantId);
+
+            // 1. Credit Check (Pre-emptive)
+            if (!await _creditService.HasEnoughCreditsAsync(userId, 1))
+            {
+                return new AIResponse { Action = "message", ErrorMessage = "You don't have enough credits to use the chatbot. Please recharge." };
+            }
+
+            // 2. AI Analysis (Intent + Filters)
+            var aiResponse = await _aiService.AnalyzeMessageAsync(message, tenantId, isAdmin, allowedModules);
 
             if (aiResponse.Action == "create_lead")
             {
-                return await HandleCreateLeadAsync(aiResponse, tenantId, userId, isSuperAdmin);
+                return await HandleCreateLeadAsync(aiResponse, tenantId, userId, isAdmin);
             }
             
             if (aiResponse.Action == "create_task")
             {
-                aiResponse = await HandleCreateTaskAsync(aiResponse, tenantId, userId, isSuperAdmin);
+                aiResponse = await HandleCreateTaskAsync(aiResponse, tenantId, userId, isAdmin);
+            }
+
+            if (aiResponse.Action == "get_data")
+            {
+                try 
+                {
+                    // 3. Normalize & Build Query
+                    var request = _queryBuilder.NormalizeRequest(aiResponse);
+                    var (sql, parameters) = _queryBuilder.BuildQuery(request, tenantId, userId, isAdmin, allowedModules);
+                    
+                    aiResponse.Sql = sql;
+                    aiResponse.SqlQueryParameters = parameters;
+                    
+                    // 4. Execution (Handled by Controller/Client via returned SQL, 
+                    // or we could execute here if we wanted to return data directly.
+                    // Assuming for this CRM design, the frontend calls ExecuteRawSqlAsync with the returned SQL.)
+                    
+                    // 5. Credit Deduction (Post-success logic)
+                    int cost = request.Type == QueryType.SUMMARY ? 2 : (request.Entities?.Count > 1 ? 3 : 1);
+                    await _creditService.DeductCreditsAsync(userId, cost, aiResponse.Action.ToUpper());
+                    
+                    aiResponse.SuccessMessage = $"Query generated successfully. (Cost: {cost} credits)";
+                }
+                catch (Exception ex)
+                {
+                    aiResponse.ErrorMessage = "Error generating query: " + ex.Message;
+                }
             }
 
             // Generate suggestions based on the result
@@ -161,13 +209,16 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             return suggestions;
         }
 
-        private async Task<AIResponse> HandleCreateTaskAsync(AIResponse aiResponse, Guid tenantId, string userId, bool isSuperAdmin)
+        private async Task<AIResponse> HandleCreateTaskAsync(AIResponse aiResponse, Guid tenantId, string userId, bool isAdmin)
         {
             if (aiResponse.IsClarificationRequired) return aiResponse;
 
-            var p = aiResponse.Parameters ?? new Dictionary<string, string>();
-            p.TryGetValue("TaskScope", out var scope);
-            p.TryGetValue("TeamName", out var teamName);
+            var p = aiResponse.Parameters ?? new Dictionary<string, object>();
+            p.TryGetValue("TaskScope", out var scopeObj);
+            var scope = scopeObj?.ToString();
+
+            p.TryGetValue("TeamName", out var teamNameObj);
+            var teamName = teamNameObj?.ToString();
 
             long? teamId = null;
             if (scope?.ToLower() == "team")
@@ -189,35 +240,36 @@ namespace AvinyaAICRM.Application.Services.AICHATS
 
             // Resolve Assignee if name provided
             string? assignToId = null;
-            p.TryGetValue("AssignToName", out var assignToName);
+            p.TryGetValue("AssignToName", out var assignToNameObj);
+            var assignToName = assignToNameObj?.ToString();
             if (!string.IsNullOrEmpty(assignToName))
             {
                 var user = await _context.Users
-                    .Where(u => u.FullName.Contains(assignToName) && (isSuperAdmin || u.TenantId == tenantId))
+                    .Where(u => u.FullName.Contains(assignToName) && (isAdmin || u.TenantId == tenantId))
                     .FirstOrDefaultAsync();
                 
                 assignToId = user?.Id;
             }
 
             DateTime? dueDate = null;
-            if (p.TryGetValue("DueDateTime", out var dueStr) && DateTime.TryParse(dueStr, out var d)) dueDate = d;
+            if (p.TryGetValue("DueDateTime", out var dueObj) && DateTime.TryParse(dueObj?.ToString(), out var d)) dueDate = d;
 
             DateTime? reminderAt = null;
-            if (p.TryGetValue("ReminderAt", out var remStr) && DateTime.TryParse(remStr, out var r)) reminderAt = r;
+            if (p.TryGetValue("ReminderAt", out var remObj) && DateTime.TryParse(remObj?.ToString(), out var r)) reminderAt = r;
 
             var dto = new CreateTaskDto
             {
-                Title = p.GetValueOrDefault("Title") ?? "New Task",
-                Description = p.GetValueOrDefault("Description"),
-                Notes = p.GetValueOrDefault("Notes"),
+                Title = p.GetValueOrDefault("Title")?.ToString() ?? "New Task",
+                Description = p.GetValueOrDefault("Description")?.ToString(),
+                Notes = p.GetValueOrDefault("Notes")?.ToString(),
                 AssignToId = assignToId ?? userId,
                 DueDateTime = dueDate,
                 ReminderAt = reminderAt,
                 ReminderChannel = "in-app", // Default for chatbot
                 TeamId = teamId,
                 Scope = scope ?? "Personal",
-                IsRecurring = p.TryGetValue("IsRecurring", out var rec) && bool.TryParse(rec, out var b) && b,
-                RecurrenceRule = p.GetValueOrDefault("RecurrenceRule"),
+                IsRecurring = p.TryGetValue("IsRecurring", out var rec) && bool.TryParse(rec?.ToString(), out var isRec) && isRec,
+                RecurrenceRule = p.GetValueOrDefault("RecurrenceRule")?.ToString(),
                 ListId = 0 // Default list
             };
 
@@ -237,10 +289,11 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             return aiResponse;
         }
 
-        private async Task<AIResponse> HandleCreateLeadAsync(AIResponse aiResponse, Guid tenantId, string userId, bool isSuperAdmin)
+        private async Task<AIResponse> HandleCreateLeadAsync(AIResponse aiResponse, Guid tenantId, string userId, bool isAdmin)
         {
-            var parameters = aiResponse.Parameters ?? new Dictionary<string, string>();
-            parameters.TryGetValue("CompanyName", out var clientName);
+            var parameters = aiResponse.Parameters ?? new Dictionary<string, object>();
+            parameters.TryGetValue("CompanyName", out var clientNameObj);
+            var clientName = clientNameObj?.ToString();
 
             if (string.IsNullOrEmpty(clientName))
             {
@@ -251,7 +304,7 @@ namespace AvinyaAICRM.Application.Services.AICHATS
 
             // check if it's already a client
             var existingClients = await _context.Clients
-                .Where(c => c.CompanyName.Contains(clientName) && (isSuperAdmin || c.TenantId == tenantId))
+                .Where(c => c.CompanyName.Contains(clientName) && (isAdmin || c.TenantId == tenantId))
                 .Select(c => new ClientDisambiguationDto
                 {
                     ClientID = c.ClientID,
@@ -271,8 +324,11 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             }
             else
             {
-                parameters.TryGetValue("Email", out var email);
-                parameters.TryGetValue("Mobile", out var mobile);
+                parameters.TryGetValue("Email", out var emailObj);
+                var email = emailObj?.ToString();
+
+                parameters.TryGetValue("Mobile", out var mobileObj);
+                var mobile = mobileObj?.ToString();
 
                 if (!string.IsNullOrEmpty(email) || !string.IsNullOrEmpty(mobile))
                 {
@@ -295,20 +351,21 @@ namespace AvinyaAICRM.Application.Services.AICHATS
 
         private async Task<AIResponse> CreateLeadAndFinalize(AIResponse aiResponse, Guid? clientId, Guid tenantId, string userId)
         {
-            var p = aiResponse.Parameters ?? new Dictionary<string, string>();
+            var p = aiResponse.Parameters ?? new Dictionary<string, object>();
             
-            p.TryGetValue("ClientType", out var clientTypeStr);
+            p.TryGetValue("ClientType", out var clientTypeStrObj);
+            var clientTypeStr = clientTypeStrObj?.ToString();
             var clientType = (clientTypeStr?.ToLower() == "individual") ? (int)ClientTypeEnum.Individual : (int)ClientTypeEnum.Company;
 
             var dto = new LeadRequestDto
             {
                 ClientID = clientId,
-                CompanyName = p.GetValueOrDefault("CompanyName"),
-                Email = p.GetValueOrDefault("Email"),
-                Mobile = p.GetValueOrDefault("Mobile"),
-                Notes = p.GetValueOrDefault("Notes"),
-                ContactPerson = p.GetValueOrDefault("ContactPerson"),
-                RequirementDetails = p.GetValueOrDefault("Notes"),
+                CompanyName = p.GetValueOrDefault("CompanyName")?.ToString(),
+                Email = p.GetValueOrDefault("Email")?.ToString(),
+                Mobile = p.GetValueOrDefault("Mobile")?.ToString(),
+                Notes = p.GetValueOrDefault("Notes")?.ToString(),
+                ContactPerson = p.GetValueOrDefault("ContactPerson")?.ToString(),
+                RequirementDetails = p.GetValueOrDefault("Notes")?.ToString(),
                 Date = DateTime.UtcNow,
                 CreatedBy = userId,
                 ClientType = clientType

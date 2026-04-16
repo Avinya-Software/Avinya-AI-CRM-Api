@@ -100,6 +100,34 @@ namespace AvinyaAICRM.Application.Services.Auth
 
             return CommonHelper.SuccessResponseMessage("",data);
         }
+
+        public async Task<ResponseModel> AdminLogin(UserLoginRequestModel model)
+        {
+            var user = await _userRepo.GetByEmailAsync(model.Email);
+            if (user == null)
+                return CommonHelper.UnauthorizedResponseMessage(ResponseType.Unauthorized.ToString(), "Invalid credentials");
+
+            var validPassword = await _userRepo.CheckPasswordAsync(user, model.Password);
+            if (!validPassword)
+                return CommonHelper.UnauthorizedResponseMessage(ResponseType.Unauthorized.ToString(), "Invalid credentials");
+
+            var roles = await _userRepo.GetRolesAsync(user);
+            if (!roles.Contains("SuperAdmin"))
+            {
+                return CommonHelper.AdminLoginForbiddenResponseMessage("SuperAdmin");
+            }
+
+            var token = await _jwtTokenGenerator.GenerateToken(user);
+            var data = new
+            {
+                Token = token,
+                UserId = user.Id,
+                UserName = user.FullName,
+                TenantId = user.TenantId
+            };
+
+            return CommonHelper.SuccessResponseMessage("", data);
+        }
     }
 
 }

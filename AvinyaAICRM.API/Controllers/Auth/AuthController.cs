@@ -28,5 +28,12 @@ namespace AvinyaAICRM.API.Controllers.Auth
             var result = await _authService.Login(request);
             return new JsonResult(result) { StatusCode = result.StatusCode };
         }
+
+        [HttpPost("Adminlogin")]
+        public async Task<ActionResult> AdminLogin([FromBody] UserLoginRequestModel request)
+        {
+            var result = await _authService.AdminLogin(request);
+            return new JsonResult(result) { StatusCode = result.StatusCode };
+        }
     }
 }

@@ -76,5 +76,8 @@ namespace AvinyaAICRM.Infrastructure.Persistence
         public DbSet<Domain.Entities.Payments.Payment> Payments { get; set; }
         public DbSet<ProjectPriorityMaster> ProjectPriorityMaster { get; set; }
         public DbSet<ProjectStatusMaster> ProjectStatusMaster { get; set; }
+
+        public DbSet<UserCredit> UserCredits { get; set; }
+        public DbSet<CreditTransaction> CreditTransactions { get; set; }
     }
 }
