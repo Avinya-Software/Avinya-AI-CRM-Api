@@ -6,6 +6,7 @@ using AvinyaAICRM.Domain.Entities.User;
 using AvinyaAICRM.Infrastructure.Identity;
 using AvinyaAICRM.Shared.Helper;
 using AvinyaAICRM.Shared.Model;
+using System.Linq;
 using Microsoft.AspNetCore.Identity;
 
 namespace AvinyaAICRM.Application.Services.User
@@ -178,6 +179,12 @@ namespace AvinyaAICRM.Application.Services.User
         {
             var users = await _userRepo.GetUsersDropdown(userId);
             return CommonHelper.GetResponseMessage(users);
+        }
+
+        public async Task<ResponseModel> GetRolesAsync()
+        {
+            var roles = _roleManager.Roles.Select(r => new { r.Id, r.Name }).ToList();
+            return CommonHelper.GetResponseMessage(roles);
         }
 
     }

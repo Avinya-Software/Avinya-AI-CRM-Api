@@ -19,6 +19,7 @@ namespace AvinyaAICRM.Application.Interfaces.ServiceInterface.User
         Task<ResponseModel> GetUsersForSuperAdminAsync(UserListFilterRequest request, Guid? currentUserTenant);
         Task<ResponseModel> GetMyCompaniesAsync(Guid? currentUserTenant);
         Task<ResponseModel> GetUsersDropdown(string userId);
+        Task<ResponseModel> GetRolesAsync();
     }
 
 }

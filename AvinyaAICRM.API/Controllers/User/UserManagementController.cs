@@ -80,5 +80,12 @@ namespace AvinyaAICRM.API.Controllers.User
             var result = await _service.GetUsersDropdown(userId);
             return new JsonResult(result) { StatusCode = result.StatusCode };
         }
+
+        [HttpGet("roles")]
+        public async Task<IActionResult> GetRoles()
+        {
+            var result = await _service.GetRolesAsync();
+            return new JsonResult(result) { StatusCode = result.StatusCode };
+        }
     }
 }
