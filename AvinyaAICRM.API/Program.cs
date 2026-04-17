@@ -1,5 +1,6 @@
 ﻿using AvinyaAICRM.API.Filters;
 using AvinyaAICRM.Application;
+using AvinyaAICRM.Application.DTOs.EmailSetting;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.AI;
 using AvinyaAICRM.Application.Services.AI;
 using AvinyaAICRM.Infrastructure;
@@ -23,6 +24,8 @@ builder.Services.AddSingleton<IIntentService>(sp =>
 
     return new IntentService(modelPath);
 });
+
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);

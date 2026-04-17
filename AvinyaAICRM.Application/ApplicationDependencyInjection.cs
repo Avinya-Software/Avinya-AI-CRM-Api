@@ -51,6 +51,10 @@ using AvinyaAICRM.Application.Services.TeamMember;
 using AvinyaAICRM.Application.Services.Tenants;
 using AvinyaAICRM.Application.Services.User;
 using AvinyaAICRM.Infrastructure.Services;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.Bookingdemo;
+using AvinyaAICRM.Application.Services.Bookingdemo;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.EmailService;
+using AvinyaAICRM.Application.Services.EmailService;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AvinyaAICRM.Application
@@ -95,6 +99,8 @@ namespace AvinyaAICRM.Application
             services.AddScoped<IOrderReportService, OrderReportService>();
             services.AddScoped<IFinanceReportService, FinanceReportService>();
             services.AddScoped<ITaskProjectReportService, TaskProjectReportService>();
+            services.AddScoped<IBookingdemoService, BookingdemoService>();
+            services.AddScoped<IEmailService, EmailService>();
             return services;
         }
     }

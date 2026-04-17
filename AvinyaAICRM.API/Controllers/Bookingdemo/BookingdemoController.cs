@@ -26,13 +26,11 @@ namespace AvinyaAICRM.API.Controllers.Bookingdemo
 
 
         [HttpGet("All-demobooking")]
-        public async Task<IActionResult> GetAllBookingdemo()
+        public async Task<IActionResult> GetAllBookingdemo([FromQuery] string? search = null)
         {
-            var result = await _bookingdemoService.GetAllBookingsAsync();
+            var result = await _bookingdemoService.GetAllBookingsAsync(search);
 
             return Ok(result);
-
-            
         }
     }
 }

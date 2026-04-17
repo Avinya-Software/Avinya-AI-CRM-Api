@@ -200,7 +200,6 @@ namespace AvinyaAICRM.Infrastructure
             services.AddScoped<IClientReportRepository, ClientReportRepository>();
 
             services.AddScoped<IBookingRepository, BookingdemoRepository>();
-            services.AddScoped<IBookingdemoService, BookingdemoService>();
 
             return services;
         }

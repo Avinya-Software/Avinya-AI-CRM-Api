@@ -55,18 +55,31 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Bookingdemo
             }
         }
 
-        public async Task<List<BookingGetallResponseDto>> Getallasync()
+        public async Task<List<BookingGetallResponseDto>> Getallasync(string? search = null)
         {
-            return await _dbcontext.BookingDemo.OrderByDescending(x => x.CreatedAt).
-                        Select(x => new BookingGetallResponseDto
+            var query = _dbcontext.BookingDemo.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                // make search case-insensitive and match partials
+                var pattern = $"%{search.Trim()}%";
+
+                query = query.Where(x => EF.Functions.Like(x.FullName!, pattern) ||
+                                          EF.Functions.Like(x.Email!, pattern) ||
+                                          EF.Functions.Like(x.PhoneNumber!, pattern) ||
+                                          (x.Company != null && EF.Functions.Like(x.Company!, pattern)));
+            }
+
+            return await query.OrderByDescending(x => x.CreatedAt)
+                        .Select(x => new BookingGetallResponseDto
                         {
                             Id = x.Id,
                             FullName = x.FullName,
                             Email = x.Email,
-                            PhoneNumber= x.PhoneNumber,
+                            PhoneNumber = x.PhoneNumber,
                             Company = x.Company,
                             Message = x.Message,
-                            CreatedAt= x.CreatedAt
+                            CreatedAt = x.CreatedAt
                         }).ToListAsync();
         }
     }

@@ -11,6 +11,6 @@ namespace AvinyaAICRM.Application.Interfaces.ServiceInterface.Bookingdemo
     public interface IBookingdemoService
     {
         Task<ResponseModel> CreateBookingAsync(CreateBookingDto dto);
-        Task<ResponseModel> GetAllBookingsAsync();
+        Task<ResponseModel> GetAllBookingsAsync(string? search = null);
     }
 }

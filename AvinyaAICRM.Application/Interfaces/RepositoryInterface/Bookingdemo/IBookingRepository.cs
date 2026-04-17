@@ -11,6 +11,6 @@ namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.Bookingdemo
     {
         Task<BookingGetallResponseDto> Createasync(CreateBookingDto createbookdto);
 
-        Task<List<BookingGetallResponseDto>> Getallasync();
+        Task<List<BookingGetallResponseDto>> Getallasync(string? search = null);
     }
 }
