@@ -786,6 +786,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                         LatestLeadFollowupId = followup?.LatestLeadFollowupId,
                         LatestFollowupStatus = followupStatusName,
                         Links = l.Links,
+                        RequirementDetails = l.RequirementDetails,
                         Notes = l.Notes,
                         CreateFollowup =
                             followupStatusName != null &&
