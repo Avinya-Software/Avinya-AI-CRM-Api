@@ -26,6 +26,7 @@ using AvinyaAICRM.Domain.Entities.Payments;
 using AvinyaAICRM.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using AvinyaAICRM.Domain.Entities.Bookingdemo;
 
 namespace AvinyaAICRM.Infrastructure.Persistence
 {
@@ -79,5 +80,7 @@ namespace AvinyaAICRM.Infrastructure.Persistence
 
         public DbSet<UserCredit> UserCredits { get; set; }
         public DbSet<CreditTransaction> CreditTransactions { get; set; }
+
+        public DbSet<BookingDemo> BookingDemo { get; set; }
     }
 }

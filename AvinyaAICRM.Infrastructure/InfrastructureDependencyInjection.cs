@@ -2,6 +2,7 @@ using AvinyaAICRM.Application.Interfaces.Clients;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.AIChat;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.BankDetail;
+using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Bookingdemo;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.City;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Dashboard;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Expenses;
@@ -24,11 +25,13 @@ using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Tenant;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.User;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.AICHAT;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.Bookingdemo;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Dashboard;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Orders;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Quotations;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Settings;
 using AvinyaAICRM.Application.Services.AICHATS;
+using AvinyaAICRM.Application.Services.Bookingdemo;
 using AvinyaAICRM.Application.Services.Dashboard;
 using AvinyaAICRM.Application.Services.Settings;
 using AvinyaAICRM.Infrastructure.Authorization;
@@ -36,6 +39,7 @@ using AvinyaAICRM.Infrastructure.Identity;
 using AvinyaAICRM.Infrastructure.Persistence;
 using AvinyaAICRM.Infrastructure.Repositories;
 using AvinyaAICRM.Infrastructure.Repositories.BankDetail;
+using AvinyaAICRM.Infrastructure.Repositories.Bookingdemo;
 using AvinyaAICRM.Infrastructure.Repositories.City;
 using AvinyaAICRM.Infrastructure.Repositories.ClientRepository;
 using AvinyaAICRM.Infrastructure.Repositories.Dashboard;
@@ -194,6 +198,9 @@ namespace AvinyaAICRM.Infrastructure
             services.AddScoped<IPaymentRepository, PaymentRepository>();
             services.AddScoped<ILeadReportRepository, LeadReportRepository>();
             services.AddScoped<IClientReportRepository, ClientReportRepository>();
+
+            services.AddScoped<IBookingRepository, BookingdemoRepository>();
+            services.AddScoped<IBookingdemoService, BookingdemoService>();
 
             return services;
         }
