@@ -9,6 +9,7 @@ namespace AvinyaAICRM.Shared.AI
     public class AIResponse
     {
         public string Action { get; set; } = "message";
+        public string? Intent { get; set; } = "unknown";
         public string DateRange { get; set; }
 
         // SQL Reporting Fields
@@ -23,6 +24,13 @@ namespace AvinyaAICRM.Shared.AI
         public bool IsClarificationRequired { get; set; }
         public string? ClarificationMessage { get; set; }
         public List<ClientDisambiguationDto>? SuggestedClients { get; set; }
+
+        // Token Usage Metrics
+        public int PromptTokens { get; set; }
+        public int ResponseTokens { get; set; }
+        public int ThoughtsTokens { get; set; }
+        public int TotalTokens { get; set; }
+        public int RemainingCredits { get; set; }
     }
 
     public class ClientDisambiguationDto

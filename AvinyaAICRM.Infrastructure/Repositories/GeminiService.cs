@@ -132,6 +132,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 3. JOIN LOGIC: Join on IDs, SELECT readable Names from Master tables.
                 4. COLUMN NAMES: Clients table column is 'CompanyName'.
                 5. ALIASES: Use readable column aliases like 'SELECT CompanyName AS [Client Name]...'.
+                6. LIMITS: If the user asks for a specific count (e.g. ""give 5"", ""top 10"", ""last 3""), you MUST use 'SELECT TOP N ...' in your SQL.
 
                 MESSAGE RULES (CRITICAL):
                 - Always provide a conversational 'successMessage' and 'errorMessage'.
@@ -148,6 +149,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 JSON FORMAT (RETURN ONLY JSON):
                 {{
                   ""action"": ""create_lead"" | ""create_task"" | ""get_summary"" | ""message"",
+                  ""intent"": ""query_leads"" | ""query_revenue"" | ""report_summary"" | ""query_tasks"" | ""other"",
                   ""parameters"": {{ ... }},
                   ""sql"": ""SELECT ..."",
                   ""isClarificationRequired"": boolean,
@@ -161,17 +163,74 @@ namespace AvinyaAICRM.Infrastructure.Repositories
 
                 User Input: {userMessage}";
 
-            var result = await CallGeminiAsync(prompt, apiKey);
-            if (string.IsNullOrEmpty(result)) return new AIResponse { Action = "message", ErrorMessage = "AI service error." };
+            var geminiResult = await CallGeminiAsync(prompt, apiKey);
+            if (string.IsNullOrEmpty(geminiResult.Text)) return new AIResponse { Action = "message", ErrorMessage = "AI service error." };
 
             try
             {
-                var clean = CleanJsonResponse(result);
-                return JsonSerializer.Deserialize<AIResponse>(clean, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new AIResponse();
+                var clean = CleanJsonResponse(geminiResult.Text);
+                var response = JsonSerializer.Deserialize<AIResponse>(clean, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new AIResponse();
+                
+                // Populate token usage
+                response.PromptTokens = geminiResult.Prompt;
+                response.ResponseTokens = geminiResult.Response;
+                response.TotalTokens = geminiResult.Total;
+                
+                return response;
             }
             catch
             {
                 return new AIResponse { Action = "message", ErrorMessage = "Error parsing AI response." };
+            }
+        }
+
+        public async Task<AIResponse> RefineTemplateAsync(string userMessage, string templateSql, Guid tenantId, bool isSuperAdmin)
+        {
+            var apiKey = _config["Gemini:ApiKey"];
+
+            var prompt = $@"
+                You are a T-SQL expert. I have a base SQL template and a user request.
+                
+                USER REQUEST: ""{userMessage}""
+                BASE TEMPLATE:
+                ""{templateSql}""
+
+                TASK:
+                1. Refine the WHERE clause and JOINs of the BASE TEMPLATE to perfectly match the USER REQUEST.
+                2. Keep the overall query structure exactly as it is (Columns, Group By, Order By).
+                3. Apply TenantId = '{tenantId}' filtering if not already present.
+                4. Do NOT change column names or table aliases from the template.
+                5. RETURN ONLY A JSON OBJECT matching the schema below.
+
+                TIME CONTEXT: Current Date/Time is {DateTime.Now:f} (Year {DateTime.Now.Year}).
+
+                JSON SCHEMA:
+                {{
+                  ""action"": ""get_summary"",
+                  ""sql"": ""The refined T-SQL query"",
+                  ""successMessage"": ""A friendly message summarizing the specific filter applied (e.g. 'Pulling leads from the last 2 days only.')"",
+                  ""errorMessage"": ""What to say if the request is impossible (e.g. 'I cannot filter by that specific category.')""
+                }}
+            ";
+
+            var geminiResult = await CallGeminiAsync(prompt, apiKey);
+            if (string.IsNullOrEmpty(geminiResult.Text)) return new AIResponse { Action = "get_summary", Sql = templateSql, SuccessMessage = "Proceeding with standard template." };
+
+            try
+            {
+                var clean = CleanJsonResponse(geminiResult.Text);
+                var response = JsonSerializer.Deserialize<AIResponse>(clean, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new AIResponse();
+                
+                // Populate token usage
+                response.PromptTokens = geminiResult.Prompt;
+                response.ResponseTokens = geminiResult.Response;
+                response.TotalTokens = geminiResult.Total;
+
+                return response;
+            }
+            catch
+            {
+                return new AIResponse { Action = "get_summary", Sql = templateSql };
             }
         }
 
@@ -200,22 +259,68 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 {AISchema.CRM}
             ";
 
-            var result = await CallGeminiAsync(prompt, apiKey);
-            return result.Replace("```sql", "").Replace("```", "").Trim();
+            var geminiResult = await CallGeminiAsync(prompt, apiKey);
+            return geminiResult.Text.Replace("```sql", "").Replace("```", "").Trim();
         }
 
-        private async Task<string> CallGeminiAsync(string prompt, string apiKey)
+        private async Task<(string Text, int Prompt, int Response, int Total)> CallGeminiAsync(string prompt, string apiKey)
         {
             var requestBody = new { contents = new[] { new { parts = new[] { new { text = prompt } } } } };
-            // Using a slightly more stable version if available, otherwise beta is fine
-            var response = await _httpClient.PostAsync(
-                $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={apiKey}",
-                new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json")
-            );
-            var result = await response.Content.ReadAsStringAsync();
-            using var doc = JsonDocument.Parse(result);
-            if (!doc.RootElement.TryGetProperty("candidates", out var candidates) || candidates.GetArrayLength() == 0) return "";
-            return candidates[0].GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString() ?? "";
+            const int maxRetries = 3;
+            
+            _httpClient.DefaultRequestHeaders.Clear();
+            _httpClient.DefaultRequestHeaders.Add("x-goog-api-key", apiKey);
+
+            for (int i = 0; i < maxRetries; i++)
+            {
+                try
+                {
+                    var response = await _httpClient.PostAsync(
+                        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+                        new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json")
+                    );
+
+                    if (response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable || 
+                        response.StatusCode == System.Net.HttpStatusCode.InternalServerError)
+                    {
+                        if (i < maxRetries - 1)
+                        {
+                            await Task.Delay(1000 * (i + 1)); 
+                            continue;
+                        }
+                    }
+
+                    if (!response.IsSuccessStatusCode) return ("", 0, 0, 0);
+
+                    var resultStr = await response.Content.ReadAsStringAsync();
+                    using var doc = JsonDocument.Parse(resultStr);
+                    
+                    var candidates = doc.RootElement.GetProperty("candidates");
+                    var text = candidates[0].GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString() ?? "";
+                    
+                    int p = 0, r = 0, t = 0;
+                    if (doc.RootElement.TryGetProperty("usageMetadata", out var usage))
+                    {
+                        // Check both camelCase and PascalCase
+                        if (usage.TryGetProperty("promptTokenCount", out var pProp) || usage.TryGetProperty("promptTokens", out pProp)) 
+                            p = pProp.GetInt32();
+                        
+                        if (usage.TryGetProperty("candidatesTokenCount", out var rProp) || usage.TryGetProperty("candidatesTokens", out rProp)) 
+                            r = rProp.GetInt32();
+                            
+                        if (usage.TryGetProperty("totalTokenCount", out var tProp) || usage.TryGetProperty("totalTokens", out tProp)) 
+                            t = tProp.GetInt32();
+                    }
+
+                    return (text, p, r, t);
+                }
+                catch
+                {
+                    if (i == maxRetries - 1) throw;
+                    await Task.Delay(1000);
+                }
+            }
+            return ("", 0, 0, 0);
         }
 
         private string CleanJsonResponse(string text)
@@ -227,4 +332,4 @@ namespace AvinyaAICRM.Infrastructure.Repositories
             return text.Substring(start, end - start);
         }
     }
-}
+}

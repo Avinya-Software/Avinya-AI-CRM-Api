@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Client;
+using AvinyaAICRM.Application.DTOs.Client;
 using AvinyaAICRM.Application.Interfaces.Clients;
 using AvinyaAICRM.Domain.Entities.Client;
 using AvinyaAICRM.Domain.Entities.Tenant;
@@ -337,8 +337,17 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ClientRepository
             return (gstExists, mobileExists, emailExists);
         }
 
+        public async Task<IEnumerable<Client>> FindByNameAsync(string name, Guid tenantId)
+        {
+            return await _context.Clients
+                .Where(c => c.CompanyName.Contains(name) && c.TenantId == tenantId && !c.IsDeleted)
+                .ToListAsync();
+        }
 
-
-
+        public async Task<Client?> FindByNameAndMobileAsync(string name, string mobile, Guid tenantId)
+        {
+            return await _context.Clients
+                .FirstOrDefaultAsync(c => c.CompanyName.Contains(name) && c.Mobile == mobile && c.TenantId == tenantId && !c.IsDeleted);
+        }
     }
 }

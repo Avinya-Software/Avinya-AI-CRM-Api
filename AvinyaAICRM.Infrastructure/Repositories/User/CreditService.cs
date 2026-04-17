@@ -11,7 +11,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
     public class CreditService : ICreditService
     {
         private readonly AppDbContext _context;
-        private const int DEFAULT_BALANCE = 50;
+        private const int DEFAULT_BALANCE = 15000;
 
         public CreditService(AppDbContext context)
         {
@@ -41,7 +41,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
 
             if (credit == null) return;
 
-            credit.Balance -= amount;
+            // Ensure balance doesn't go below 0
+            credit.Balance = Math.Max(0, credit.Balance - amount);
             credit.UpdatedAt = DateTime.UtcNow;
 
             _context.CreditTransactions.Add(new CreditTransaction

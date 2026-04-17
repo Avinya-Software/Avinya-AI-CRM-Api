@@ -183,6 +183,7 @@ namespace AvinyaAICRM.Infrastructure
             services.AddScoped<ICRMQueryService, CRMQueryService>();
             
             // AI Pipeline Components
+            services.AddSingleton<AvinyaAICRM.Application.AI.Pipeline.IntentStore>();
             services.AddScoped<AvinyaAICRM.Application.AI.Pipeline.LocalIntentClassifier>();
             services.AddScoped<AvinyaAICRM.Application.AI.Pipeline.SqlTemplateEngine>();
             services.AddScoped<AvinyaAICRM.Application.AI.Pipeline.SqlValidator>();

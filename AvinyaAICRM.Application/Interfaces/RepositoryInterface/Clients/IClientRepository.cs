@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Client;
+using AvinyaAICRM.Application.DTOs.Client;
 using AvinyaAICRM.Domain.Entities.Client;
 using AvinyaAICRM.Domain.Entities.Tenant;
 using AvinyaAICRM.Shared.Model;
@@ -20,5 +20,7 @@ namespace AvinyaAICRM.Application.Interfaces.Clients
      string userId);
         Task<(bool gstExists, bool mobileExists, bool emailExists)>
     CheckClientDuplicatesAsync(string? gst, string? mobile, string? email, Guid? excludeClientId = null);
+        Task<IEnumerable<Client>> FindByNameAsync(string name, Guid tenantId);
+        Task<Client?> FindByNameAndMobileAsync(string name, string mobile, Guid tenantId);
     }
 }

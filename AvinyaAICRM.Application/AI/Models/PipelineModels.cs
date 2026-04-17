@@ -14,9 +14,14 @@ namespace AvinyaAICRM.Application.AI.Models
     {
         public string TimePeriod { get; set; } = "";
         public string Status { get; set; } = "";
+        public string SearchTerm { get; set; } = "";
         public bool IsCountQuery { get; set; }
         public bool IsSumQuery { get; set; }
         public bool IsPersonalQuery { get; set; }
+        public int? Limit { get; set; }
+        public DateTime? ExplicitDate { get; set; }
+        public string? ExplicitStatus { get; set; }
+        public string? ExplicitSource { get; set; }
     }
 
     public class PipelineResult
@@ -31,5 +36,11 @@ namespace AvinyaAICRM.Application.AI.Models
         public string Source { get; set; } = ""; // local/template/cache/ai
         public string? SuccessMessage { get; set; }
         public string? ErrorMessage { get; set; }
+
+        // Token Usage & Credits
+        public int PromptTokens { get; set; }
+        public int ResponseTokens { get; set; }
+        public int TotalTokens { get; set; }
+        public int RemainingCredits { get; set; }
     }
 }

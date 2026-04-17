@@ -7,13 +7,13 @@ using AvinyaAICRM.Application.Interfaces.ServiceInterface.Leads;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Tasks;
 using AvinyaAICRM.Infrastructure.Persistence;
 using AvinyaAICRM.Shared.AI;
-using Azure;
 using Dapper;
 using Microsoft.EntityFrameworkCore;
 
 // Existing using block remains plus these:
 using AvinyaAICRM.Application.AI.Pipeline;
-using AvinyaAICRM.Application.AI.Models;
+using AvinyaAICRM.Application.Interfaces.RepositoryInterface.User;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.AI;
 
 namespace AvinyaAICRM.Application.Services.AICHATS
 {
@@ -25,6 +25,8 @@ namespace AvinyaAICRM.Application.Services.AICHATS
         private readonly ITaskService _taskService;
         private readonly ITeamRepository _teamRepo;
         private readonly AIPipeline _pipeline;
+        private readonly ILeadFlowService _leadFlow;
+        private readonly ICreditService _credits;
 
         public CRMQueryService(
             AppDbContext context,
@@ -32,7 +34,9 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             ILeadService leadService,
             ITaskService taskService,
             ITeamRepository teamRepo,
-            AIPipeline pipeline)
+            AIPipeline pipeline,
+            ILeadFlowService leadFlow,
+            ICreditService credits)
         {
             _context = context;
             _aiService = aiService;
@@ -40,6 +44,8 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             _taskService = taskService;
             _teamRepo = teamRepo;
             _pipeline = pipeline;
+            _leadFlow = leadFlow;
+            _credits = credits;
         }
 
         public async Task<List<Dictionary<string, object>>> ExecuteRawSqlAsync(string sql, Guid tenantId, bool isSuperAdmin)
@@ -115,18 +121,35 @@ namespace AvinyaAICRM.Application.Services.AICHATS
 
         public async Task<AIResponse> ProcessCommandAsync(string message, Guid tenantId, string userId, bool isSuperAdmin, List<string> allowedModules, List<AIChatHistoryDto> history = null)
         {
+            // 0. Check for Step-by-Step Flow (e.g. Lead Creation)
+            var flowResult = await _leadFlow.ProcessFlowAsync(message, tenantId, userId);
+            if (flowResult != null)
+            {
+                if (flowResult.TotalTokens > 0)
+                {
+                    await _credits.DeductCreditsAsync(userId, flowResult.TotalTokens, "LEAD_FLOW");
+                }
+                flowResult.RemainingCredits = await _credits.GetRemainingCreditsAsync(userId);
+                return flowResult;
+            }
+
             // Use the new Pipeline
             var pipelineResult = await _pipeline.ProcessAsync(message, tenantId, userId, isSuperAdmin, allowedModules, history);
 
             var aiResponse = new AIResponse
             {
                 Action = pipelineResult.Action ?? "message",
+                Intent = pipelineResult.Intent,
                 Sql = pipelineResult.Sql,
                 Parameters = pipelineResult.Parameters,
                 ClarificationMessage = pipelineResult.ClarificationMessage,
                 IsClarificationRequired = pipelineResult.IsClarificationRequired,
                 SuccessMessage = pipelineResult.SuccessMessage,
-                ErrorMessage = pipelineResult.ErrorMessage
+                ErrorMessage = pipelineResult.ErrorMessage,
+                PromptTokens = pipelineResult.PromptTokens,
+                ResponseTokens = pipelineResult.ResponseTokens,
+                TotalTokens = pipelineResult.TotalTokens,
+                RemainingCredits = pipelineResult.RemainingCredits
             };
 
             if (aiResponse.Action == "create_lead")
