@@ -181,7 +181,14 @@ namespace AvinyaAICRM.Infrastructure
             // ---------------- AIChat Services ----------------
             services.AddHttpClient<IAIService, GeminiService>();
             services.AddScoped<ICRMQueryService, CRMQueryService>();
-            services.AddScoped<IDynamicQueryBuilder, DynamicQueryBuilder>();
+            
+            // AI Pipeline Components
+            services.AddScoped<AvinyaAICRM.Application.AI.Pipeline.LocalIntentClassifier>();
+            services.AddScoped<AvinyaAICRM.Application.AI.Pipeline.SqlTemplateEngine>();
+            services.AddScoped<AvinyaAICRM.Application.AI.Pipeline.SqlValidator>();
+            services.AddScoped<AvinyaAICRM.Application.AI.Pipeline.QueryCache>();
+            services.AddScoped<AvinyaAICRM.Application.AI.Pipeline.AIPipeline>();
+
             services.AddScoped<ICreditService, CreditService>();
             services.AddScoped<IQuotationPdfService, QuotationPdfService>();
             services.AddScoped<IOrderPdfService, OrderPdfService>();

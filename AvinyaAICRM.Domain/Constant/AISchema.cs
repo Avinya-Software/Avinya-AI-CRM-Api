@@ -10,47 +10,69 @@ namespace AvinyaAICRM.Domain.Constant
     {
         public static Dictionary<string, string> Tables = new Dictionary<string, string>
         {
-            { "Leads", "dbo.Leads(LeadID, LeadNo, ClientID [ref: dbo.Clients], Date, RequirementDetails, LeadSourceID [ref: dbo.LeadSourceMaster], OtherSources, LeadStatusID [ref: dbo.LeadStatusMaster], CreatedBy [ref: dbo.AspNetUsers], AssignedTo [ref: dbo.AspNetUsers], CreatedDate, Notes, Links, TenantId)" },
-            { "LeadFollowups", "dbo.LeadFollowups(FollowUpID, LeadID [ref: dbo.Leads], UpdatedDate, Notes, NextFollowupDate, Status, FollowUpBy [ref: dbo.AspNetUsers], CreatedDate)" },
-            { "LeadSourceMaster", "dbo.LeadSourceMaster(LeadSourceID, SourceName [Values: Walk-in, Call, Referral, WhatsApp, Other Sources], IsActive, CreatedDate, SortOrder)" },
-            { "LeadStatusMaster", "dbo.LeadStatusMaster(LeadStatusID, StatusName [Values: New, Quotation Sent, Converted, JobWork In Process, Dispatched To Customer, Delivered/Done, Lost], IsActive, CreatedDate, SortOrder)" },
-            { "LeadFollowupStatus", "dbo.LeadFollowupStatus(LeadFollowupStatusID, StatusName [Values: Pending, In Progress, Completed])" },
-            { "Clients", "dbo.Clients(ClientID, CompanyName, ContactPerson, Mobile, Email, GSTNo, BillingAddress, Status, Notes, CreatedBy [ref: dbo.AspNetUsers], CreatedDate, StateID [ref: dbo.States], CityID [ref: dbo.Cities], TenantId)" },
-            { "Quotations", "dbo.Quotations(QuotationID, QuotationNo, ClientID [ref: dbo.Clients], LeadID [ref: dbo.Leads], QuotationDate, ValidTill, TotalAmount, Taxes, GrandTotal, QuotationStatusID [ref: dbo.QuotationStatusMaster], CreatedBy [ref: dbo.AspNetUsers], CreatedDate, RejectedNotes, TermsAndConditions, TenantId)" },
-            { "QuotationItems", "dbo.QuotationItems(QuotationItemID, QuotationID [ref: dbo.Quotations], ProductID [ref: dbo.Products], Description, Quantity, UnitPrice, LineTotal)" },
-            { "QuotationStatusMaster", "dbo.QuotationStatusMaster(QuotationStatusID, StatusName [Values: Sent, Accepted, Rejected], IsActive, CreatedDate)" },
-            { "Orders", "dbo.Orders(OrderID, OrderNo, ClientID [ref: dbo.Clients], QuotationID [ref: dbo.Quotations], OrderDate, ExpectedDeliveryDate, Status [ref: dbo.OrderStatusMaster], DesignStatusID [ref: dbo.DesignStatusMaster], CreatedBy [ref: dbo.AspNetUsers], AssignedDesignTo [ref: dbo.AspNetUsers], CreatedDate, SubTotal, TotalTaxes, GrandTotal, ShippingAddress, TenantId)" },
-            { "OrderItems", "dbo.OrderItems(OrderItemID, OrderID [ref: dbo.Orders], ProductID [ref: dbo.Products], Description, Quantity, UnitPrice, LineTotal)" },
-            { "OrderStatusMaster", "dbo.OrderStatusMaster(StatusID, StatusName [Values: Pending, In Progress, Inward Done, Ready, Delivered])" },
-            { "DesignStatusMaster", "dbo.DesignStatusMaster(DesignStatusID, DesignStatusName)" },
-            { "Products", "dbo.Products(ProductID, ProductName, Category, DefaultRate, PurchasePrice, HSNCode, TaxCategoryID [ref: dbo.TaxCategoryMaster], UnitTypeID [ref: dbo.UnitTypeMaster], Description, Status, CreatedBy [ref: dbo.AspNetUsers], CreatedDate, TenantId)" },
-            { "TaxCategoryMaster", "dbo.TaxCategoryMaster(TaxCategoryID, TaxName, Rate, IsCompound)" },
-            { "Expenses", "dbo.Expenses(ExpenseId, ExpenseDate, CategoryId [ref: dbo.ExpenseCategories], Amount, PaymentMode, Description, Status, CreatedBy [ref: dbo.AspNetUsers], CreatedDate, TenantId)" },
-            { "ExpenseCategories", "dbo.ExpenseCategories(CategoryId, CategoryName, IsActive, CreatedDate)" },
-            { "Invoices", "dbo.Invoices(InvoiceID, InvoiceNo, OrderID, ClientID, InvoiceDate, SubTotal, Taxes, Discount, GrandTotal, InvoiceStatusID [ref: dbo.InvoiceStatuses], RemainingPayment, PaidAmount, OutstandingAmount, DueDate, TenantId)" },
-            { "InvoiceStatuses", "dbo.InvoiceStatuses(InvoiceStatusID, InvoiceStatusName)" },
-            { "Payments", "dbo.Payments(PaymentID, InvoiceID [ref: dbo.Invoices], PaymentDate, Amount, PaymentMode [Values: Online, UPI, Card, Cash], TransactionRef, ReceivedBy)" },
-            { "BankDetails", "dbo.BankDetails(BankAccountId, BankName, AccountHolderName, AccountNumber, IFSCCode, BranchName, IsActive, TenantId)" },
-            { "Projects", "dbo.Projects(ProjectID, ProjectName, Description, ClientID [ref: dbo.Clients], Location, Status [ref: dbo.ProjectStatusMaster], ProgressPercent, ProjectManagerId [ref: dbo.AspNetUsers], AssignedToUserId [ref: dbo.AspNetUsers], TeamId [ref: dbo.Teams], StartDate, EndDate, Deadline, EstimatedValue, CreatedBy [ref: dbo.AspNetUsers], CreatedDate, PriorityID [ref: dbo.ProjectPriorityMaster], TenantId)" },
-            { "ProjectStatusMaster", "dbo.ProjectStatusMaster(StatusID, StatusName)" },
-            { "ProjectPriorityMaster", "dbo.ProjectPriorityMaster(PriorityID, PriorityName)" },
-            { "AspNetUsers", "dbo.AspNetUsers(Id, FullName, Email, PhoneNumber, IsActive, CreatedAt, TenantId)" },
-            { "Teams", "dbo.Teams(Id, Name, ManagerId [ref: dbo.AspNetUsers], IsActive, CreatedAt, TenantId)" },
-            { "TeamMembers", "dbo.TeamMembers(Id, TeamId [ref: dbo.Teams], UserId [ref: dbo.AspNetUsers], JoinedAt)" },
-            { "States", "dbo.States(StateID, StateName)" },
-            { "Cities", "dbo.Cities(CityID, StateID [ref: dbo.States], CityName)" },
-            { "UnitTypeMaster", "dbo.UnitTypeMaster(UnitTypeID, UnitName [Values: Page, Design, Banner, Pcs, Set, Roll, Sheet, Hour, Job, Inch, Cm, Sqft, Sqmtr, Pack], Description, Status, CreatedDate)" },
-            { "TaskSeries", "dbo.TaskSeries(Id, Title, Description, Notes, IsRecurring, RecurrenceRule, StartDate, EndDate, CreatedBy [ref: dbo.AspNetUsers], TeamId [ref: dbo.Teams], IsActive, CreatedAt, TaskScope, Priority, ProjectId [ref: dbo.Projects])" },
-            { "TaskOccurrences", "dbo.TaskOccurrences(Id, TaskSeriesId [ref: dbo.TaskSeries], DueDateTime, StartDateTime, EndDateTime, Status, AssignedTo [ref: dbo.AspNetUsers], CreatedAt)" },
-            { "TaskLists", "dbo.TaskLists(Id, Name, OwnerId [ref: dbo.AspNetUsers], CreatedAt)" },
-            { "Tenants", "dbo.Tenants(TenantId, CompanyName, IndustryType, CompanyEmail, CompanyPhone, Address, IsApproved, IsActive, CreatedAt)" },
-            { "Modules", "dbo.Modules(ModuleId, ModuleKey, ModuleName, IsActive)" },
-            { "Permissions", "dbo.Permissions(PermissionId, ModuleId [ref: dbo.Modules], ActionId [ref: dbo.Actions])" },
-            { "Actions", "dbo.Actions(ActionId, ActionKey, ActionName)" },
-            { "Settings", "dbo.Settings(SettingID, EntityType, Value, PreFix, Digits, TenantId)" }
+            { "Leads", "dbo.Leads(LeadID [PK], LeadNo [Auto-gen], ClientID [ref: dbo.Clients], Date [Lead Date], RequirementDetails, LeadSourceID [ref: dbo.LeadSourceMaster], OtherSources, LeadStatusID [ref: dbo.LeadStatusMaster], CreatedBy [ref: dbo.AspNetUsers], AssignedTo [ref: dbo.AspNetUsers], CreatedDate, Notes, Links, TenantId)" },
+            { "LeadFollowups", "dbo.LeadFollowups(FollowUpID [PK], LeadID [ref: dbo.Leads], UpdatedDate, Notes [Followup Details], NextFollowupDate, Status [Values: Pending, In Progress, Completed], FollowUpBy [ref: dbo.AspNetUsers], CreatedDate)" },
+            { "LeadSourceMaster", "dbo.LeadSourceMaster(LeadSourceID [PK], SourceName [Values: Walk-in, Call, Referral, WhatsApp, Other Sources], IsActive, CreatedDate, SortOrder)" },
+            { "LeadStatusMaster", "dbo.LeadStatusMaster(LeadStatusID [PK], StatusName [Values: New, Quotation Sent, Converted, JobWork In Process, Dispatched To Customer, Delivered/Done, Lost], IsActive, CreatedDate, SortOrder)" },
+            { "LeadFollowupStatus", "dbo.LeadFollowupStatus(LeadFollowupStatusID [PK], StatusName [Values: Pending, In Progress, Completed])" },
+            { "Clients", "dbo.Clients(ClientID [PK], CompanyName, ContactPerson, Mobile, Email, GSTNo, BillingAddress, Status, Notes, CreatedBy [ref: dbo.AspNetUsers], CreatedDate, StateID [ref: dbo.States], CityID [ref: dbo.Cities], TenantId)" },
+            { "Quotations", "dbo.Quotations(QuotationID [PK], QuotationNo, ClientID [ref: dbo.Clients], LeadID [ref: dbo.Leads], QuotationDate, ValidTill, TotalAmount, Taxes, GrandTotal, QuotationStatusID [ref: dbo.QuotationStatusMaster], CreatedBy [ref: dbo.AspNetUsers], CreatedDate, RejectedNotes, TermsAndConditions, TenantId)" },
+            { "QuotationItems", "dbo.QuotationItems(QuotationItemID [PK], QuotationID [ref: dbo.Quotations], ProductID [ref: dbo.Products], Description, Quantity, UnitPrice, LineTotal)" },
+            { "QuotationStatusMaster", "dbo.QuotationStatusMaster(QuotationStatusID [PK], StatusName [Values: Sent, Accepted, Rejected], IsActive, CreatedDate)" },
+            { "Orders", "dbo.Orders(OrderID [PK], OrderNo, ClientID [ref: dbo.Clients], QuotationID [ref: dbo.Quotations], OrderDate, ExpectedDeliveryDate, Status [ref: dbo.OrderStatusMaster], DesignStatusID [ref: dbo.DesignStatusMaster], CreatedBy [ref: dbo.AspNetUsers], AssignedDesignTo [ref: dbo.AspNetUsers], CreatedDate, SubTotal, TotalTaxes, GrandTotal, ShippingAddress, TenantId)" },
+            { "OrderItems", "dbo.OrderItems(OrderItemID [PK], OrderID [ref: dbo.Orders], ProductID [ref: dbo.Products], Description, Quantity, UnitPrice, LineTotal)" },
+            { "OrderStatusMaster", "dbo.OrderStatusMaster(StatusID [PK], StatusName [Values: Pending, In Progress, Inward Done, Ready, Delivered])" },
+            { "DesignStatusMaster", "dbo.DesignStatusMaster(DesignStatusID [PK], DesignStatusName)" },
+            { "Products", "dbo.Products(ProductID [PK], ProductName, Category, DefaultRate, PurchasePrice, HSNCode, TaxCategoryID [ref: dbo.TaxCategoryMaster], UnitTypeID [ref: dbo.UnitTypeMaster], Description, Status, CreatedBy [ref: dbo.AspNetUsers], CreatedDate, TenantId)" },
+            { "TaxCategoryMaster", "dbo.TaxCategoryMaster(TaxCategoryID [PK], TaxName [e.g. GST 18%%], Rate, IsCompound)" },
+            { "Expenses", "dbo.Expenses(ExpenseId [PK], ExpenseDate, CategoryId [ref: dbo.ExpenseCategories], Amount, PaymentMode, Description, Status, CreatedBy [ref: dbo.AspNetUsers], CreatedDate, TenantId)" },
+            { "ExpenseCategories", "dbo.ExpenseCategories(CategoryId [PK], CategoryName, IsActive, CreatedDate)" },
+            { "Invoices", "dbo.Invoices(InvoiceID [PK], InvoiceNo, OrderID [ref: dbo.Orders], ClientID [ref: dbo.Clients], InvoiceDate, SubTotal, Taxes, Discount, GrandTotal, InvoiceStatusID [ref: dbo.InvoiceStatuses], RemainingPayment, PaidAmount, OutstandingAmount, DueDate, TenantId)" },
+            { "InvoiceStatuses", "dbo.InvoiceStatuses(InvoiceStatusID [PK], InvoiceStatusName [Values: Unpaid, Partially Paid, Paid, Overdue])" },
+            { "Payments", "dbo.Payments(PaymentID [PK], InvoiceID [ref: dbo.Invoices], PaymentDate, Amount, PaymentMode [Values: Online, UPI, Card, Cash], TransactionRef, ReceivedBy)" },
+            { "BankDetails", "dbo.BankDetails(BankAccountId [PK], BankName, AccountHolderName, AccountNumber, IFSCCode, BranchName, IsActive, TenantId)" },
+            { "Projects", "dbo.Projects(ProjectID [PK], ProjectName, Description, ClientID [ref: dbo.Clients], Location, Status [ref: dbo.ProjectStatusMaster], ProgressPercent, ProjectManagerId [ref: dbo.AspNetUsers], AssignedToUserId [ref: dbo.AspNetUsers], TeamId [ref: dbo.Teams], StartDate, EndDate, Deadline, EstimatedValue, CreatedBy [ref: dbo.AspNetUsers], CreatedDate, PriorityID [ref: dbo.ProjectPriorityMaster], TenantId)" },
+            { "ProjectStatusMaster", "dbo.ProjectStatusMaster(StatusID [PK], StatusName [Values: Not Started, In Progress, Completed, On Hold, Cancelled])" },
+            { "ProjectPriorityMaster", "dbo.ProjectPriorityMaster(PriorityID [PK], PriorityName [Values: Low, Medium, High, Urgent])" },
+            { "AspNetUsers", "dbo.AspNetUsers(Id [PK], FullName, Email, PhoneNumber, IsActive, CreatedAt, TenantId)" },
+            { "Teams", "dbo.Teams(Id [PK], Name, ManagerId [ref: dbo.AspNetUsers], IsActive, CreatedAt, TenantId)" },
+            { "TeamMembers", "dbo.TeamMembers(Id [PK], TeamId [ref: dbo.Teams], UserId [ref: dbo.AspNetUsers], JoinedAt)" },
+            { "States", "dbo.States(StateID [PK], StateName)" },
+            { "Cities", "dbo.Cities(CityID [PK], StateID [ref: dbo.States], CityName)" },
+            { "UnitTypeMaster", "dbo.UnitTypeMaster(UnitTypeID [PK], UnitName [Values: Page, Design, Banner, Pcs, Set, Roll, Sheet, Hour, Job, Inch, Cm, Sqft, Sqmtr, Pack], Description, Status, CreatedDate)" },
+            { "TaskSeries", "dbo.TaskSeries(Id [PK], Title, Description, Notes, IsRecurring, RecurrenceRule, StartDate, EndDate, CreatedBy [ref: dbo.AspNetUsers], TeamId [ref: dbo.Teams], IsActive, CreatedAt, TaskScope [Values: Personal, Team], Priority, ProjectId [ref: dbo.Projects])" },
+            { "TaskOccurrences", "dbo.TaskOccurrences(Id [PK], TaskSeriesId [ref: dbo.TaskSeries], DueDateTime, StartDateTime, EndDateTime, Status [Values: Pending, Completed, Deferred], AssignedTo [ref: dbo.AspNetUsers], CreatedAt)" },
+            { "TaskLists", "dbo.TaskLists(Id [PK], Name, OwnerId [ref: dbo.AspNetUsers], CreatedAt)" },
+            { "Tenants", "dbo.Tenants(TenantId [PK], CompanyName, IndustryType, CompanyEmail, CompanyPhone, Address, IsApproved, IsActive, CreatedAt)" },
+            { "Modules", "dbo.Modules(ModuleId [PK], ModuleKey, ModuleName, IsActive)" },
+            { "Permissions", "dbo.Permissions(PermissionId [PK], ModuleId [ref: dbo.Modules], ActionId [ref: dbo.Actions])" },
+            { "Actions", "dbo.Actions(ActionId [PK], ActionKey, ActionName)" },
+            { "Settings", "dbo.Settings(SettingID [PK], EntityType, Value, PreFix, Digits, TenantId)" }
         };
 
         public static string CRM => GetTables(Tables.Keys);
+
+        private static readonly Dictionary<string, string[]> IntentTables = new()
+        {
+            { "query_leads",      new[] { "Leads", "Clients", "LeadStatusMaster", "LeadSourceMaster", "AspNetUsers" } },
+            { "query_followups",  new[] { "LeadFollowups", "Leads", "Clients", "AspNetUsers" } },
+            { "query_orders",     new[] { "Orders", "Clients", "OrderStatusMaster" } },
+            { "query_revenue",    new[] { "Orders" } },
+            { "query_quotations", new[] { "Quotations", "Clients", "QuotationStatusMaster" } },
+            { "query_tasks",      new[] { "TaskSeries", "TaskOccurrences", "AspNetUsers" } },
+            { "query_clients",    new[] { "Clients", "States", "Cities" } },
+            { "query_expenses",   new[] { "Expenses", "ExpenseCategories" } },
+            { "query_projects",   new[] { "Projects", "Clients", "ProjectStatusMaster", "AspNetUsers" } },
+            { "report_summary",   new[] { "Leads", "Quotations", "Orders", "Expenses", "Projects", "TaskSeries" } },
+        };
+
+        public static string GetForIntent(string intent)
+        {
+            if (!IntentTables.TryGetValue(intent, out var tables))
+                return CRM; 
+
+            return GetTables(tables);
+        }
 
         public static string GetTables(IEnumerable<string> tableNames)
         {
@@ -151,7 +173,16 @@ namespace AvinyaAICRM.Domain.Constant
                 sb.AppendLine("\nRelationships: " + string.Join(", ", validRels));
             }
 
+            // HINTS for AI
+            sb.AppendLine("\nSQL Generation Hints:");
+            sb.AppendLine("- Use 'CompanyName' for clients, not 'ClientName'.");
+            sb.AppendLine("- Use 'StatusName' from Master tables for readable statuses.");
+            sb.AppendLine("- Always filter by TenantId = @TenantId unless SuperAdmin.");
+            sb.AppendLine("- Join TaskSeries with TaskOccurrences to get actual task instances.");
+            sb.AppendLine("- For Leads, join with LeadStatusMaster to get the status name.");
+
             return sb.ToString();
         }
     }
+
 }
