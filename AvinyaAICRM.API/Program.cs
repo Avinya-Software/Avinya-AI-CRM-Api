@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.API.Filters;
+using AvinyaAICRM.API.Filters;
 using AvinyaAICRM.Application;
 using AvinyaAICRM.Application.DTOs.EmailSetting;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.AI;
@@ -6,7 +6,11 @@ using AvinyaAICRM.Application.Services.AI;
 using AvinyaAICRM.Infrastructure;
 using Microsoft.OpenApi.Models;
 
+using AvinyaAICRM.Infrastructure.BackgroundServices;
+
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddHostedService<CreditResetWorker>();
 
 builder.Services.AddSingleton<IIntentService>(sp =>
 {

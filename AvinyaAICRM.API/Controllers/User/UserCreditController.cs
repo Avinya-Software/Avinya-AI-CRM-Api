@@ -46,5 +46,12 @@ namespace AvinyaAICRM.API.Controllers.User
             var res = await _creditService.GetTransactionsByUserIdAsync(userId, pageNumber, pageSize);
             return new JsonResult(res) { StatusCode = res.StatusCode };
         }
+
+        [HttpPost("test-daily-reset")]
+        public async Task<IActionResult> TestDailyReset()
+        {
+            await _creditService.ResetAllBalancesAsync(15000);
+            return Ok(new { message = "Daily reset logic triggered successfully. All users updated to 15,000 tokens." });
+        }
     }
 }

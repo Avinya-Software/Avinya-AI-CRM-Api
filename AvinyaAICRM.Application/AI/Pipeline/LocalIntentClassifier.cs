@@ -22,6 +22,20 @@ namespace AvinyaAICRM.Application.AI.Pipeline
             if (learnedIntent != null)
                 return Match(learnedIntent, 0.99);
 
+            // 0b. Complexity Guard: If query is complex or has logic words, fallback to Gemini
+            // Examples: "clients with no leads", "leads not converted", "revenue without tax"
+            var complexityKeywords = new[] { " no ", " without ", " never ", " not ", " except ", " other than ", " besides " };
+            var potentialEntities = new[] { "client", "customer", "lead", "order", "invoice", "payment", "expense" };
+            
+            int entityCount = potentialEntities.Count(e => lower.Contains(e));
+            bool hasLogicWord = complexityKeywords.Any(k => lower.Contains(k));
+
+            if (hasLogicWord || entityCount > 1)
+            {
+                // Force "unknown" to trigger Gemini for better context analysis
+                return Match("unknown", 0.0);
+            }
+
             // --- CREATE INTENTS ---
             if (ContainsAny(lower, "create lead", "add lead", "new lead", "add a lead", "capture lead"))
                 return Match("create_lead", 0.99);
@@ -29,7 +43,17 @@ namespace AvinyaAICRM.Application.AI.Pipeline
             if (ContainsAny(lower, "create task", "add task", "new task", "remind me", "set reminder", "todo"))
                 return Match("create_task", 0.99);
 
+            // --- SPECIAL INTENTS (CLIENT 360) ---
+            if ((lower.Contains("client") || lower.Contains("customer")) && (lower.Contains("360") || lower.Contains("report") || lower.Contains("details") || lower.Contains("activity") || lower.Contains("summary") || lower.Contains("history") || lower.Contains("transaction") || lower.Contains("performance")))
+                return Match("query_client_360", 0.96);
+
             // --- QUERY INTENTS ---
+            if (ContainsAny(lower, "top", "vip", "biggest", "high value", "most revenue", "highest orders", "repeat", "valuable customer"))
+                return Match("query_high_value_clients", 0.98);
+
+            if (ContainsAny(lower, "highest outstanding", "owes the most", "most debt", "pending payments", "who owes money"))
+                return Match("query_highest_outstanding", 0.98);
+
             if (ContainsAny(lower, "follow up", "followup", "follow-up", "next followup"))
                 return Match("query_followups", 0.95);
 
@@ -63,13 +87,10 @@ namespace AvinyaAICRM.Application.AI.Pipeline
             if (ContainsAny(lower, "stock", "inventory", "low", "out of"))
                 return Match("query_low_stock", 0.90);
 
-            if (ContainsAny(lower, "top", "vip", "biggest", "high value"))
-                return Match("query_high_value_clients", 0.90);
-
             if (ContainsAny(lower, "invoice", "invoices", "bill", "bills"))
                 return Match("query_invoices", 0.95);
 
-            if (ContainsAny(lower, "payment", "payments", "received", "collection"))
+            if (ContainsAny(lower, "payment", "payments", "received", "collection", "upi", "cash", "bank"))
                 return Match("query_payments", 0.95);
 
             if (ContainsAny(lower, "product", "products", "item", "items", "inventory"))
@@ -78,13 +99,13 @@ namespace AvinyaAICRM.Application.AI.Pipeline
             if (lower.Contains("source") && (lower.Contains("lead") || lower.Contains("enquiry")))
                 return Match("query_leads_source", 0.95);
 
-            if (ContainsAny(lower, "staff", "team", "performance", "top employee", "who created"))
+            if (ContainsAny(lower, "staff", "team", "performance", "top performer", "who created", "workload"))
                 return Match("query_staff_performance", 0.95);
 
             if (ContainsAny(lower, "tax", "gst", "cgst", "sgst", "igst"))
                 return Match("query_tax_summary", 0.95);
 
-            if (ContainsAny(lower, "trend", "monthly breakdown", "growth", "over time"))
+            if (ContainsAny(lower, "trend", "monthly breakdown", "growth", "over time", "declining"))
                 return Match("query_revenue_trend", 0.95);
 
             if (ContainsAny(lower, "top client", "best client", "highest business", "valuable customer"))
@@ -96,16 +117,22 @@ namespace AvinyaAICRM.Application.AI.Pipeline
             if (ContainsAny(lower, "design", "graphic", "artwork"))
                 return Match("query_design_orders", 0.95);
 
-            if (ContainsAny(lower, "overdue", "late", "past due"))
+            if (ContainsAny(lower, "overdue", "late", "past due", "outstanding", "urgent", "attention"))
                 return Match("query_overdue_items", 0.95);
 
-            if (ContainsAny(lower, "inactive", "quiet", "no order", "no booking"))
+            if (ContainsAny(lower, "inactive", "quiet", "no order", "no booking", "lost", "growing"))
                 return Match("query_inactive_clients", 0.95);
 
-            if (ContainsAny(lower, "recent", "latest", "what happened", "activity", "newly added"))
+            if (ContainsAny(lower, "recent", "latest", "what happened", "activity", "newly added", "recently added"))
                 return Match("query_recent_activity", 0.95);
 
-            if (ContainsAny(lower, "report", "summary", "overview", "dashboard", "overall", "business", "doing"))
+            if (ContainsAny(lower, "predict", "next month", "forecast"))
+                return Match("query_predictions", 0.95);
+
+            if (ContainsAny(lower, "suggest", "recommend", "should i", "problem", "losing money"))
+                return Match("query_recommendations", 0.95);
+
+            if (ContainsAny(lower, "report", "summary", "overview", "dashboard", "overall", "business", "doing", "growing", "problem"))
                 return Match("report_summary", 0.90);
 
             return Match("unknown", 0.0);
@@ -214,13 +241,27 @@ namespace AvinyaAICRM.Application.AI.Pipeline
             filters.IsPersonalQuery = ContainsAny(lower, "my ", "mine", "assigned to me", "i have");
 
             // 5. Search Term extraction (for [name], of [name])
-            var searchPatterns = new[] { @"for\s+([a-zA-Z0-9\-\/]+)", @"of\s+([a-zA-Z0-9\-\/]+)", @"named\s+([a-zA-Z0-9\-\/ ]+)", @"search\s+([a-zA-Z0-9\-\/ ]+)" };
+            var searchPatterns = new[] { @"for\s+([a-zA-Z0-9\-\/ ]+)", @"of\s+([a-zA-Z0-9\-\/ ]+)", @"named\s+([a-zA-Z0-9\-\/ ]+)", @"search\s+([a-zA-Z0-9\-\/ ]+)" };
             foreach (var pattern in searchPatterns)
             {
                 var match = System.Text.RegularExpressions.Regex.Match(lower, pattern);
                 if (match.Success)
                 {
-                    filters.SearchTerm = match.Groups[1].Value.Trim();
+                    var term = match.Groups[1].Value.Trim();
+                    // Strip common entity keywords from the start of the search term
+                    var entityWords = new[] { "customers", "customer", "clients", "client", "leads", "lead", "report", "details", "all" };
+                    foreach (var word in entityWords)
+                    {
+                        if (term.ToLower().StartsWith(word + " "))
+                        {
+                            term = term.Substring(word.Length + 1).Trim();
+                        }
+                        else if (term.ToLower().Equals(word))
+                        {
+                            term = ""; // It was just the word "customers" with nothing else
+                        }
+                    }
+                    filters.SearchTerm = term;
                     break;
                 }
             }

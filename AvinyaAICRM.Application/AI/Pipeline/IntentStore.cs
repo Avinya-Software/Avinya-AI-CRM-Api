@@ -9,11 +9,18 @@ namespace AvinyaAICRM.Application.AI.Pipeline
     public class IntentStore
     {
         private static readonly ConcurrentDictionary<string, string> _phraseToIntent = new();
-        private const string CacheFile = "intent_knowledge.json";
+        private static readonly string CacheFile = "intent_knowledge.json";
+        private static readonly string CacheDir = Path.Combine(Directory.GetCurrentDirectory(), "AI_Data");
 
         static IntentStore()
         {
             Load();
+        }
+
+        private static string GetCachePath()
+        {
+            if (!Directory.Exists(CacheDir)) Directory.CreateDirectory(CacheDir);
+            return Path.Combine(CacheDir, CacheFile);
         }
 
         public string? GetIntent(string phrase)
@@ -41,7 +48,7 @@ namespace AvinyaAICRM.Application.AI.Pipeline
             try
             {
                 var json = JsonSerializer.Serialize(_phraseToIntent);
-                File.WriteAllText(CacheFile, json);
+                File.WriteAllText(GetCachePath(), json);
             }
             catch { /* Ignore IO errors in memory-first cache */ }
         }
@@ -50,9 +57,10 @@ namespace AvinyaAICRM.Application.AI.Pipeline
         {
             try
             {
-                if (File.Exists(CacheFile))
+                var path = GetCachePath();
+                if (File.Exists(path))
                 {
-                    var json = File.ReadAllText(CacheFile);
+                    var json = File.ReadAllText(path);
                     var data = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
                     if (data != null)
                     {

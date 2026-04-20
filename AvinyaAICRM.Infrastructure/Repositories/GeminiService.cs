@@ -109,6 +109,18 @@ namespace AvinyaAICRM.Infrastructure.Repositories
 
             var currentTimeContext = $"Current Date/Time: {DateTime.Now:f} (Year {DateTime.Now.Year})";
 
+            var jsonExample = @"
+                {
+                  ""action"": ""get_summary"",
+                  ""intent"": ""query_leads"",
+                  ""parameters"": {},
+                  ""sql"": ""SELECT ..."",
+                  ""isClarificationRequired"": false,
+                  ""clarificationMessage"": """",
+                  ""successMessage"": ""Friendly text when data is found"",
+                  ""errorMessage"": ""Friendly text when no data is found""
+                }";
+
             var prompt = $@"
                 You are a CRM assistant. Analyze input and return ONLY valid JSON.
                 {currentTimeContext}
@@ -146,17 +158,13 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 REPORTING STRUCTURE (ONLY if 'report' or 'summary' is asked):
                 Act like a BUSINESS ANALYST. Provide a summary message, breakdown, and insights. Use {{Value}} placeholders for dynamic data from the first row of result.
 
+                INSIGHT MODE (For ""problem"", ""growing"", ""suggest"", ""predict""):
+                - If the user asks about problems, look for: overdue invoices, declining lead conversion, or overdue tasks.
+                - If the user asks for suggestions, suggest follow-ups for inactive but valuable clients (high previous revenue).
+                - For predictions, look at the last 3-6 months of revenue trend.
+
                 JSON FORMAT (RETURN ONLY JSON):
-                {{
-                  ""action"": ""create_lead"" | ""create_task"" | ""get_summary"" | ""message"",
-                  ""intent"": ""query_leads"" | ""query_revenue"" | ""report_summary"" | ""query_tasks"" | ""other"",
-                  ""parameters"": {{ ... }},
-                  ""sql"": ""SELECT ..."",
-                  ""isClarificationRequired"": boolean,
-                  ""clarificationMessage"": ""str"",
-                  ""successMessage"": ""A friendly message when data is found"",
-                  ""errorMessage"": ""A friendly message when no data is found or error occurs""
-                }}
+                {jsonExample}
 
                 Schema Context:
                 {targetedSchema}

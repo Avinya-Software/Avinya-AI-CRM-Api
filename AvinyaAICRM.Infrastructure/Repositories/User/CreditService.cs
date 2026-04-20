@@ -144,5 +144,11 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
                 await _context.SaveChangesAsync();
             }
         }
+
+        public async Task ResetAllBalancesAsync(int amount)
+        {
+            // Reset all active users' balance to the specified amount (e.g. 15000)
+            await _context.Database.ExecuteSqlRawAsync($"UPDATE UserCredits SET Balance = {amount}, UpdatedAt = GETUTCDATE()");
+        }
     }
 }

@@ -57,13 +57,15 @@ namespace AvinyaAICRM.Domain.Constant
             { "query_leads",      new[] { "Leads", "Clients", "LeadStatusMaster", "LeadSourceMaster", "AspNetUsers" } },
             { "query_followups",  new[] { "LeadFollowups", "Leads", "Clients", "AspNetUsers" } },
             { "query_orders",     new[] { "Orders", "Clients", "OrderStatusMaster" } },
-            { "query_revenue",    new[] { "Orders" } },
+            { "query_revenue",    new[] { "Orders", "Invoices", "Expenses" } },
             { "query_quotations", new[] { "Quotations", "Clients", "QuotationStatusMaster" } },
-            { "query_tasks",      new[] { "TaskSeries", "TaskOccurrences", "AspNetUsers" } },
-            { "query_clients",    new[] { "Clients", "States", "Cities" } },
+            { "query_tasks",      new[] { "TaskSeries", "TaskOccurrences", "AspNetUsers", "Projects" } },
+            { "query_clients",    new[] { "Clients", "States", "Cities", "Invoices", "Orders" } },
+            { "query_client_360", new[] { "Clients", "Leads", "Orders", "QuotationItems", "Invoices", "LeadFollowups", "LeadStatusMaster", "OrderStatusMaster", "LeadFollowupStatus" } },
             { "query_expenses",   new[] { "Expenses", "ExpenseCategories" } },
             { "query_projects",   new[] { "Projects", "Clients", "ProjectStatusMaster", "AspNetUsers" } },
-            { "report_summary",   new[] { "Leads", "Quotations", "Orders", "Expenses", "Projects", "TaskSeries" } },
+            { "query_staff_performance", new[] { "AspNetUsers", "Leads", "Orders", "Invoices", "Projects", "Teams" } },
+            { "report_summary",   new[] { "Leads", "Quotations", "Orders", "Expenses", "Projects", "TaskSeries", "TaskOccurrences", "Invoices", "Payments", "Clients" } },
         };
 
         public static string GetForIntent(string intent)
@@ -175,7 +177,8 @@ namespace AvinyaAICRM.Domain.Constant
 
             // HINTS for AI
             sb.AppendLine("\nSQL Generation Hints:");
-            sb.AppendLine("- Use 'CompanyName' for clients, not 'ClientName'.");
+            sb.AppendLine("- 'Customer' and 'Client' are identical. Use 'dbo.Clients' for both.");
+            sb.AppendLine("- Use 'CompanyName' for clients/customers, not 'ClientName'.");
             sb.AppendLine("- Use 'StatusName' from Master tables for readable statuses.");
             sb.AppendLine("- Always filter by TenantId = @TenantId unless SuperAdmin.");
             sb.AppendLine("- Join TaskSeries with TaskOccurrences to get actual task instances.");

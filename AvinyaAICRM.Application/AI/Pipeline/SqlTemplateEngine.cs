@@ -218,11 +218,50 @@ namespace AvinyaAICRM.Application.AI.Pipeline
                        LEFT JOIN dbo.States s ON c.StateID = s.StateID
                        LEFT JOIN dbo.Cities ci ON c.CityID = ci.CityID
                        WHERE c.TenantId = '{tenantId}' AND c.IsDeleted = 0
-                       {BuildSearchFilter(filters, new[] { "c.CompanyName", "c.ContactPerson", "c.Email" })}
+                         AND c.CompanyName IS NOT NULL AND c.CompanyName <> ''
+                       {BuildSearchFilter(filters, new[] { "c.CompanyName", "c.ContactPerson", "c.Email", "c.Mobile", "ci.CityName" })}
                        ORDER BY c.CompanyName ASC",
 
+                // --- CLIENT 360 ---
+                "query_client_360" =>
+                    $@"SELECT 
+                        c.CompanyName, c.ContactPerson, c.Mobile, c.Email, c.GSTNo, c.BillingAddress,
+                        (SELECT '₹ ' + FORMAT(ISNULL(SUM(GrandTotal), 0), 'N2') FROM dbo.Invoices WHERE ClientID = CAST(c.ClientID AS nvarchar(max)) AND IsDeleted = 0) AS TotalRevenue,
+                        (SELECT '₹ ' + FORMAT(ISNULL(SUM(OutstandingAmount), 0), 'N2') FROM dbo.Invoices WHERE ClientID = CAST(c.ClientID AS nvarchar(max)) AND IsDeleted = 0) AS TotalOutstanding,
+                        (SELECT TOP 10 LeadNo, ls.StatusName, CONVERT(varchar(10), Date, 120) AS Date FROM dbo.Leads l JOIN dbo.LeadStatusMaster ls ON l.LeadStatusID = ls.LeadStatusID WHERE l.ClientID = c.ClientID AND l.IsDeleted = 0 ORDER BY l.Date DESC FOR JSON PATH) AS RecentLeads,
+                        (SELECT TOP 10 OrderNo, osm.StatusName, '₹ ' + FORMAT(GrandTotal, 'N2') AS Amount, CONVERT(varchar(10), OrderDate, 120) AS Date FROM dbo.Orders o JOIN dbo.OrderStatusMaster osm ON o.Status = osm.StatusID WHERE o.ClientID = c.ClientID AND o.IsDeleted = 0 ORDER BY o.OrderDate DESC FOR JSON PATH) AS RecentOrders,
+                        (SELECT TOP 10 InvoiceNo, GrandTotal, OutstandingAmount, CONVERT(varchar(10), InvoiceDate, 120) AS Date FROM dbo.Invoices WHERE ClientID = CAST(c.ClientID AS nvarchar(max)) AND IsDeleted = 0 ORDER BY InvoiceDate DESC FOR JSON PATH) AS RecentInvoices,
+                        (SELECT TOP 10 lf.Notes, lf.NextFollowupDate, lfs.StatusName FROM dbo.LeadFollowups lf JOIN dbo.Leads l ON lf.LeadID = l.LeadID LEFT JOIN dbo.LeadFollowupStatus lfs ON lf.Status = lfs.LeadFollowupStatusID WHERE l.ClientID = c.ClientID ORDER BY lf.CreatedDate DESC FOR JSON PATH) AS RecentActivity
+                       FROM dbo.Clients c
+                       WHERE c.TenantId = '{tenantId}' AND c.IsDeleted = 0
+                       {BuildSearchFilter(filters, new[] { "c.CompanyName", "c.ContactPerson", "c.Email", "c.Mobile" })}
+                       FOR JSON PATH, WITHOUT_ARRAY_WRAPPER",
+
+                "query_high_value_clients" =>
+                    $@"SELECT TOP 10 
+                         c.CompanyName AS [Client Name], 
+                         c.Mobile,
+                         '₹ ' + FORMAT(ISNULL((SELECT SUM(GrandTotal) FROM dbo.Invoices WHERE ClientID = CAST(c.ClientID AS nvarchar(max)) AND IsDeleted = 0), 0), 'N2') AS [Total Revenue],
+                         (SELECT COUNT(*) FROM dbo.Orders WHERE ClientID = c.ClientID AND IsDeleted = 0) AS [Order Count]
+                       FROM dbo.Clients c
+                       WHERE c.TenantId = '{tenantId}' AND c.IsDeleted = 0 
+                         AND c.CompanyName IS NOT NULL AND c.CompanyName <> ''
+                         AND EXISTS (SELECT 1 FROM dbo.Invoices i WHERE i.ClientID = CAST(c.ClientID AS nvarchar(max)) AND i.IsDeleted = 0)
+                       ORDER BY (SELECT ISNULL(SUM(GrandTotal), 0) FROM dbo.Invoices WHERE ClientID = CAST(c.ClientID AS nvarchar(max)) AND IsDeleted = 0) DESC",
+
                 // --- ORDERS ---
-                "query_orders" when filters.IsCountQuery =>
+                 "query_highest_outstanding" =>
+                    $@"SELECT TOP 10 
+                         c.CompanyName AS [Client Name], 
+                         c.Mobile,
+                         '₹ ' + FORMAT(ISNULL((SELECT SUM(OutstandingAmount) FROM dbo.Invoices WHERE ClientID = CAST(c.ClientID AS nvarchar(max)) AND IsDeleted = 0), 0), 'N2') AS [Total Outstanding]
+                       FROM dbo.Clients c
+                       WHERE c.TenantId = '{tenantId}' AND c.IsDeleted = 0 
+                         AND c.CompanyName IS NOT NULL AND c.CompanyName <> ''
+                         AND EXISTS (SELECT 1 FROM dbo.Invoices i WHERE i.ClientID = CAST(c.ClientID AS nvarchar(max)) AND i.IsDeleted = 0 AND i.OutstandingAmount > 0)
+                       ORDER BY (SELECT ISNULL(SUM(OutstandingAmount), 0) FROM dbo.Invoices WHERE ClientID = CAST(c.ClientID AS nvarchar(max)) AND IsDeleted = 0) DESC",
+
+                 "query_orders" when filters.IsCountQuery =>
                     $@"SELECT osm.StatusName, COUNT(*) AS Count
                        FROM dbo.Orders o
                        JOIN dbo.OrderStatusMaster osm ON o.Status = osm.StatusID
@@ -354,6 +393,7 @@ namespace AvinyaAICRM.Application.AI.Pipeline
                     : "Listing {count} orders. The most recent one is {OrderNo} for {CompanyName}.",
                 "query_projects" => "I found {count} projects. {ProjectName} is currently {ProgressPercent}% complete.",
                 "query_tasks" => "Here are your {count} tasks. {Title} is the next priority.",
+                "query_client_360" => "Client 360° Report for {CompanyName}: Total revenue generated is {TotalRevenue} with {TotalOutstanding} currently outstanding.",
                 "report_summary" => "Universal Business Summary: You have {LeadsCount} leads, {OrdersCount} orders, and {ProjectsCount} active projects. Total revenue is {TotalRevenue}.",
                 _ => "I've found {count} results for you based on the database records."
             }).Replace("{count}", count.ToString());
