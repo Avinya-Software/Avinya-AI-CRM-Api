@@ -1,0 +1,193 @@
+﻿using AvinyaAICRM.Application.DTOs.Lead;
+using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Leads;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.Leads;
+using AvinyaAICRM.Shared.Helper;
+using AvinyaAICRM.Shared.Model;
+using Microsoft.AspNetCore.Http;
+
+namespace AvinyaAICRM.Application.Services.Leads
+{
+    public class LeadService : ILeadService
+    {
+        private readonly ILeadRepository _repository;
+        private readonly IHttpContextAccessor _httpContextAccessor;
+
+        public LeadService(ILeadRepository repository, IHttpContextAccessor httpContextAccessor)
+        {
+            _repository = repository;
+            _httpContextAccessor = httpContextAccessor;
+        }
+
+        public async Task<ResponseModel> GetAllAsync(string tenantId, string? role)
+        {
+            try
+            {
+
+                var leads = await _repository.GetAllAsync(tenantId, role);
+                return CommonHelper.GetResponseMessage(leads);
+            }
+            catch (Exception ex)
+            {
+                return CommonHelper.ExceptionMessage(ex);
+            }
+        }
+
+        public async Task<ResponseModel> GetByIdAsync(Guid id, string tenantId, string? role)
+        {
+            try
+            {
+                var lead = await _repository.GetByIdAsync(id, tenantId, role);
+                if (lead == null)
+                    return new ResponseModel(404, "Lead not found");
+
+                return CommonHelper.GetResponseMessage(lead);
+            }
+            catch (Exception ex)
+            {
+                return CommonHelper.ExceptionMessage(ex);
+            }
+        }
+
+        public async Task<ResponseModel> CreateAsync(LeadRequestDto dto, string userId)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(userId))
+                {
+                    throw new Exception("Session expired. Please login again.");
+                }
+
+                if (dto.ClientID == Guid.Empty || dto.ClientID == null)
+                {
+                    var validation = await _repository.ValidateClientAsync(dto);
+                    if (!validation.IsValid)
+                        return new ResponseModel(400, validation.Message);
+                }
+
+                var created = await _repository.AddAsync(dto, userId);
+
+                return CommonHelper.SuccessResponseMessage("lead Created Succesfully ",created);
+            }
+            catch (Exception ex)
+            {
+                return CommonHelper.ExceptionMessage(ex);
+            }
+        }
+
+        public async Task<ResponseModel> UpdateAsync(LeadRequestDto dto, string userId, string tenantId, string? role)
+        {
+            try
+            {
+               
+
+                if (string.IsNullOrEmpty(userId))
+                {
+                    throw new Exception("Session expired. Please login again.");
+                }
+
+                var validation = await _repository.ValidateClientAsync(dto);
+
+
+                if (!validation.IsValid)
+                    return new ResponseModel(400, validation.Message);
+
+                var id = dto.LeadID;
+
+                if (id == null)
+                    return new ResponseModel(400, "LeadID is required");
+
+                var oldData = await _repository.GetByIdAsync(dto.LeadID.Value, tenantId, role);
+
+                var updated = await _repository.UpdateAsync(dto, tenantId, role);
+                if (updated == null)
+                    return new ResponseModel(404, "Lead not found");
+
+                return CommonHelper.SuccessResponseMessage("Lead updated successfully ", updated);                
+            }
+            catch (Exception ex)
+            {
+                return CommonHelper.ExceptionMessage(ex);
+            }
+        }
+
+        public async Task<ResponseModel> UpdateLeadStatus(Guid id, Guid statusId)
+        {
+            if (id == Guid.Empty)
+            {
+                return new ResponseModel
+                {
+                    StatusCode = 400,
+                    StatusMessage = "LeadId is missing.",
+                    Data = null
+                };
+
+            }
+
+            var existingLead = await _repository.GetLeadByIdAsync(id);
+            if (existingLead != null)
+            {
+                existingLead.LeadStatusID = statusId;
+            }
+
+            var result = await _repository.UpdateLeadStatusAsync(existingLead);
+            return CommonHelper.GetResponseMessage(result);
+        }
+
+        public async Task<ResponseModel> DeleteAsync(Guid id, string deletedBy, string tenantId, string? role)
+        {
+            try
+            {
+                var deleted = await _repository.DeleteAsync(id, deletedBy, tenantId, role);
+
+                if (!deleted)
+                    return new ResponseModel(404, "Lead not found");
+
+                return CommonHelper.SuccessResponseMessage("Lead deleted successfully", null);
+
+            }
+            catch (Exception ex)
+            {
+                return CommonHelper.ExceptionMessage(ex);
+            }
+        }
+
+
+        public async Task<ResponseModel> GetFilteredAsync(
+            string? search,
+            string? statusId, DateTime? startDate, DateTime? endDate,
+            int page,
+            int pageSize,
+            string userId)
+        {
+            var result = await _repository.GetFilteredAsync(search, statusId, startDate,endDate, page, pageSize, userId);
+
+            return CommonHelper.GetResponseMessage(result);
+        }
+
+        public async Task<ResponseModel> GetAllSourceAsync()
+        {
+            var data = await _repository.GetAllLeadSourceAsync();
+            return CommonHelper.GetResponseMessage(data);
+        }
+        public async Task<ResponseModel> GetAllStatusAsync()
+        {
+            var data = await _repository.GetAllLeadStatusAsync();
+            return CommonHelper.GetResponseMessage(data);
+        }
+
+        public async Task<ResponseModel> GetLeadHistory(Guid leadId)
+        {
+            var data = await _repository.GetLeadHistoryAsync(leadId);
+
+            return CommonHelper.GetResponseMessage(data);
+        }
+
+        public async Task<ResponseModel> GetAllLeadGrpByStatus()
+        {
+            var data = await _repository.GetAllLeadGrpByStatus();
+
+            return CommonHelper.GetResponseMessage(data);
+        }
+
+    }
+}
