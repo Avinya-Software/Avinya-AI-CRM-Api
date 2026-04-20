@@ -195,6 +195,8 @@ namespace AvinyaAICRM.Infrastructure
             services.AddScoped<AvinyaAICRM.Application.AI.Pipeline.AIPipeline>();
 
             services.AddScoped<ICreditService, CreditService>();
+            services.AddScoped<IUserCreditRepository, UserCreditRepository>();
+            services.AddScoped<IUserCreditRepository, UserCreditRepository>();
             services.AddScoped<IQuotationPdfService, QuotationPdfService>();
             services.AddScoped<IOrderPdfService, OrderPdfService>();
             services.AddScoped<AvinyaAICRM.Application.Interfaces.ServiceInterface.Invoice.IInvoicePdfService, InvoicePdfService>();
