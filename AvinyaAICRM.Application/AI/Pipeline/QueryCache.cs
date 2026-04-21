@@ -13,7 +13,7 @@ namespace AvinyaAICRM.Application.AI.Pipeline
     {
         private static readonly ConcurrentDictionary<string, string> _sqlCache = new();
         private static readonly string CacheFile = "sql_knowledge.json";
-        private static readonly string CacheDir = Path.Combine(Directory.GetCurrentDirectory(), "AI_Data");
+        private static readonly string CacheDir = Path.Combine(Directory.GetCurrentDirectory(), "App_Data");
 
         static QueryCache()
         {
