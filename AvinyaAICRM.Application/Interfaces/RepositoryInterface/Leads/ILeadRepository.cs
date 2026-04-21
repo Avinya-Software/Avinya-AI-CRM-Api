@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Lead;
+using AvinyaAICRM.Application.DTOs.Lead;
 using AvinyaAICRM.Domain.Entities.Leads;
 using AvinyaAICRM.Shared.Model;
 using System.Security.Claims;
@@ -23,7 +23,8 @@ namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.Leads
      DateTime? endDate,
      int pageNumber,
      int pageSize,
-     string userId);
+     string userId,
+     string? role);
         Task<IEnumerable<LeadSourceMaster>> GetAllLeadSourceAsync();
         Task<IEnumerable<LeadStatusMaster>> GetAllLeadStatusAsync();
         Task<DateTime?> GetLatestFollowupDateAsync(Guid leadId);

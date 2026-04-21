@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Client;
+using AvinyaAICRM.Application.DTOs.Client;
 using AvinyaAICRM.Shared.Model;
 
 namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.Client
@@ -10,7 +10,7 @@ namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.Client
         Task<ResponseModel> CreateAsync(ClientRequestDto dto, string userId);
         Task<ResponseModel> UpdateAsync(ClientRequestDto dto, string? tenantId, string? role);
         Task<ResponseModel> DeleteAsync(Guid id, string deletedBy, string tenantId, string? role);
-        Task<ResponseModel> GetFilteredAsync(string? search, bool? status, int page, int pageSize, string userId);
+        Task<ResponseModel> GetFilteredAsync(string? search, bool? status, int page, int pageSize, string userId, string? role);
 
     }
 }

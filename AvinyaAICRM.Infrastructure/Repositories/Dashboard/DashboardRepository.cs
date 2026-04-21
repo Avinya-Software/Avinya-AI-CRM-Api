@@ -1,5 +1,6 @@
-﻿using AvinyaAICRM.Application.DTOs.Dashboard;
+using AvinyaAICRM.Application.DTOs.Dashboard;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Dashboard;
+using AvinyaAICRM.Domain.Entities.Client;
 using AvinyaAICRM.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
@@ -25,7 +26,11 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Dashboard
      DateTime? fromDate,
      DateTime? toDate)
         {
-            bool isSuperAdmin = role == "SuperAdmin";
+            bool isSuperAdmin = string.Equals(role, "SuperAdmin", StringComparison.OrdinalIgnoreCase);
+            bool isManagerOrAdmin = string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase) ||
+                                    string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase);
+            
+            Guid.TryParse(tenantId, out Guid tenantGuid);
             var today = DateTime.Today;
             var now = DateTime.Now;
 
@@ -40,37 +45,34 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Dashboard
             {
                 Clients = await _context.Clients.CountAsync(x =>
                     !x.IsDeleted &&
-                    x.CreatedDate >= start && x.CreatedDate <= end &&
-                    (isSuperAdmin || x.TenantId.ToString() == tenantId)),
+                    (isSuperAdmin || (x.TenantId == tenantGuid && (isManagerOrAdmin || x.CreatedBy == userId)))),
 
                 Leads = await _context.Leads.CountAsync(x =>
                     !x.IsDeleted &&
-                    x.CreatedDate >= start && x.CreatedDate <= end &&
-                    (isSuperAdmin || x.TenantId.ToString() == tenantId)),
+                    (isSuperAdmin || (x.TenantId == tenantGuid && (isManagerOrAdmin || x.CreatedBy == userId)))),
 
                 Quotations = await _context.Quotations.CountAsync(x =>
                     !x.IsDeleted &&
-                    x.CreatedDate >= start && x.CreatedDate <= end &&
-                    (isSuperAdmin || x.TenantId.ToString() == tenantId)),
+                    (isSuperAdmin || (x.TenantId == tenantGuid && (isManagerOrAdmin || x.CreatedBy == userId)))),
 
                 Orders = await _context.Orders.CountAsync(x =>
                     !x.IsDeleted &&
-                    x.CreatedDate >= start && x.CreatedDate <= end &&
-                    (isSuperAdmin || x.TenantId.ToString() == tenantId)),
+                    (isSuperAdmin || (x.TenantId == tenantGuid && (isManagerOrAdmin || x.CreatedBy == userId)))),
 
                 Products = await _context.Products.CountAsync(x =>
                     !x.IsDeleted &&
-                    (isSuperAdmin || x.TenantId.ToString() == tenantId)),
+                    (isSuperAdmin || x.TenantId == tenantGuid)),
 
                 Expenses = await _context.Expenses.CountAsync(x =>
                     !x.IsDeleted &&
-                    x.CreatedDate >= start && x.CreatedDate <= end &&
-                    (isSuperAdmin || x.TenantId.ToString() == tenantId)),
+                    (isSuperAdmin || (x.TenantId == tenantGuid && (isManagerOrAdmin || x.CreatedBy.ToString() == userId)))),
 
                 // Fixed Tasks count
                 Tasks = await _context.TaskOccurrences.CountAsync(t =>
                     isSuperAdmin ||
-                    _context.TaskSeries.Any(s => s.Id == t.TaskSeriesId && s.CreatedBy.ToString() == userId))
+                    (isManagerOrAdmin
+                        ? _context.Users.Any(u => u.Id == t.TaskSeries.CreatedBy && u.TenantId == tenantGuid)
+                        : t.TaskSeries.CreatedBy == userId))
             };
 
             // =========================
@@ -82,13 +84,11 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Dashboard
 
                 ActiveClients = await _context.Clients.CountAsync(x =>
                     !x.IsDeleted && x.Status &&
-                    x.CreatedDate >= start && x.CreatedDate <= end &&
-                    (isSuperAdmin || x.TenantId.ToString() == tenantId)),
+                    (isSuperAdmin || (x.TenantId == tenantGuid && (isManagerOrAdmin || x.CreatedBy == userId)))),
 
                 InactiveClients = await _context.Clients.CountAsync(x =>
                     !x.IsDeleted && !x.Status &&
-                    x.CreatedDate >= start && x.CreatedDate <= end &&
-                    (isSuperAdmin || x.TenantId.ToString() == tenantId))
+                    (isSuperAdmin || (x.TenantId == tenantGuid && (isManagerOrAdmin || x.CreatedBy == userId))))
             };
 
             // =========================
@@ -98,7 +98,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Dashboard
                 lf.NextFollowupDate < today &&
                 lf.Status != 3 &&
                 (isSuperAdmin ||
-                 _context.Leads.Any(l => l.LeadID == lf.LeadID && l.TenantId.ToString() == tenantId)));
+                 _context.Leads.Any(l => l.LeadID == lf.LeadID && l.TenantId == tenantGuid && (isManagerOrAdmin || l.CreatedBy == userId))));
 
             // Use HasValue and Value.Date for nullable DateTime
             var todayFollowups = await _context.LeadFollowups.CountAsync(lf =>
@@ -106,12 +106,11 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Dashboard
                 lf.NextFollowupDate.Value.Date == today &&
                 lf.Status != 3 &&
                 (isSuperAdmin ||
-                 _context.Leads.Any(l => l.LeadID == lf.LeadID && l.TenantId.ToString() == tenantId)));
+                 _context.Leads.Any(l => l.LeadID == lf.LeadID && l.TenantId == tenantGuid && (isManagerOrAdmin || l.CreatedBy == userId))));
 
             var pendingQuotations = await _context.Quotations.CountAsync(q =>
                 !q.IsDeleted &&
-                q.CreatedDate >= start && q.CreatedDate <= end &&
-                (isSuperAdmin || q.TenantId.ToString() == tenantId) &&
+                (isSuperAdmin || (q.TenantId == tenantGuid && (isManagerOrAdmin || q.CreatedBy == userId))) &&
                 _context.QuotationStatusMaster
                     .Where(s => s.QuotationStatusID == q.QuotationStatusID)
                     .Select(s => s.StatusName)
@@ -119,8 +118,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Dashboard
 
             var inactiveLeads = await _context.Leads.CountAsync(l =>
                 !l.IsDeleted &&
-                l.CreatedDate >= start && l.CreatedDate <= end &&
-                (isSuperAdmin || l.TenantId.ToString() == tenantId) &&
+                (isSuperAdmin || (l.TenantId == tenantGuid && (isManagerOrAdmin || l.CreatedBy == userId))) &&
                 !_context.LeadFollowups.Any(f =>
                     f.LeadID == l.LeadID &&
                     f.NextFollowupDate >= today.AddDays(-10)));
@@ -154,9 +152,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Dashboard
                 from l in _context.Leads
                 join c in _context.Clients on l.ClientID equals c.ClientID
                 where !l.IsDeleted
-                   && l.CreatedDate >= start
-                   && l.CreatedDate <= end
-                   && (isSuperAdmin || l.TenantId.ToString() == tenantId)
+                   && (isSuperAdmin || (l.TenantId == tenantGuid && (isManagerOrAdmin || l.CreatedBy == userId)))
                 orderby l.CreatedDate descending
                 select new HotLeadDto
                 {
@@ -173,9 +169,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Dashboard
                 from q in _context.Quotations
                 join c in _context.Clients on q.ClientID equals c.ClientID
                 where !q.IsDeleted &&
-                      q.CreatedDate >= start && q.CreatedDate <= end &&
-                      q.CreatedDate < now.AddDays(-5) &&
-                      (isSuperAdmin || q.TenantId.ToString() == tenantId)
+                      (isSuperAdmin || (q.TenantId == tenantGuid && (isManagerOrAdmin || q.CreatedBy == userId)))
                 select new AttentionDto
                 {
                     ClientName = c.ContactPerson,
@@ -202,7 +196,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Dashboard
             var recentOrders = await (
                 from o in _context.Orders
                 join c in _context.Clients on o.ClientID equals c.ClientID
-                where (isSuperAdmin || o.TenantId.ToString() == tenantId)
+                where (isSuperAdmin || (o.TenantId == tenantGuid && (isManagerOrAdmin || o.CreatedBy == userId)))
                       && o.CreatedDate >= start && o.CreatedDate <= end
                 orderby o.CreatedDate descending
                 select new RecentOrderDto
@@ -221,7 +215,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Dashboard
             var recentQuotations = await (
                 from q in _context.Quotations
                 join c in _context.Clients on q.ClientID equals c.ClientID
-                where (isSuperAdmin || q.TenantId.ToString() == tenantId)
+                where (isSuperAdmin || (q.TenantId == tenantGuid && (isManagerOrAdmin || q.CreatedBy == userId)))
                       && q.CreatedDate >= start && q.CreatedDate <= end
                 orderby q.CreatedDate descending
                 select new RecentQuotationDto
@@ -240,7 +234,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Dashboard
                 from lf in _context.LeadFollowups
                 join l in _context.Leads on lf.LeadID equals l.LeadID
                 where lf.NextFollowupDate >= today &&
-                      (isSuperAdmin || l.TenantId.ToString() == tenantId)
+                      (isSuperAdmin || (l.TenantId == tenantGuid && (isManagerOrAdmin || l.CreatedBy == userId)))
                 orderby lf.NextFollowupDate
                 select new UpcomingFollowupDto
                 {

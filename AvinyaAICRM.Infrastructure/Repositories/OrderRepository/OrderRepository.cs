@@ -190,6 +190,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
     int pageNumber,
     int pageSize,
     string userId,
+    string? role,
     int? statusFilter = null,
     DateTime? from = null,
     DateTime? to = null)
@@ -206,6 +207,13 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
                 var query = _context.Orders
                     .AsNoTracking()
                     .Where(o => !o.IsDeleted && o.TenantId == userData.TenantId);
+
+                if (!string.Equals(role, "SuperAdmin", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase))
+                {
+                    query = query.Where(o => o.CreatedBy == userId);
+                }
 
                 #region SEARCH
 
@@ -355,7 +363,6 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
                             })
                             .ToList(),
                     })
-                    .Where(o => o.CreatedBy == userId)
                     .ToListAsync();
 
                 // 🔹 (Your existing WorkOrderItems loading logic stays SAME)

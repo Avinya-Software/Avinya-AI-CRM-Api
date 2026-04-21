@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Lead;
+using AvinyaAICRM.Application.DTOs.Lead;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Leads;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Leads;
 using AvinyaAICRM.Shared.Helper;
@@ -157,9 +157,10 @@ namespace AvinyaAICRM.Application.Services.Leads
             string? statusId, DateTime? startDate, DateTime? endDate,
             int page,
             int pageSize,
-            string userId)
+            string userId,
+            string? role)
         {
-            var result = await _repository.GetFilteredAsync(search, statusId, startDate,endDate, page, pageSize, userId);
+            var result = await _repository.GetFilteredAsync(search, statusId, startDate,endDate, page, pageSize, userId, role);
 
             return CommonHelper.GetResponseMessage(result);
         }

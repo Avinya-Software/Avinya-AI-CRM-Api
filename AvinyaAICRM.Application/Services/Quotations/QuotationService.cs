@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Quotation;
+using AvinyaAICRM.Application.DTOs.Quotation;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Quotations;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Quotations;
 using AvinyaAICRM.Shared.Helper;
@@ -118,12 +118,13 @@ namespace AvinyaAICRM.Application.Services
             DateTime? endDate,
             int page,
             int pageSize,
-            string userId)
+            string userId,
+            string? role)
         {
             try
             {
                 var result = await _quotationRepository
-                    .FilterAsync(search, statusFilter, startDate, endDate, page, pageSize, userId);
+                    .FilterAsync(search, statusFilter, startDate, endDate, page, pageSize, userId, role);
 
                 return CommonHelper.GetResponseMessage(result);
             }

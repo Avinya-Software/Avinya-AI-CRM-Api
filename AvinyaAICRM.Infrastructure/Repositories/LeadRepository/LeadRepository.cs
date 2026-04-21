@@ -595,7 +595,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
          DateTime? endDate,
          int pageNumber,
          int pageSize,
-         string userId)
+         string userId,
+         string? role)
         {
             try
             {
@@ -681,17 +682,24 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
 
                 #endregion
 
+                // ✅ Role Restriction
+                if (!string.Equals(role, "SuperAdmin", StringComparison.OrdinalIgnoreCase) && 
+                    !string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase) && 
+                    !string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase))
+                {
+                    query = query.Where(l => l.CreatedBy == userId);
+                }
+
                 // ✅ Total count
                 var totalRecords = await query.CountAsync();
 
              
                 // ✅ Move .Where BEFORE .Skip/.Take (paging must come last)
                 var leads = await query
-                    .Where(l => l.CreatedBy == userId)          // ← moved up
                     .OrderByDescending(l => l.CreatedDate)
                     .Skip((pageNumber - 1) * pageSize)
                     .Take(pageSize)
-                    .ToListAsync();
+                     .ToListAsync();
 
                 var leadIds = leads.Select(l => l.LeadID).ToList();
 

@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Client;
+using AvinyaAICRM.Application.DTOs.Client;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Client;
 using AvinyaAICRM.Application.Interfaces.Clients;
 using AvinyaAICRM.Shared.Helper;
@@ -193,12 +193,13 @@ namespace AvinyaAICRM.Application.Services.Client
             bool? status,
             int page,
             int pageSize,
-            string userId)
+            string userId,
+            string? role)
         {
             try
             {
                 var result =
-                    await _repository.GetFilteredAsync(search, status, page, pageSize, userId);
+                    await _repository.GetFilteredAsync(search, status, page, pageSize, userId, role);
 
                 return CommonHelper.GetResponseMessage(result);
             }

@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using System.Security.Claims;
@@ -100,7 +100,8 @@ namespace AvinyaAICRM.API.Controllers
             int pageSize = 10)
         {
             var userId = User.FindFirst("userId")?.Value!;
-            var response = await _leadService.GetFilteredAsync(search, status, startDate, endDate, page, pageSize, userId);
+            var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+            var response = await _leadService.GetFilteredAsync(search, status, startDate, endDate, page, pageSize, userId, role);
             return new JsonResult(response) { StatusCode = response.StatusCode };
         }
 

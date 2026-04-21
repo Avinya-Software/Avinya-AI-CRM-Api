@@ -212,16 +212,24 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ClientRepository
      string? search,
      bool? status,
      int pageNumber,
-     int pageSize
-     ,string userId)
+     int pageSize,
+     string userId,
+     string? role)
         {
             try
             {
                 var userData = await _context.Users.FindAsync(userId);
                 
                 var query = _context.Clients
-                    .Where(c => !c.IsDeleted && c.CreatedBy == userId && c.TenantId == userData.TenantId)
+                    .Where(c => !c.IsDeleted && c.TenantId == userData.TenantId)
                     .AsQueryable();
+
+                if (!string.Equals(role, "SuperAdmin", StringComparison.OrdinalIgnoreCase) && 
+                    !string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase) && 
+                    !string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase))
+                {
+                    query = query.Where(c => c.CreatedBy == userId);
+                }
 
                 #region Search Filter
 

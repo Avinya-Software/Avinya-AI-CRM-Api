@@ -75,7 +75,8 @@ namespace AvinyaAICRM.Api.Controllers.Quotations
             [FromQuery] int pageSize = 10)
         {
             var userId = User.FindFirst("userId")?.Value!;
-            var result = await _quotationService.FilterAsync(search, status, startDate, endDate, page, pageSize, userId);
+            var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+            var result = await _quotationService.FilterAsync(search, status, startDate, endDate, page, pageSize, userId, role);
             return new JsonResult(result) { StatusCode = result.StatusCode };
         }
     }

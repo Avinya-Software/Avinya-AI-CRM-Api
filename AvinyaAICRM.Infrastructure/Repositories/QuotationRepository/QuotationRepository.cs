@@ -514,7 +514,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
      DateTime? endDate,
      int pageNumber,
      int pageSize,
-     string userId)
+     string userId,
+     string? role)
         {
             var userData = await _context.Users.FindAsync(userId);
             if (userData?.TenantId != null)
@@ -525,6 +526,13 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
             var query = _context.Quotations
                 .AsNoTracking()
                 .Where(q => !q.IsDeleted && q.TenantId == userData.TenantId);
+
+            if (!string.Equals(role, "SuperAdmin", StringComparison.OrdinalIgnoreCase) && 
+                !string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase) && 
+                !string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(q => q.CreatedBy == userId);
+            }
 
             #region SEARCH
 
@@ -614,7 +622,6 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
                 .OrderByDescending(q => q.CreatedDate)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
-                .Where(q => q.CreatedBy == userId)
                 .Select(q => new
                 {
                     Quotation = q,

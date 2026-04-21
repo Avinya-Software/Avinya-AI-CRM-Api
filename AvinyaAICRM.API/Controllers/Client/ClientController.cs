@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Client;
+using AvinyaAICRM.Application.DTOs.Client;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Client;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,7 +22,8 @@ namespace AvinyaAICRM.API.Controllers
         public async Task<IActionResult> GetFiltered(string? search = null, bool? status = null, int page = 1, int pageSize = 10)
         {
             var userId = User.FindFirst("userId")?.Value!;
-            var result = await _service.GetFilteredAsync(search, status, page, pageSize, userId);
+            var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+            var result = await _service.GetFilteredAsync(search, status, page, pageSize, userId, role);
             return new JsonResult(result) { StatusCode = result.StatusCode };
         }
 

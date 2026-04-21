@@ -17,7 +17,8 @@ namespace AvinyaAICRM.Application.Interfaces.Clients
      bool? status,
      int pageNumber,
      int pageSize,
-     string userId);
+     string userId,
+     string? role);
         Task<(bool gstExists, bool mobileExists, bool emailExists)>
     CheckClientDuplicatesAsync(string? gst, string? mobile, string? email, Guid? excludeClientId = null);
         Task<IEnumerable<Client>> FindByNameAsync(string name, Guid tenantId);

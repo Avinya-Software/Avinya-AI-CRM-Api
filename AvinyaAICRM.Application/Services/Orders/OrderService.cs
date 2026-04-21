@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
 using AvinyaAICRM.Application.DTOs.Order;
 using AvinyaAICRM.Shared.Model;
@@ -56,6 +56,7 @@ namespace AvinyaAICRM.Application.Services.Orders
             int page,
             int pageSize,
             string userId,
+            string? role,
             int? statusFilter = null,
             DateTime? from = null,
             DateTime? to = null )
@@ -63,7 +64,7 @@ namespace AvinyaAICRM.Application.Services.Orders
             try
             {
                 var result = await _repo.GetFilteredAsync(
-                    search, page, pageSize, userId, statusFilter, from, to);
+                    search, page, pageSize, userId, role, statusFilter, from, to);
 
                 return CommonHelper.GetResponseMessage(result);
             }

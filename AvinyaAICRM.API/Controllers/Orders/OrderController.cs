@@ -32,7 +32,8 @@ namespace AvinyaAICRM.API.Controllers
         public async Task<IActionResult> List(string? search, int page = 1, int pageSize = 10, int? status = null, DateTime? startDate = null, DateTime? endDate = null)
         {
             var userId = User.FindFirst("userId")?.Value!;
-            var result = await _service.GetFilteredAsync(search, page, pageSize, userId, status, startDate, endDate);
+            var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+            var result = await _service.GetFilteredAsync(search, page, pageSize, userId, role, status, startDate, endDate);
             return new JsonResult(result) { StatusCode = result.StatusCode };
         }
 

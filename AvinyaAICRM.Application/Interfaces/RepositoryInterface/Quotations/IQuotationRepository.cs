@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Quotation;
+using AvinyaAICRM.Application.DTOs.Quotation;
 using AvinyaAICRM.Shared.Model;
 
 namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.Quotations
@@ -15,7 +15,8 @@ namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.Quotations
          DateTime? endDate,
          int pageNumber,
          int pageSize,
-         string userId);
+         string userId,
+         string? role);
         Task<IEnumerable<QuotationDropdown>> GetAllAsync();
     }
 }
