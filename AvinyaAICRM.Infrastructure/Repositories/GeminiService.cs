@@ -12,6 +12,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories
     {
         private readonly HttpClient _httpClient;
         private readonly IConfiguration _config;
+        public bool PreferRawGeneration => false;
 
         public GeminiService(HttpClient httpClient, IConfiguration config)
         {
@@ -19,321 +20,217 @@ namespace AvinyaAICRM.Infrastructure.Repositories
             _config = config;
         }
 
-        public async Task<AIResponse> AnalyzeMessageAsync(string userMessage, Guid tenantId, bool isSuperAdmin, List<string> allowedModules)
+        public async Task<AIResponse> AnalyzeMessageAsync(string userMessage, Guid tenantId, bool isSuperAdmin, List<string> allowedModules, List<AIChatHistoryDto> history = null)
         {
             var apiKey = _config["Gemini:ApiKey"];
-
-            // 1. Keyword Identification
             var lowerMessage = userMessage.ToLower();
-            var finalTables = new HashSet<string>();
 
-            var mapping = new Dictionary<string, string[]>
+            var intents        = DetectIntents(lowerMessage);
+            var targetedSchema = AISchema.GetContextForIntent(intents);
+
+            var historyContext = new StringBuilder();
+            if (history != null && history.Any())
             {
-                { "lead", new[] { "Leads", "LeadFollowups", "LeadSourceMaster", "LeadStatusMaster", "Clients" } },
-                { "leads", new[] { "Leads", "LeadFollowups", "LeadSourceMaster", "LeadStatusMaster", "Clients" } },
-                { "followup", new[] { "Leads", "LeadFollowups" } },
-                { "follow up", new[] { "Leads", "LeadFollowups" } },
-                { "follow-up", new[] { "Leads", "LeadFollowups" } },
-                { "follow", new[] { "Leads", "LeadFollowups" } },
-                { "client", new[] { "Clients", "States", "Cities" } },
-                { "clients", new[] { "Clients", "States", "Cities" } },
-                { "customer", new[] { "Clients" } },
-                { "customers", new[] { "Clients" } },
-                { "order", new[] { "Orders", "OrderItems", "OrderStatusMaster", "Products", "Clients" } },
-                { "orders", new[] { "Orders", "OrderItems", "OrderStatusMaster", "Products", "Clients" } },
-                { "booking", new[] { "Orders", "OrderItems" } },
-                { "quotation", new[] { "Quotations", "QuotationItems", "QuotationStatusMaster", "Leads", "Clients" } },
-                { "quotations", new[] { "Quotations", "QuotationItems", "QuotationStatusMaster", "Leads", "Clients" } },
-                { "quote", new[] { "Quotations", "QuotationItems", "QuotationStatusMaster", "Leads", "Clients" } },
-                { "product", new[] { "Products", "TaxCategoryMaster", "UnitTypeMaster" } },
-                { "expense", new[] { "Expenses", "ExpenseCategories" } },
-                { "expense category", new[] { "ExpenseCategories" } },
-                { "spend", new[] { "Expenses", "ExpenseCategories" } },
-                { "revenue", new[] { "Orders", "Quotations" } },
-                { "sales", new[] { "Orders", "Quotations" } },
-                { "project", new[] { "Projects", "ProjectStatusMaster", "ProjectPriorityMaster", "Clients" } },
-                { "team", new[] { "Teams", "AspNetUsers" } },
-                { "user", new[] { "AspNetUsers" } },
-                { "task", new[] { "TaskSeries", "TaskOccurrences", "TaskLists" } },
-                { "todo", new[] { "TaskSeries", "TaskOccurrences" } },
-                { "overall", new[] { "Leads", "Quotations", "Orders", "Expenses", "Projects", "TaskSeries", "TaskOccurrences", "LeadFollowups" } },
-                { "report", new[] { "Leads", "Quotations", "Orders", "Expenses", "Projects", "TaskSeries", "TaskOccurrences", "LeadFollowups" } },
-                { "summary", new[] { "Leads", "Quotations", "Orders", "Expenses", "Projects", "TaskSeries", "TaskOccurrences", "LeadFollowups" } },
-                { "activity", new[] { "Leads", "LeadFollowups", "TaskOccurrences", "Orders" } }
-            };
-
-            var baseTables = new HashSet<string> {
-                "LeadSourceMaster", "LeadStatusMaster", "LeadFollowupStatus",
-                "OrderStatusMaster", "DesignStatusMaster", "QuotationStatusMaster",
-                "ProjectStatusMaster", "ProjectPriorityMaster",
-                "TaxCategoryMaster", "States", "Cities", "AspNetUsers"
-            };
-
-            var moduleTableMap = new Dictionary<string, string[]>
-            {
-                { "lead", new[] { "Leads", "LeadFollowups" } },
-                { "task", new[] { "TaskSeries", "TaskOccurrences", "TaskLists" } },
-                { "quotation", new[] { "Quotations", "QuotationItems" } },
-                { "order", new[] { "Orders", "OrderItems" } },
-                { "client", new[] { "Clients" } },
-                { "product", new[] { "Products" } },
-                { "project", new[] { "Projects" } },
-                { "expense", new[] { "Expenses", "ExpenseCategories" } },
-                { "team", new[] { "Teams" } },
-                { "user", new[] { "AspNetUsers" } }
-            };
-
-            foreach (var entry in mapping)
-            {
-                if (lowerMessage.Contains(entry.Key))
+                historyContext.AppendLine("RECENT CONVERSATION HISTORY:");
+                foreach (var h in history.TakeLast(5))
                 {
-                    foreach (var table in entry.Value)
-                    {
-                        if (baseTables.Contains(table)) { finalTables.Add(table); continue; }
-                        if (isSuperAdmin) { finalTables.Add(table); continue; }
-
-                        var module = moduleTableMap.FirstOrDefault(x => x.Value.Contains(table)).Key;
-                        if (module != null && allowedModules.Contains(module)) finalTables.Add(table);
-                    }
+                    historyContext.AppendLine($"{h.Role.ToUpper()}: {h.Content}");
                 }
             }
 
-            // Use targeted schema if possible
-            var targetedSchema = finalTables.Any() ? AISchema.GetTables(finalTables) : (isSuperAdmin ? AISchema.CRM : AISchema.GetTables(baseTables));
-            bool isReportMode = lowerMessage.Contains("report") || lowerMessage.Contains("summary") || lowerMessage.Contains("overall");
-            if (isReportMode) targetedSchema = AISchema.CRM;
+            var systemPrompt = $@"
+                You are a CRM Data Analyst and T-SQL Expert.
+                RULES:
+                1. SECURITY: You MUST use '@TenantId' parameter in every WHERE clause. NEVER hardcode a Guid or ID.
+                2. INTEGRITY: Always include 'IsDeleted = 0' for every table involved.
+                3. LIMITS: Use 'SELECT TOP 50' unless specified.
+                4. FORMAT: Return ONLY a valid JSON object. No markdown, no explanation.
+                {historyContext}
+                USER QUESTION: {userMessage}
+                RULES:
+                1. Only use DATEADD filters if the user says 'days', 'months', or 'weeks'.
+                2. If they say 'last 5' or 'last 7' (WITHOUT the word 'days'), use 'SELECT TOP' with 'ORDER BY Date DESC'.
+                3. NEVER combine SELECT TOP with DATEADD unless the user specifically asked for both.
+                4. GLOBAL SEARCH: If the user provides a search term (name, ID, or reference) without specifying a column, you MUST search for that term across all relevant human-readable columns (CompanyName, ContactPerson, LeadNo, OrderNo, etc.) using LIKE and OR. Do NOT just check one specific ID column.
+                5. ANTI-HALLUCINATION: NEVER invent table names (like 'LeadNotes' or 'LeadItems'). ONLY use the tables provided in the JSON context. Notes for Leads are located in `Leads.Notes` or `Leads.RequirementDetails`.
 
-            var securityRule = isSuperAdmin
-                ? "1. SUPER ADMIN. Global access. Do NOT add TenantId filters unless specific."
-                : "1. Per-tenant analyst.\n2. Use 'WHERE TenantId = @TenantId'.";
+                DATABASE CONTEXT (JSON): NEVER invent table names (like 'LeadNotes' or 'LeadItems'). ONLY use the tables provided in the JSON context. Notes for Leads are located in `Leads.Notes` or `Leads.RequirementDetails`.
+                OUTPUT FORMAT (STRICT JSON — no extra text outside this object):
+                {{
+                ""action"": ""[get_summary | create_lead | create_task]"",
+                ""sql"": ""[YOUR_SINGLE_LINE_SQL_HERE (only if action is get_summary)]"",
+                ""parameters"": {{ ""CompanyName"": ""..."", ""ContactPerson"": ""..."", ""Description"": ""..."" }},
+                ""successMessage"": ""Write a highly conversational, engaging business reply. DO NOT use words like 'database', 'records', or 'I found results'. Example: 'Here is a quick snapshot of your business performance!' or 'I've pulled up the revenue details you asked for.'"",
+                ""errorMessage"": """"
+                }}
+            ";
 
-            var currentTimeContext = $"Current Date/Time: {DateTime.Now:f} (Year {DateTime.Now.Year})";
-
-            var jsonExample = @"
-                {
-                  ""action"": ""get_summary"",
-                  ""intent"": ""query_leads"",
-                  ""parameters"": {},
-                  ""sql"": ""SELECT ..."",
-                  ""isClarificationRequired"": false,
-                  ""clarificationMessage"": """",
-                  ""successMessage"": ""Friendly text when data is found"",
-                  ""errorMessage"": ""Friendly text when no data is found""
-                }";
-
-            var prompt = $@"
-                You are a CRM assistant. Analyze input and return ONLY valid JSON.
-                {currentTimeContext}
-
-                {AIKnowledgeBase.GetFullContext()}
-
-                TIME RULES: 
-                - If the user specifies a date like ""15 April"", always assume the current year ({DateTime.Now.Year}) unless they say otherwise.
-                - Use the provided Current Date/Time context for ALL relative time calculations.
-
-                ACTIONS:
-                1. ""create_lead"": Extract 'CompanyName', 'Mobile', 'Email', 'Notes'.
-                2. ""create_task"": User wants to create a task.
-                   - Extract: 'Title', 'Description', 'Notes', 'TaskScope' (Personal/Team), 'TeamName', 'AssignToName', 'DueDateTime', 'ReminderAt'.
-                3. ""get_summary"": Generate a T-SQL SELECT query (Analytics/Reports).
-                4. ""message"": General conversation.
-
-                SQL RULES (MANDATORY):
-                1. {securityRule}
-                2. SECURITY: Include '@TenantId'. Ignore records with 'IsDeleted = 1'.
-                3. JOIN LOGIC: Join on IDs, SELECT readable Names from Master tables.
-                4. COLUMN NAMES: Clients table column is 'CompanyName'.
-                5. ALIASES: Use readable column aliases like 'SELECT CompanyName AS [Client Name]...'.
-                6. LIMITS: If the user asks for a specific count (e.g. ""give 5"", ""top 10"", ""last 3""), you MUST use 'SELECT TOP N ...' in your SQL.
-
-                MESSAGE RULES (CRITICAL):
-                - Always provide a conversational 'successMessage' and 'errorMessage'.
-                - For 'get_summary': 
-                  - successMessage: ""I've found [count] records for [Topic]. Here is the summary.""
-                  - errorMessage: ""I couldn't find any data matching your request [Request Details]. Please try adjusting the filters.""
-                - For 'create_lead' / 'create_task':
-                  - successMessage: ""Great! I've prepared the [Entity] details for [Name]. Should I proceed with creating it?""
-                - Use friendly, professional, and helpful language. Avoid technical jargon like ""SQL"" or ""Query"".
-
-                REPORTING STRUCTURE (ONLY if 'report' or 'summary' is asked):
-                Act like a BUSINESS ANALYST. Provide a summary message, breakdown, and insights. Use {{Value}} placeholders for dynamic data from the first row of result.
-
-                INSIGHT MODE (For ""problem"", ""growing"", ""suggest"", ""predict""):
-                - If the user asks about problems, look for: overdue invoices, declining lead conversion, or overdue tasks.
-                - If the user asks for suggestions, suggest follow-ups for inactive but valuable clients (high previous revenue).
-                - For predictions, look at the last 3-6 months of revenue trend.
-
-                JSON FORMAT (RETURN ONLY JSON):
-                {jsonExample}
-
-                Schema Context:
-                {targetedSchema}
-
-                User Input: {userMessage}";
-
+            var userPrompt = $@"
+                DATABASE CONTEXT (JSON): {targetedSchema}
+                USER QUESTION: {userMessage}
+            ";
+            var prompt = $"{systemPrompt}\n\n{userPrompt}";
             var geminiResult = await CallGeminiAsync(prompt, apiKey);
-            if (string.IsNullOrEmpty(geminiResult.Text)) return new AIResponse { Action = "message", ErrorMessage = "AI service error." };
+            
+            if (string.IsNullOrEmpty(geminiResult.Text)) return new AIResponse { Action = "message", ErrorMessage = "AI service error (Gemini)." };
 
-            try
-            {
+            try {
                 var clean = CleanJsonResponse(geminiResult.Text);
-                var response = JsonSerializer.Deserialize<AIResponse>(clean, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new AIResponse();
-                
-                // Populate token usage
-                response.PromptTokens = geminiResult.Prompt;
-                response.ResponseTokens = geminiResult.Response;
-                response.TotalTokens = geminiResult.Total;
-                
-                return response;
-            }
-            catch
-            {
-                return new AIResponse { Action = "message", ErrorMessage = "Error parsing AI response." };
+                return JsonSerializer.Deserialize<AIResponse>(clean, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new AIResponse();
+            } catch {
+                return new AIResponse { Action = "message", ErrorMessage = "Error parsing Gemini response." };
             }
         }
 
         public async Task<AIResponse> RefineTemplateAsync(string userMessage, string templateSql, Guid tenantId, bool isSuperAdmin)
         {
             var apiKey = _config["Gemini:ApiKey"];
-
             var prompt = $@"
-                You are a T-SQL expert. I have a base SQL template and a user request.
+                You are a CRM SQL Expert.
+                Modify this SQL template to answer the user's specific question.
                 
-                USER REQUEST: ""{userMessage}""
-                BASE TEMPLATE:
-                ""{templateSql}""
-
-                TASK:
-                1. Refine the WHERE clause and JOINs of the BASE TEMPLATE to perfectly match the USER REQUEST.
-                2. Keep the overall query structure exactly as it is (Columns, Group By, Order By).
-                3. Apply TenantId = '{tenantId}' filtering if not already present.
-                4. Do NOT change column names or table aliases from the template.
-                5. RETURN ONLY A JSON OBJECT matching the schema below.
-
-                TIME CONTEXT: Current Date/Time is {DateTime.Now:f} (Year {DateTime.Now.Year}).
-
-                JSON SCHEMA:
-                {{
-                  ""action"": ""get_summary"",
-                  ""sql"": ""The refined T-SQL query"",
-                  ""successMessage"": ""A friendly message summarizing the specific filter applied (e.g. 'Pulling leads from the last 2 days only.')"",
-                  ""errorMessage"": ""What to say if the request is impossible (e.g. 'I cannot filter by that specific category.')""
-                }}
+                USER QUESTION: {userMessage}
+                
+                TEMPLATE SQL: 
+                {templateSql}
+                
+                RULES:
+                - Do not change the core joins unless absolutely necessary.
+                - Keep the TenantId filter intact.
+                - Add/modify WHERE clauses or ORDER BY based on the user's question.
+                - Return ONLY the modified SQL string. No explanation, no JSON, no markdown.
             ";
 
             var geminiResult = await CallGeminiAsync(prompt, apiKey);
-            if (string.IsNullOrEmpty(geminiResult.Text)) return new AIResponse { Action = "get_summary", Sql = templateSql, SuccessMessage = "Proceeding with standard template." };
-
-            try
-            {
-                var clean = CleanJsonResponse(geminiResult.Text);
-                var response = JsonSerializer.Deserialize<AIResponse>(clean, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new AIResponse();
-                
-                // Populate token usage
-                response.PromptTokens = geminiResult.Prompt;
-                response.ResponseTokens = geminiResult.Response;
-                response.TotalTokens = geminiResult.Total;
-
-                return response;
-            }
-            catch
-            {
-                return new AIResponse { Action = "get_summary", Sql = templateSql };
-            }
+            var sql = geminiResult.Text.Replace("```sql", "").Replace("```", "").Trim();
+            
+            return new AIResponse { Action = "get_summary", Sql = sql };
         }
 
         public async Task<string> FixSqlAsync(string badSql, string errorMessage, string originalQuestion, Guid tenantId, bool isSuperAdmin)
         {
             var apiKey = _config["Gemini:ApiKey"];
+            var fixSchema = AISchema.GetContextForIntent(DetectIntents(originalQuestion.ToLower()));
 
             var prompt = $@"
-                You are a T-SQL expert. Fix the following SQL query.
-
-                Original User Question: {originalQuestion}
-                
-                Broken SQL:
-                {badSql}
-
-                SQL Error:
-                {errorMessage}
-
-                Rules:
-                - Always filter with TenantId = '{tenantId}' (or use @TenantId)
-                - Only SELECT statements allowed
-                - Fix ONLY the error, don't change the intent
-                - Return ONLY the fixed SQL string, nothing else, no explanation.
-                
-                Schema:
-                {AISchema.CRM}
+                Fix this T-SQL error.
+                Error: {errorMessage}
+                SQL: {badSql}
+                Context: {fixSchema}
+                Return ONLY the fixed SQL string.
             ";
 
             var geminiResult = await CallGeminiAsync(prompt, apiKey);
             return geminiResult.Text.Replace("```sql", "").Replace("```", "").Trim();
         }
 
+        public async Task<AIResponse> RefineQueryAsync(string originalMessage, string badSql, string userCorrection, Guid tenantId)
+        {
+            var apiKey = _config["Gemini:ApiKey"];
+            
+            var intents = DetectIntents(originalMessage.ToLower());
+            var schema  = AISchema.GetContextForIntent(intents);
+            
+            var prompt = $@"
+                You are a CRM SQL Expert.
+                A user previously asked: '{originalMessage}'
+                You generated this SQL: {badSql}
+                
+                The user says this is wrong because: '{userCorrection}'
+                
+                DATABASE SCHEMA CONTEXT:
+                {schema}
+
+                SPECIAL TEMPLATE - Universal Business Summary (Use if user wants 'all modules', 'full report', or 'business overview'):
+                SELECT 
+                    (SELECT COUNT(*) FROM dbo.Clients WHERE TenantId = @TenantId AND IsDeleted = 0) AS ClientsCount,
+                    (SELECT COUNT(*) FROM dbo.Leads WHERE TenantId = @TenantId AND IsDeleted = 0) AS LeadsCount,
+                    (SELECT COUNT(*) FROM dbo.Orders WHERE TenantId = @TenantId AND IsDeleted = 0) AS OrdersCount,
+                    (SELECT '₹ ' + FORMAT(ISNULL(SUM(GrandTotal), 0), 'N2') FROM dbo.Invoices WHERE TenantId = @TenantId AND IsDeleted = 0) AS TotalRevenue,
+                    (SELECT '₹ ' + FORMAT(ISNULL(SUM(Amount), 0), 'N2') FROM dbo.Expenses WHERE TenantId = @TenantId AND IsDeleted = 0) AS TotalExpenses,
+                    (SELECT TOP 10 l.LeadNo, c.CompanyName, ls.StatusName, CONVERT(varchar(10), l.Date, 120) AS Date FROM dbo.Leads l JOIN dbo.Clients c ON l.ClientID = c.ClientID JOIN dbo.LeadStatusMaster ls ON l.LeadStatusID = ls.LeadStatusID WHERE l.TenantId = @TenantId AND l.IsDeleted = 0 ORDER BY l.Date DESC FOR JSON PATH) AS RecentLeads,
+                    (SELECT TOP 10 o.OrderNo, c.CompanyName, '₹ ' + FORMAT(o.GrandTotal, 'N2') AS Amount, osm.StatusName AS Status FROM dbo.Orders o JOIN dbo.Clients c ON o.ClientID = c.ClientID JOIN dbo.OrderStatusMaster osm ON o.Status = osm.StatusID WHERE o.TenantId = @TenantId AND o.IsDeleted = 0 ORDER BY o.OrderDate DESC FOR JSON PATH) AS RecentOrders,
+                    (SELECT TOP 10 t.Title, p.ProjectName, t.Priority, t.StartDate FROM dbo.TaskSeries t JOIN dbo.Projects p ON t.ProjectId = p.ProjectID WHERE p.TenantId = @TenantId AND p.IsDeleted = 0 AND t.IsActive = 1 ORDER BY t.StartDate DESC FOR JSON PATH) AS RecentTasks
+                FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
+
+                Fix the SQL to incorporate the user's feedback. 
+                RULES:
+                1. Include 'IsDeleted = 0' and '@TenantId' ONLY if those columns exist in the provided SCHEMA for the table.
+                2. If a table lacks security columns (like TaskSeries), JOIN it with a related table that has them (like Projects).
+                3. ONLY use tables and columns from the SCHEMA CONTEXT provided.
+                4. If the user asks for 'all modules', 'full detail', or 'business summary', use the FOR JSON PATH format shown in the SPECIAL TEMPLATE.
+                5. Return ONLY the corrected SQL string. No markdown, no explanation.
+            ";
+
+            var result = await CallGeminiAsync(prompt, apiKey);
+            return new AIResponse {
+                Sql = result.Text.Replace("```sql", "").Replace("```", "").Trim(),
+                TotalTokens = result.Total,
+                PromptTokens = result.Prompt,
+                ResponseTokens = result.Response
+            };
+        }
+
+        private static List<string> DetectIntents(string msg)
+        {
+            var intents = new List<string>();
+            if (msg.Contains("follow"))  intents.Add("query_followups");
+            if (msg.Contains("lead"))    intents.Add("query_leads");
+            if (msg.Contains("order"))   intents.Add("query_orders");
+            if (msg.Contains("expense") || msg.Contains("spending") || msg.Contains("loss")) intents.Add("query_expenses");
+            if (msg.Contains("invoice") || msg.Contains("payment") || msg.Contains("revenue") || msg.Contains("profit") || msg.Contains("business")) intents.Add("query_invoices");
+            if (msg.Contains("client")  || msg.Contains("customer")) intents.Add("query_clients");
+
+            return intents;
+        }
+
         private async Task<(string Text, int Prompt, int Response, int Total)> CallGeminiAsync(string prompt, string apiKey)
         {
             var requestBody = new { contents = new[] { new { parts = new[] { new { text = prompt } } } } };
-            const int maxRetries = 3;
-            
             _httpClient.DefaultRequestHeaders.Clear();
             _httpClient.DefaultRequestHeaders.Add("x-goog-api-key", apiKey);
 
-            for (int i = 0; i < maxRetries; i++)
+            try
             {
-                try
+                var response = await _httpClient.PostAsync(
+                    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+                    new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json")
+                );
+
+                if (!response.IsSuccessStatusCode) return ("", 0, 0, 0);
+
+                var resultStr = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(resultStr);
+                
+                var candidates = doc.RootElement.GetProperty("candidates");
+                var text = candidates[0].GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString() ?? "";
+                
+                int promptTokens = 0;
+                int candidateTokens = 0;
+                int totalTokens = 0;
+
+                if (doc.RootElement.TryGetProperty("usageMetadata", out var usage))
                 {
-                    var response = await _httpClient.PostAsync(
-                        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
-                        new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json")
-                    );
+                    usage.TryGetProperty("promptTokenCount", out var p);
+                    usage.TryGetProperty("candidatesTokenCount", out var c);
+                    usage.TryGetProperty("totalTokenCount", out var t);
 
-                    if (response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable || 
-                        response.StatusCode == System.Net.HttpStatusCode.InternalServerError)
-                    {
-                        if (i < maxRetries - 1)
-                        {
-                            await Task.Delay(1000 * (i + 1)); 
-                            continue;
-                        }
-                    }
-
-                    if (!response.IsSuccessStatusCode) return ("", 0, 0, 0);
-
-                    var resultStr = await response.Content.ReadAsStringAsync();
-                    using var doc = JsonDocument.Parse(resultStr);
-                    
-                    var candidates = doc.RootElement.GetProperty("candidates");
-                    var text = candidates[0].GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString() ?? "";
-                    
-                    int p = 0, r = 0, t = 0;
-                    if (doc.RootElement.TryGetProperty("usageMetadata", out var usage))
-                    {
-                        // Check both camelCase and PascalCase
-                        if (usage.TryGetProperty("promptTokenCount", out var pProp) || usage.TryGetProperty("promptTokens", out pProp)) 
-                            p = pProp.GetInt32();
-                        
-                        if (usage.TryGetProperty("candidatesTokenCount", out var rProp) || usage.TryGetProperty("candidatesTokens", out rProp)) 
-                            r = rProp.GetInt32();
-                            
-                        if (usage.TryGetProperty("totalTokenCount", out var tProp) || usage.TryGetProperty("totalTokens", out tProp)) 
-                            t = tProp.GetInt32();
-                    }
-
-                    return (text, p, r, t);
+                    promptTokens = p.GetInt32();
+                    candidateTokens = c.GetInt32();
+                    totalTokens = t.GetInt32();
                 }
-                catch
-                {
-                    if (i == maxRetries - 1) throw;
-                    await Task.Delay(1000);
-                }
+
+                return (text, promptTokens, candidateTokens, totalTokens);
             }
-            return ("", 0, 0, 0);
+            catch
+            {
+                return ("", 0, 0, 0);
+            }
         }
 
         private string CleanJsonResponse(string text)
         {
-            text = text.Replace("```json", "").Replace("```", "").Trim();
+            text = text.Replace("`json", "").Replace("`", "").Trim();
             var start = text.IndexOf("{");
             var end = text.LastIndexOf("}") + 1;
             if (start == -1 || end == -1) return "{}";

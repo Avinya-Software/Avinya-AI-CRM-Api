@@ -1,9 +1,10 @@
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.AIChat;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.AICHAT;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.AI;
 using AvinyaAICRM.Shared.AI;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using AvinyaAICRM.Application.AI.Pipeline;
+using AvinyaAICRM.Application.Interfaces.RepositoryInterface.User;
 
 namespace AvinyaAICRM.API.Controllers
 {
@@ -14,24 +15,90 @@ namespace AvinyaAICRM.API.Controllers
     {
         private readonly IAIService _aiService;
         private readonly ICRMQueryService _crmService;
-        private readonly LocalIntentClassifier _classifier;
-        private readonly SqlTemplateEngine _templates;
+        private readonly IAIKnowledgeService _knowledge;
+        private readonly ICreditService _credits;
 
         public AIController(
             IAIService aiService, 
             ICRMQueryService crmService,
-            LocalIntentClassifier classifier,
-            SqlTemplateEngine templates)
+            IAIKnowledgeService knowledge,
+            ICreditService credits)
         {
             _aiService = aiService;
             _crmService = crmService;
-            _classifier = classifier;
-            _templates = templates;
+            _knowledge = knowledge;
+            _credits = credits;
+        }
+
+        [HttpPost("feedback")]
+        public async Task<IActionResult> Feedback([FromBody] AvinyaAICRM.Application.DTOs.AI.AIFeedbackDto feedback)
+        {
+            try
+            {
+                var userId = User.FindFirst("userId")?.Value;
+                var tenantIdClaim = User.FindFirst("tenantId")?.Value;
+                Guid tenantId = Guid.TryParse(tenantIdClaim, out var parsed) ? parsed : Guid.Empty;
+
+                if (!string.IsNullOrEmpty(feedback.UserCorrection) && feedback.UserCorrection.Length > 800)
+                {
+                    return BadRequest("Feedback correction is too long. Please restrict to 800 characters.");
+                }
+
+                string finalSql = feedback.GeneratedSql;
+
+                List<Dictionary<string, object>> data = null;
+                string successMessage = "I've corrected the query based on your feedback.";
+
+                int usedTokens = 0;
+
+                // If it's a correction, we "Heal" the query first
+                if (!feedback.IsGood && !string.IsNullOrWhiteSpace(feedback.UserCorrection))
+                {
+                    var aiResult = await _aiService.RefineQueryAsync(feedback.OriginalMessage, feedback.GeneratedSql, feedback.UserCorrection, tenantId);
+                    finalSql = aiResult.Sql ?? feedback.GeneratedSql;
+                    usedTokens = aiResult.TotalTokens;
+
+                    // Deduct Credits
+                    if (usedTokens > 0)
+                    {
+                        await _credits.DeductCreditsAsync(userId ?? "", usedTokens, "AI_FEEDBACK_CORRECTION");
+                    }
+                    
+                    // Re-run the query
+                    try {
+                        data = await _crmService.ExecuteRawSqlAsync(finalSql, tenantId, User.IsInRole("SuperAdmin"));
+                    } catch (Exception ex) {
+                        successMessage = "I refined the query, but encountered an error running it: " + ex.Message;
+                    }
+                }
+
+                await _knowledge.SaveFeedbackAsync(feedback.OriginalMessage, finalSql, feedback.IsGood, userId, feedback.UserCorrection);
+                
+                var balance = await _credits.GetRemainingCreditsAsync(userId ?? "");
+                
+                return Ok(new { 
+                    success = true, 
+                    sql = finalSql, 
+                    data = data,
+                    message = successMessage,
+                    count = data?.Count ?? 0,
+                    remainingCredits = balance,
+                    totalTokens = usedTokens
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Error saving feedback: {ex.Message}");
+            }
         }
 
         [HttpPost("chat")]
         public async Task<IActionResult> Chat([FromBody] AIRequest request)
         {
+            if (!string.IsNullOrEmpty(request.Message) && request.Message.Length > 800)
+            {
+                return BadRequest("Message is too long. Please restrict your question to 800 characters.");
+            }
             try
             {
                 // Extract TenantId from claims
@@ -45,117 +112,12 @@ namespace AvinyaAICRM.API.Controllers
                 }
 
                 Guid tenantId = Guid.TryParse(tenantIdClaim, out var parsed) ? parsed : Guid.Empty;
-
-                // 1. Fetch User Permissions via service
                 var allowedModules = await _crmService.GetUserAllowedModulesAsync(userId ?? "");
 
-                // 2. Process Command (Intent + SQL Generation in ONE call)
-                var commandResult = await _crmService.ProcessCommandAsync(request.Message, tenantId, userId ?? "", isSuperAdmin, allowedModules, request.History);
+                // Unified processing logic in service
+                var response = await _crmService.ProcessChatRequestAsync(request, tenantId, userId ?? "", isSuperAdmin, allowedModules);
 
-                // 3. Handle Creation actions (Lead, Task)
-                if (commandResult.Action == "create_lead" || commandResult.Action == "create_task")
-                {
-                    return Ok(new
-                    {
-                        action = commandResult.Action,
-                        message = commandResult.SuccessMessage ?? commandResult.ClarificationMessage ?? commandResult.ErrorMessage,
-                        isClarificationRequired = commandResult.IsClarificationRequired,
-                        suggestedClients = commandResult.SuggestedClients,
-                        data = new List<object>(),
-                        count = 0,
-                        totalTokens = commandResult.TotalTokens,
-                        remainingCredits = commandResult.RemainingCredits
-                    });
-                }
-
-
-                // 4. Handle any Query Execution (If SQL is present, execute it)
-                if (!string.IsNullOrEmpty(commandResult.Sql))
-                {
-                    // Execute the query
-                    var data = await _crmService.ExecuteRawSqlAsync(commandResult.Sql, tenantId, isSuperAdmin);
-
-                    // 4a. Get Dynamic Template from Engine
-                    var filters = _classifier.ExtractFilters(request.Message);
-                    var finalMessage = _templates.GetTemplateMessage(commandResult.Intent ?? "unknown", filters, data.Count);
-
-                    if (data.Count > 0)
-                    {
-                        var firstRow = data[0];
-
-                        // Create a formatted version of values for placeholders
-                        var formattedData = new Dictionary<string, string>();
-                        foreach (var kvp in firstRow)
-                        {
-                            string displayValue = kvp.Value?.ToString() ?? "";
-                            
-                            // Format Dates nicely
-                            if (kvp.Value is DateTime dt)
-                            {
-                                displayValue = dt.ToString("dd MMM yyyy HH:mm");
-                            }
-                            else if (kvp.Key.Contains("Date") || kvp.Key.Contains("Time"))
-                            {
-                                if (DateTime.TryParse(displayValue, out var dtParsed))
-                                    displayValue = dtParsed.ToString("dd MMM yyyy HH:mm");
-                                else if (string.IsNullOrEmpty(displayValue))
-                                    displayValue = "Not Scheduled";
-                            }
-
-                            if (string.IsNullOrEmpty(displayValue) || displayValue == "0")
-                                displayValue = "N/A";
-
-                            formattedData[kvp.Key] = displayValue;
-                        }
-
-                        // Special Handling for JSON Result (Dashboard)
-                        if (firstRow.ContainsKey("JsonResult"))
-                        {
-                            var jsonStr = firstRow["JsonResult"]?.ToString();
-                            if (!string.IsNullOrEmpty(jsonStr))
-                            {
-                                try 
-                                {
-                                    var dashboard = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(jsonStr);
-                                    if (dashboard != null)
-                                    {
-                                        foreach (var kvp in dashboard)
-                                        {
-                                            finalMessage = finalMessage.Replace("{" + kvp.Key + "}", kvp.Value?.ToString() ?? "0");
-                                        }
-                                    }
-                                } catch { /* Fallback if not dictionary */ }
-                            }
-                        }
-                        
-                        // For standard row results, replace placeholders with formatted data
-                        foreach (var kvp in formattedData)
-                        {
-                            finalMessage = finalMessage.Replace("{" + kvp.Key + "}", kvp.Value);
-                        }
-                    }
-
-                    return Ok(new
-                    {
-                        query = commandResult.Sql,
-                        data = data,
-                        count = data.Count,
-                        message = finalMessage,
-                        totalTokens = commandResult.TotalTokens,
-                        remainingCredits = commandResult.RemainingCredits
-                    });
-                }
-
-                // 5. Default Response (Message or Fallback)
-                return Ok(new
-                {
-                    query = "",
-                    data = new List<object>(),
-                    count = 0,
-                    message = commandResult.SuccessMessage ?? commandResult.ClarificationMessage ?? commandResult.ErrorMessage ?? "I'm not sure how to help with that. Could you please rephrase or provide more details?",
-                    totalTokens = commandResult.TotalTokens,
-                    remainingCredits = commandResult.RemainingCredits
-                });
+                return Ok(response);
             }
             catch (UnauthorizedAccessException ex)
             {

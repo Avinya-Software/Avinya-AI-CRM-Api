@@ -22,45 +22,72 @@ namespace AvinyaAICRM.Infrastructure.BackgroundServices
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("Credit Reset Worker started (IST Schedule).");
+            _logger.LogInformation("Credit Reset Worker started (Invisible Persistence Mode).");
+
+            var istZone = GetIstTimeZone();
 
             while (!stoppingToken.IsCancellationRequested)
             {
-                // Get current time in Indian Standard Time
-                var istZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
-                var nowIst = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, istZone);
-
-                // Calculate next midnight in IST
-                var nextRunIst = nowIst.Date.AddDays(1);
-                var delay = nextRunIst - nowIst;
-
-                _logger.LogInformation("Next IST credit reset scheduled for {NextRun} (in {Delay} hours)", nextRunIst, delay.TotalHours);
-
                 try
                 {
-                    await Task.Delay(delay, stoppingToken);
-
-                    _logger.LogInformation("Midnight reached. Starting daily credit reset...");
-
                     using (var scope = _serviceProvider.CreateScope())
                     {
                         var creditService = scope.ServiceProvider.GetRequiredService<ICreditService>();
-                        await creditService.ResetAllBalancesAsync(RESET_AMOUNT);
+                        
+                        // 1. Check when the last reset happened (in UTC)
+                        var lastResetUtc = await creditService.GetLastResetDateAsync();
+                        
+                        // 2. Convert to IST for a consistent business-day check
+                        var nowIst = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, istZone);
+                        var lastResetIst = lastResetUtc.HasValue 
+                            ? TimeZoneInfo.ConvertTimeFromUtc(lastResetUtc.Value, istZone) 
+                            : (DateTime?)null;
+
+                        // 3. Logic: If it hasn't been reset today, do it now.
+                        if (!lastResetIst.HasValue || lastResetIst.Value.Date < nowIst.Date)
+                        {
+                            _logger.LogInformation("Last reset was {LastReset}. Resetting all balances to {Amount}...", lastResetIst?.ToString() ?? "Never", RESET_AMOUNT);
+                            
+                            int updatedCount = await creditService.ResetAllBalancesAsync(RESET_AMOUNT);
+                            
+                            _logger.LogInformation("Credit reset completed successfully. Updated {Count} users.", updatedCount);
+                        }
+                        else
+                        {
+                            _logger.LogInformation("Credits were already reset today ({LastResetDate}). Skipping.", lastResetIst.Value.ToShortDateString());
+                        }
                     }
 
-                    _logger.LogInformation("Daily credit reset completed successfully.");
+                    // 4. Wait for 5 minutes before checking again (Safe for production/Shared Hosting)
+                    await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
                 }
                 catch (TaskCanceledException)
                 {
-                    // Exit gracefully
                     break;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error occurred during daily credit reset.");
-                    // Wait a bit before retrying if something went wrong
-                    await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
+                    _logger.LogError(ex, "Error occurred during persistent credit reset cycle.");
+                    await Task.Delay(TimeSpan.FromMinutes(10), stoppingToken);
                 }
+            }
+        }
+
+        private TimeZoneInfo GetIstTimeZone()
+        {
+            try
+            {
+                // Windows ID: "India Standard Time"
+                // Linux/IANA ID: "Asia/Kolkata"
+                var isWindows = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
+                var tzId = isWindows ? "India Standard Time" : "Asia/Kolkata";
+                
+                return TimeZoneInfo.FindSystemTimeZoneById(tzId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not find standard IST timezone ID. Falling back to UTC+5:30 offset.");
+                return TimeZoneInfo.CreateCustomTimeZone("IST-Fallback", TimeSpan.FromHours(5) + TimeSpan.FromMinutes(30), "IST", "IST");
             }
         }
     }

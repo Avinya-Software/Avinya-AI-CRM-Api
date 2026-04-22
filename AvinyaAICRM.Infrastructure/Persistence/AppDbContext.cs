@@ -82,5 +82,6 @@ namespace AvinyaAICRM.Infrastructure.Persistence
         public DbSet<CreditTransaction> CreditTransactions { get; set; }
 
         public DbSet<BookingDemo> BookingDemo { get; set; }
+        public DbSet<AvinyaAICRM.Domain.Entities.AI.AIQueryKnowledge> AIQueryKnowledge { get; set; }
     }
 }

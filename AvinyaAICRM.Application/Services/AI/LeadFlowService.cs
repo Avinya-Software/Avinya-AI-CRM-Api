@@ -26,6 +26,34 @@ namespace AvinyaAICRM.Application.Services.AI
             _leadService = leadService;
         }
 
+        public async Task<AIResponse> StartFlowAsync(Guid tenantId, string userId, Dictionary<string, string>? parameters)
+        {
+            var sessionKey = $"{CachePrefix}{tenantId}:{userId}";
+            var session = new LeadFlowSession
+            {
+                CurrentStep = LeadFlowStep.CompanyName,
+                LastInteraction = DateTime.Now
+            };
+
+            // Prefill what AI found (e.g. CompanyName)
+            if (parameters != null)
+            {
+                if (parameters.TryGetValue("CompanyName", out var company)) session.CompanyName = company;
+                if (parameters.TryGetValue("ContactPerson", out var person)) session.ContactPerson = person;
+                if (parameters.TryGetValue("Mobile", out var mob)) session.Mobile = mob;
+                if (parameters.TryGetValue("Description", out var req)) session.Requirement = req;
+            }
+
+            if (!string.IsNullOrEmpty(session.CompanyName))
+            {
+                _cache.Set(sessionKey, session, TimeSpan.FromMinutes(10));
+                return await HandleCompanyNameAsync(session, sessionKey, tenantId);
+            }
+
+            _cache.Set(sessionKey, session, TimeSpan.FromMinutes(10));
+            return CreateStepResponse("Please provide the company name.");
+        }
+
         public async Task<AIResponse?> ProcessFlowAsync(string message, Guid tenantId, string userId)
         {
             var sessionKey = $"{CachePrefix}{tenantId}:{userId}";
@@ -33,36 +61,36 @@ namespace AvinyaAICRM.Application.Services.AI
 
             if (!_cache.TryGetValue(sessionKey, out LeadFlowSession session))
             {
-                var lower = input.ToLower();
-                // Broader triggers for lead creation
-                bool isTrigger = lower.Contains("lead") && 
-                                (lower.Contains("create") || lower.Contains("add") || lower.Contains("new") || lower.Contains("capture"));
-
-                if (isTrigger)
-                {
-                    session = new LeadFlowSession
-                    {
-                        CurrentStep = LeadFlowStep.CompanyName
-                    };
-
-                    // Try to extract company name if provided (e.g. "create lead for GTAVPVT")
-                    var words = lower.Split(' ');
-                    var forIndex = Array.FindLastIndex(words, w => w == "for" || w == "to" || w == "of");
-                    if (forIndex != -1 && words.Length > forIndex + 1)
-                    {
-                        session.CompanyName = input.Split(' ').Last(); 
-                        _cache.Set(sessionKey, session, TimeSpan.FromMinutes(10));
-                        return await HandleCompanyNameAsync(session, sessionKey, tenantId);
-                    }
-
-                    _cache.Set(sessionKey, session, TimeSpan.FromMinutes(10));
-                    return CreateStepResponse("Please provide the company name.");
-                }
-                return null;
+                return null; // No active flow, let the normal pipeline handle it
             }
 
             session.LastInteraction = DateTime.Now;
-            // var input = message.Trim(); // Removed this line as it is now at the top
+            var inputLower = input.ToLower();
+
+          // Allow the user to escape or redirect from the lead creation session
+                var exitCommands = new[]
+                {
+                    "cancel", "stop", "exit", "quit", "abort", "end", "terminate",
+                    "close", "leave", "discard", "drop", "skip", "nevermind", "never mind",
+                    "back", "go back"
+                };
+
+                var redirectCommands = new[]
+                {
+                    "show", "give", "list", "get", "fetch", "find", "search"
+                };
+
+                if (exitCommands.Any(cmd => inputLower.Equals(cmd) || inputLower.StartsWith(cmd)))
+                {
+                    _cache.Remove(sessionKey);
+                    return CreateStepResponse("Lead creation cancelled.");
+                }
+
+                if (redirectCommands.Any(cmd => inputLower.StartsWith(cmd)))
+                {
+                    _cache.Remove(sessionKey);
+                    return null; // Let main chatbot handle it
+                }
 
             switch (session.CurrentStep)
             {

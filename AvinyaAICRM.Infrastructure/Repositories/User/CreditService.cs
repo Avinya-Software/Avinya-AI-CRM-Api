@@ -145,10 +145,16 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
             }
         }
 
-        public async Task ResetAllBalancesAsync(int amount)
+        public async Task<int> ResetAllBalancesAsync(int amount)
         {
             // Reset all active users' balance to the specified amount (e.g. 15000)
-            await _context.Database.ExecuteSqlRawAsync($"UPDATE UserCredits SET Balance = {amount}, UpdatedAt = GETUTCDATE()");
+            return await _context.Database.ExecuteSqlRawAsync($"UPDATE dbo.[UserCredits] SET Balance = {amount}, UpdatedAt = GETUTCDATE()");
+        }
+
+        public async Task<DateTime?> GetLastResetDateAsync()
+        {
+            // Get the latest UpdateAt timestamp from the UserCredits table
+            return await _context.UserCredits.MaxAsync(x => x.UpdatedAt);
         }
     }
 }

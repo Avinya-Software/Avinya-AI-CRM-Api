@@ -10,7 +10,13 @@ namespace AvinyaAICRM.Shared.AI
     {
         public string Action { get; set; } = "message";
         public string? Intent { get; set; } = "unknown";
-        public string DateRange { get; set; }
+        public string? DateRange { get; set; }
+
+        // Standardized Output Fields
+        public string Message { get; set; } = string.Empty;
+        public List<Dictionary<string, object>> Data { get; set; } = new();
+        public int Count { get; set; }
+        public string? Query { get; set; }
 
         // SQL Reporting Fields
         public string? Sql { get; set; }
@@ -31,6 +37,12 @@ namespace AvinyaAICRM.Shared.AI
         public int ThoughtsTokens { get; set; }
         public int TotalTokens { get; set; }
         public int RemainingCredits { get; set; }
+
+        public string? Summary { get; set; }
+        public List<string>? Suggestions { get; set; }
+        
+        // Metadata
+        public string Source { get; set; } = "ai"; // source of the response (ai, cache, template, etc)
     }
 
     public class ClientDisambiguationDto
