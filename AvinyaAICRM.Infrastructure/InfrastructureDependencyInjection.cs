@@ -34,6 +34,8 @@ using AvinyaAICRM.Application.Services.AICHATS;
 using AvinyaAICRM.Application.Services.Bookingdemo;
 using AvinyaAICRM.Application.Services.Dashboard;
 using AvinyaAICRM.Application.Services.Settings;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.AI;
+using AvinyaAICRM.Application.Services.AI;
 using AvinyaAICRM.Infrastructure.Authorization;
 using AvinyaAICRM.Infrastructure.Identity;
 using AvinyaAICRM.Infrastructure.Persistence;
@@ -183,7 +185,9 @@ namespace AvinyaAICRM.Infrastructure
             services.AddScoped<IFinanceReportRepository, FinanceReportRepository>();
             services.AddScoped<ITaskProjectReportRepository, TaskProjectReportRepository>();
             // ---------------- AIChat Services ----------------
-            services.AddHttpClient<IAIService, GeminiService>();
+            services.AddHttpClient<GroqService>();
+            services.AddHttpClient<GeminiService>();
+            services.AddScoped<IAIService, FallbackAIService>();
             services.AddScoped<ICRMQueryService, CRMQueryService>();
             
             // AI Pipeline Components
@@ -210,6 +214,8 @@ namespace AvinyaAICRM.Infrastructure
             services.AddScoped<IClientReportRepository, ClientReportRepository>();
 
             services.AddScoped<IBookingRepository, BookingdemoRepository>();
+            services.AddScoped<AvinyaAICRM.Application.Interfaces.RepositoryInterface.AI.IAIKnowledgeRepository, AvinyaAICRM.Infrastructure.Repositories.AI.AIKnowledgeRepository>();
+            services.AddScoped<IAIKnowledgeService, AIKnowledgeService>();
 
             return services;
         }

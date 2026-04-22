@@ -53,7 +53,7 @@ namespace AvinyaAICRM.Application.AI.Pipeline
             }
 
             // Rule 4: Known Tables only
-            var knownTables = AISchema.Tables.Keys.Select(t => t.ToUpper()).ToHashSet();
+            var knownTables = AISchema.TableNames.Select(t => t.ToUpper()).ToHashSet();
             var matches = Regex.Matches(sql, @"FROM\s+(?:dbo\.)?(\w+)|\bJOIN\s+(?:dbo\.)?(\w+)", RegexOptions.IgnoreCase);
             
             foreach (Match match in matches)

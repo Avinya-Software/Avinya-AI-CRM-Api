@@ -1,6 +1,8 @@
 using AvinyaAICRM.Application.AI.Models;
+using AvinyaAICRM.Application.AI.Pipeline;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.AIChat;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.User;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.AI;
 using AvinyaAICRM.Shared.AI;
 using Microsoft.Extensions.Logging;
 
@@ -16,6 +18,7 @@ namespace AvinyaAICRM.Application.AI.Pipeline
         private readonly ILogger<AIPipeline> _logger;
         private readonly IntentStore _trainedStore;
         private readonly ICreditService _creditService;
+        private readonly IAIKnowledgeService _knowledge;
 
         public AIPipeline(
             LocalIntentClassifier classifier,
@@ -25,7 +28,8 @@ namespace AvinyaAICRM.Application.AI.Pipeline
             IAIService aiService,
             ILogger<AIPipeline> logger,
             IntentStore trainedStore,
-            ICreditService creditService)
+            ICreditService creditService,
+            IAIKnowledgeService knowledge)
         {
             _classifier = classifier;
             _templates = templates;
@@ -35,6 +39,7 @@ namespace AvinyaAICRM.Application.AI.Pipeline
             _logger = logger;
             _trainedStore = trainedStore;
             _creditService = creditService;
+            _knowledge = knowledge;
         }
 
         public async Task<PipelineResult> ProcessAsync(
@@ -53,17 +58,36 @@ namespace AvinyaAICRM.Application.AI.Pipeline
                 result.RemainingCredits = 0;
                 return result;
             }
+            
+            // 0b. Check Verified Knowledge Base (Reuse 'Good' queries)
+            var verifiedSql = await _knowledge.GetVerifiedQueryAsync(message);
+            if (!string.IsNullOrEmpty(verifiedSql))
+            {
+                _logger.LogInformation("Knowledge Base Hit for message: {Message}", message);
+                result.Sql = verifiedSql;
+                result.Source = "knowledge_base";
+                result.Action = "get_summary";
+                result.TotalTokens = 100; // Verified knowledge is free/cheap
+                return await DeductAndReturnAsync(result, userId);
+            }
 
             // 1. Local Classification
             var intent = _classifier.Classify(message);
             var filters = _classifier.ExtractFilters(message);
             result.Intent = intent.Intent;
 
+            // NEW: Skip complex logic if raw generation is preferred (for Groq)
+            if (_aiService.PreferRawGeneration)
+            {
+                _logger.LogInformation("PreferRawGeneration is enabled. Bypassing intent/template logic.");
+                goto Step5_AIFallback;
+            }
+
             // 2. Check Action Actions (Create Lead/Task)
             if (intent.Intent is "create_lead" or "create_task")
             {
                 result.Source = "ai_params";
-                var aiResponse = await _aiService.AnalyzeMessageAsync(message, tenantId, isSuperAdmin, allowedModules);
+                var aiResponse = await _aiService.AnalyzeMessageAsync(message, tenantId, isSuperAdmin, allowedModules, history);
                 
                 result.PromptTokens = aiResponse.PromptTokens;
                 result.ResponseTokens = aiResponse.ResponseTokens;
@@ -85,7 +109,7 @@ namespace AvinyaAICRM.Application.AI.Pipeline
                 result.Sql = cachedSql;
                 result.Source = "cache";
                 result.Action = "get_summary";
-                result.TotalTokens = 1; // Reward: Cache hits are very cheap
+                result.TotalTokens = 100; // Reward: Cache hits are very cheap
                 return await DeductAndReturnAsync(result, userId);
             }
 
@@ -106,7 +130,7 @@ namespace AvinyaAICRM.Application.AI.Pipeline
                         result.PromptTokens = refined.PromptTokens;
                         result.ResponseTokens = refined.ResponseTokens;
                         // Minimum charge: If AI fails (0 tokens) but we fallback to template, charge 5 tokens
-                        result.TotalTokens = refined.TotalTokens > 0 ? refined.TotalTokens : 5;
+                        result.TotalTokens = refined.TotalTokens > 0 ? refined.TotalTokens : 500;
 
                         result.Sql = string.IsNullOrEmpty(refined.Sql) ? templateSql : refined.Sql;
                         result.Source = "template_hybrid";
@@ -122,7 +146,7 @@ namespace AvinyaAICRM.Application.AI.Pipeline
                         result.Sql = templateSql;
                         result.Source = "template";
                         result.Action = "get_summary";
-                        result.TotalTokens = 5; // Reward: Templates are cheaper than AI generation
+                        result.TotalTokens = 500; // Reward: Templates are cheaper than AI generation
                         _cache.SetSql(message, tenantId, templateSql);
                         return await DeductAndReturnAsync(result, userId);
                     }
@@ -130,10 +154,11 @@ namespace AvinyaAICRM.Application.AI.Pipeline
             }
 
             // 5. AI Fallback (SQL Generation)
+            Step5_AIFallback:
             _logger.LogInformation("Falling back to AI for intent: {Intent}", intent.Intent);
             result.Source = "ai_sql";
             
-            var aiSqlResponse = await _aiService.AnalyzeMessageAsync(message, tenantId, isSuperAdmin, allowedModules);
+            var aiSqlResponse = await _aiService.AnalyzeMessageAsync(message, tenantId, isSuperAdmin, allowedModules, history);
             
             result.PromptTokens = aiSqlResponse.PromptTokens;
             result.ResponseTokens = aiSqlResponse.ResponseTokens;

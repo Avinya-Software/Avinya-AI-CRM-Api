@@ -27,6 +27,9 @@ namespace AvinyaAICRM.Application.Services.AICHATS
         private readonly AIPipeline _pipeline;
         private readonly ILeadFlowService _leadFlow;
         private readonly ICreditService _credits;
+        private readonly LocalIntentClassifier _classifier;
+        private readonly SqlTemplateEngine _templates;
+        private readonly IAIKnowledgeService _knowledge;
 
         public CRMQueryService(
             AppDbContext context,
@@ -36,7 +39,10 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             ITeamRepository teamRepo,
             AIPipeline pipeline,
             ILeadFlowService leadFlow,
-            ICreditService credits)
+            ICreditService credits,
+            LocalIntentClassifier classifier,
+            SqlTemplateEngine templates,
+            IAIKnowledgeService knowledge)
         {
             _context = context;
             _aiService = aiService;
@@ -46,6 +52,9 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             _pipeline = pipeline;
             _leadFlow = leadFlow;
             _credits = credits;
+            _classifier = classifier;
+            _templates = templates;
+            _knowledge = knowledge;
         }
 
         public async Task<List<Dictionary<string, object>>> ExecuteRawSqlAsync(string sql, Guid tenantId, bool isSuperAdmin)
@@ -80,7 +89,7 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                         }
                     }
 
-                    using (var connection = _context.Database.GetDbConnection())
+                    using (var connection = new Microsoft.Data.SqlClient.SqlConnection(_context.Database.GetConnectionString()))
                     {
                         var queryParams = new { TenantId = tenantId };
                         var results = (await connection.QueryAsync(currentSql, queryParams)).ToList();
@@ -119,6 +128,119 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             throw lastError ?? new Exception("Database query failed.");
         }
 
+        public async Task<AIResponse> ProcessChatRequestAsync(AIRequest request, Guid tenantId, string userId, bool isSuperAdmin, List<string> allowedModules)
+        {
+            // 0. Ensure credits record exists for the user
+            await _credits.EnsureUserCreditExistsAsync(userId, tenantId);
+
+            // 1. Process Command (Intent + SQL Generation)
+            var response = await ProcessCommandAsync(request.Message, tenantId, userId, isSuperAdmin, allowedModules, request.History);
+
+            // 2. Handle Action Responses (Create Lead/Task)
+            if (response.Action == "create_lead" || response.Action == "create_task")
+            {
+                response.Message = response.SuccessMessage ?? response.ClarificationMessage ?? response.ErrorMessage ?? "Action processed.";
+                response.Query = "";
+                response.Data = new List<Dictionary<string, object>>();
+                response.Count = 0;
+                return response;
+            }
+
+            // 3. Handle Query Execution
+            if (!string.IsNullOrEmpty(response.Sql))
+            {
+                try 
+                {
+                    var data = await ExecuteRawSqlAsync(response.Sql, tenantId, isSuperAdmin);
+                    response.Data = data;
+                    response.Count = data.Count;
+                    response.Query = response.Sql;
+
+                    // 3b. Automatic Knowledge Recording (First time queries)
+                    if (response.Source == "ai_sql")
+                    {
+                        await _knowledge.RecordFirstTimeQueryAsync(request.Message, response.Sql, userId);
+                    }
+
+                    // 4. Generate Final Formatted Message
+                    var filters = _classifier.ExtractFilters(request.Message);
+                    var finalMessage = _templates.GetTemplateMessage(response.Intent ?? "unknown", filters, data.Count);
+
+                    if (data.Count > 0)
+                    {
+                        finalMessage = FormatMessageWithData(finalMessage, data[0]);
+                    }
+                    response.Message = finalMessage;
+                }
+                catch (Exception ex)
+                {
+                    response.ErrorMessage = "Query execution failed: " + ex.Message;
+                    response.Message = response.ErrorMessage;
+                }
+            }
+            else 
+            {
+                // Default fallback message
+                response.Message = response.SuccessMessage ?? response.ClarificationMessage ?? response.ErrorMessage ?? "I'm not sure how to help with that. Could you please rephrase?";
+                response.Data = new List<Dictionary<string, object>>();
+                response.Count = 0;
+            }
+
+            return response;
+        }
+
+        private string FormatMessageWithData(string template, Dictionary<string, object> row)
+        {
+            var formatted = template;
+            var displayValues = new Dictionary<string, string>();
+
+            foreach (var kvp in row)
+            {
+                string val = kvp.Value?.ToString() ?? "";
+                
+                if (kvp.Value is DateTime dt)
+                {
+                    val = dt.ToString("dd MMM yyyy HH:mm");
+                }
+                else if (kvp.Key.Contains("Date") || kvp.Key.Contains("Time"))
+                {
+                    if (DateTime.TryParse(val, out var dtParsed))
+                        val = dtParsed.ToString("dd MMM yyyy HH:mm");
+                }
+
+                if (string.IsNullOrEmpty(val) || val == "0") val = "N/A";
+                displayValues[kvp.Key] = val;
+            }
+
+            // Handle JsonResult (Dashboard/360)
+            if (row.ContainsKey("JsonResult"))
+            {
+                var jsonStr = row["JsonResult"]?.ToString();
+                if (!string.IsNullOrEmpty(jsonStr))
+                {
+                    try 
+                    {
+                        var dashboard = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(jsonStr);
+                        if (dashboard != null)
+                        {
+                            foreach (var kvp in dashboard)
+                            {
+                                formatted = formatted.Replace("{" + kvp.Key + "}", kvp.Value?.ToString() ?? "0");
+                            }
+                        }
+                    } catch { /* Ignore malformed JSON */ }
+                }
+            }
+
+            // Replace standard placeholders
+            foreach (var kvp in displayValues)
+            {
+                formatted = formatted.Replace("{" + kvp.Key + "}", kvp.Value);
+            }
+
+            return formatted;
+        }
+
         public async Task<AIResponse> ProcessCommandAsync(string message, Guid tenantId, string userId, bool isSuperAdmin, List<string> allowedModules, List<AIChatHistoryDto> history = null)
         {
             // 0. Check for Step-by-Step Flow (e.g. Lead Creation)
@@ -149,12 +271,14 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                 PromptTokens = pipelineResult.PromptTokens,
                 ResponseTokens = pipelineResult.ResponseTokens,
                 TotalTokens = pipelineResult.TotalTokens,
-                RemainingCredits = pipelineResult.RemainingCredits
+                RemainingCredits = pipelineResult.RemainingCredits,
+                Source = pipelineResult.Source
             };
 
             if (aiResponse.Action == "create_lead")
             {
-                return await HandleCreateLeadAsync(aiResponse, tenantId, userId, isSuperAdmin);
+                // Start the step-by-step interactive flow instead of one-shot creation
+                return await _leadFlow.StartFlowAsync(tenantId, userId, aiResponse.Parameters);
             }
 
             if (aiResponse.Action == "create_task")

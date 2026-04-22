@@ -12,6 +12,7 @@ namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.User
         Task<AvinyaAICRM.Shared.Model.ResponseModel> UpdateBalanceAsync(string userId, int newBalance, string action, string? description = null);
         Task<AvinyaAICRM.Shared.Model.ResponseModel> GetUserCreditsAsync(AvinyaAICRM.Application.DTOs.User.UserCreditFilterRequest request);
         Task<AvinyaAICRM.Shared.Model.ResponseModel> GetTransactionsByUserIdAsync(string userId, int pageNumber, int pageSize);
-        Task ResetAllBalancesAsync(int amount);
+        Task<int> ResetAllBalancesAsync(int amount);
+        Task<DateTime?> GetLastResetDateAsync();
     }
 }
