@@ -23,10 +23,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ReportRepository
                 .Where(l => !l.IsDeleted && l.TenantId == filter.TenantId);
 
             if (filter.DateFrom.HasValue)
-                leadsQuery = leadsQuery.Where(l => l.Date >= filter.DateFrom.Value);
+                leadsQuery = leadsQuery.Where(l => l.CreatedDate >= filter.DateFrom.Value);
 
             if (filter.DateTo.HasValue)
-                leadsQuery = leadsQuery.Where(l => l.Date <= filter.DateTo.Value);
+                leadsQuery = leadsQuery.Where(l => l.CreatedDate <= filter.DateTo.Value);
 
             if (filter.LeadSourceId.HasValue)
                 leadsQuery = leadsQuery.Where(l => l.LeadSourceID == filter.LeadSourceId.Value);
@@ -243,10 +243,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ReportRepository
                 .Where(l => !l.IsDeleted && l.TenantId == filter.TenantId);
 
             if (filter.DateFrom.HasValue)
-                leadsQuery = leadsQuery.Where(l => l.Date >= filter.DateFrom.Value);
+                leadsQuery = leadsQuery.Where(l => l.CreatedDate >= filter.DateFrom.Value);
 
             if (filter.DateTo.HasValue)
-                leadsQuery = leadsQuery.Where(l => l.Date <= filter.DateTo.Value);
+                leadsQuery = leadsQuery.Where(l => l.CreatedDate <= filter.DateTo.Value);
 
             if (filter.LeadSourceId.HasValue)
                 leadsQuery = leadsQuery.Where(l => l.LeadSourceID == filter.LeadSourceId.Value);
@@ -261,7 +261,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ReportRepository
             var totalPages = (int)Math.Ceiling((double)totalRecords / filter.PageSize);
 
             var leads = await leadsQuery
-                .OrderByDescending(l => l.Date)
+                .OrderByDescending(l => l.CreatedDate)
                 .Skip((filter.PageNumber - 1) * filter.PageSize)
                 .Take(filter.PageSize)
                 .ToListAsync();
@@ -296,7 +296,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ReportRepository
             {
                 LeadID = l.LeadID,
                 LeadNo = l.LeadNo,
-                Date = l.Date,
+                CreatedDate = l.CreatedDate,
                 RequirementDetails = l.RequirementDetails,
                 ClientName = l.ClientID.HasValue && clients.TryGetValue(l.ClientID.Value, out var cn) ? cn : "—",
                 StatusName = l.LeadStatusID.HasValue && statuses.TryGetValue(l.LeadStatusID.Value, out var sn) ? sn : "—",

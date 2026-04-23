@@ -23,7 +23,6 @@ namespace AvinyaAICRM.Application.DTOs.Lead
 
         public int? StateID { get; set; }
         public int? CityID { get; set; }
-        public DateTime? Date { get; set; }
         public DateTime? NextFollowupDate { get; set; }
         public string? RequirementDetails { get; set; }
         public Guid? LeadSourceID { get; set; }

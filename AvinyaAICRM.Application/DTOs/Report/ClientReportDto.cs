@@ -105,7 +105,7 @@ namespace AvinyaAICRM.Application.DTOs.Report
     {
         public Guid LeadId { get; set; }
         public string LeadNo { get; set; } = string.Empty;
-        public DateTime Date { get; set; }
+        public DateTime CreatedDate { get; set; }
         public string Status { get; set; } = string.Empty;
         public string AssignedTo { get; set; } = string.Empty;
         public string Requirement { get; set; } = string.Empty;

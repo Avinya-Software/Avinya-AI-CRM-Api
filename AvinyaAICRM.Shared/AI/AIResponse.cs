@@ -24,7 +24,8 @@ namespace AvinyaAICRM.Shared.AI
         public string? ErrorMessage { get; set; }
 
         // Extracted lead/client data (CompanyName, Email, Mobile, Notes, etc.)
-        public Dictionary<string, string>? Parameters { get; set; } = new();
+        [System.Text.Json.Serialization.JsonPropertyName("parameters")]
+        public Dictionary<string, string> Parameters { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
         // Clarification logic
         public bool IsClarificationRequired { get; set; }

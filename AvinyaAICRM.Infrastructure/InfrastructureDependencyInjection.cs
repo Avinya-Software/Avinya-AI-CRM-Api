@@ -186,16 +186,11 @@ namespace AvinyaAICRM.Infrastructure
             services.AddScoped<ITaskProjectReportRepository, TaskProjectReportRepository>();
             // ---------------- AIChat Services ----------------
             services.AddHttpClient<GroqService>();
-            services.AddHttpClient<GeminiService>();
-            services.AddScoped<IAIService, FallbackAIService>();
+            services.AddScoped<IAIService, GroqService>();
             services.AddScoped<ICRMQueryService, CRMQueryService>();
             
             // AI Pipeline Components
-            services.AddSingleton<AvinyaAICRM.Application.AI.Pipeline.IntentStore>();
-            services.AddScoped<AvinyaAICRM.Application.AI.Pipeline.LocalIntentClassifier>();
-            services.AddScoped<AvinyaAICRM.Application.AI.Pipeline.SqlTemplateEngine>();
             services.AddScoped<AvinyaAICRM.Application.AI.Pipeline.SqlValidator>();
-            services.AddScoped<AvinyaAICRM.Application.AI.Pipeline.QueryCache>();
             services.AddScoped<AvinyaAICRM.Application.AI.Pipeline.AIPipeline>();
 
             services.AddScoped<ICreditService, CreditService>();

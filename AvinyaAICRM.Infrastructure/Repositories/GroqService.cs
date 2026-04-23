@@ -111,14 +111,11 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 intents.Add("query_users");
 
             // ── LEADS ──────────
-            if (msg.Contains("lead") || msg.Contains("new lead") ||
-                msg.Contains("converted lead") || msg.Contains("lost lead") ||
-                msg.Contains("my lead") || msg.Contains("today's lead") ||
-                msg.Contains("lead from") || msg.Contains("lead for") ||
-                msg.Contains("lead trend") || msg.Contains("lead source") ||
-                msg.Contains("conversion rate") || msg.Contains("lead status") ||
-                msg.Contains("assigned to me") || msg.Contains("which lead") ||
-                msg.Contains("likely to convert") || msg.Contains("suggest which"))
+            if (msg.Contains("assigned to me") || msg.Contains("which lead") ||
+                msg.Contains("likely to convert") || msg.Contains("suggest which") ||
+                msg.Contains("create lead") || msg.Contains("add lead") || msg.Contains("new lead registration"))
+                intents.Add("create_lead");
+            else if (msg.Contains("lead"))
                 intents.Add("query_leads");
 
             // ── CLIENTS ──────────
@@ -213,12 +210,66 @@ namespace AvinyaAICRM.Infrastructure.Repositories
 
                 OUTPUT FORMAT (STRICT JSON — no extra text outside this object):
                 {{
-                ""action"": ""[get_summary | create_lead | create_task]"",
+                ""action"": ""[get_summary | create_lead | create_task | message]"",
+                ""intent"": ""[query_leads | create_lead | create_task | general_chat | ...]"",
                 ""sql"": ""[YOUR_SINGLE_LINE_SQL_HERE (only if action is get_summary)]"",
-                ""parameters"": {{ ""CompanyName"": ""..."", ""ContactPerson"": ""..."", ""Description"": ""..."" }},
-                ""successMessage"": ""Write a highly conversational, engaging business reply. DO NOT use words like 'database', 'records', or 'I found results'. Example: 'Here is a quick snapshot of your business performance!' or 'I've pulled up the revenue details you asked for.'"",
-                ""errorMessage"": """"
+                ""parameters"": {{ 
+                    // --- LEAD CREATION FIELDS (Use only for create_lead) ---
+                    ""CompanyName"": ""(Required) The name of the company/client"",
+                    ""RequirementDetails"": ""(Required) What the lead needs/requires"",
+                    ""ContactPerson"": ""Name of the contact person"",
+                    ""Mobile"": ""Contact mobile number"",
+                    ""Email"": ""Contact email address"",
+                    ""ClientType"": ""[Individual | Company] (Individual if personal lead)"",
+                    ""GSTNo"": ""GST number of the company"",
+                    ""BillingAddress"": ""Full billing address"",
+                    ""StateID"": ""State name (resolved by backend)"",
+                    ""CityID"": ""City name (resolved by backend)"",
+                    ""LeadSourceID"": ""Source name, e.g. 'WhatsApp'"",
+                    ""LeadStatusID"": ""Status name, e.g. 'Hot'"",
+                    ""NextFollowupDate"": ""Date and time for the next followup"",
+                    ""OtherSources"": ""Any other source info"",
+                    ""Links"": ""Relevant social/web links"",
+
+                    // --- TASK CREATION FIELDS (Use only for create_task) ---
+                    ""Title"": ""(Required) Short summary of the task"",
+                    ""Description"": ""Detailed description of the task"",
+                    ""DueDateTime"": ""(Required) Date and time when task is due"",
+                    ""ListName"": ""Name of the task list to add to (e.g. 'Work', 'General')"",
+                    ""TaskType"": ""[Personal | Team] (Required) Who is this for?"",
+                    ""TeamName"": ""(Required if TaskType is Team) Name of the team"",
+                    ""AssignToName"": ""Full name of the person to assign to"",
+                    ""ProjectName"": ""Name of the project this task belongs to"",
+                    ""ReminderAt"": ""DateTime for a reminder notification"",
+                    ""IsRecurring"": ""[true | false] If the task repeats"",
+                    ""RecurrenceRule"": ""RRULE string if recurring (e.g. 'FREQ=DAILY')"",
+                    
+                    // --- SHARED / MISC FIELDS ---
+                    ""Notes"": ""Additional internal notes"",
+                    ""AssignedTo"": ""Alias for AssignToName (Full Name)""
+                }},
+                ""successMessage"": ""Write a highly conversational, engaging business reply. If create_lead, say 'I've successfully created the lead for [CompanyName].'. If create_task, say 'I've successfully created the task: [Title].'"",
+                ""errorMessage"": ""Use this to ask for MISSING REQUIRED FIELDS (e.g. 'Is this for personal use or for a team?', 'What is the due date?', 'Which team should I assign this to?')""
                 }}
+ 
+                ACTION SELECTION RULES:
+                1. If the user wants to ADD, CREATE, or REGISTER a lead → action: ""create_lead"".
+                2. If the user wants to ADD, CREATE, or SCHEDULE a task/todo → action: ""create_task"".
+                3. If the user asks a question that requires data from the database → action: ""get_summary"".
+                4. If the user is just saying hello or asking a general question → action: ""message"".
+
+                ACTION 'create_lead' RULES:
+                - If the user provides a company and a requirement, ALWAYS choose `action: ""create_lead""`.
+                - DO NOT ask for permission or clarification if you have the data. Just create it.
+                - Extract CompanyName and RequirementDetails as mandatory parameters.
+                - If missing, set an appropriate `errorMessage`.
+
+                ACTION 'create_task' RULES:
+                - Extract Title, DueDateTime, and TaskType.
+                - If the user says ""team task"", ""task for the team"", or mentions a team → TaskType: ""Team"".
+                - IF TaskType is not mentioned, set `errorMessage` to ask: ""Is this for personal use or for a team?"".
+                - IF TaskType is Team and TeamName is missing, set `errorMessage` to ask: ""Which team should I assign this to?"".
+                - IF DueDateTime is missing, set `errorMessage` to ask: ""When is this task due?"".
 
                 USER QUESTION: {userMessage}
 
@@ -226,6 +277,15 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 ";
 
             var groqResult = await CallGroqAsync(prompt, apiKey, model, baseUrl);
+            
+            // --- FALLBACK MECHANISM ---
+            if (string.IsNullOrEmpty(groqResult.Text))
+            {
+                // If the primary model failed, try the alternative
+                var fallbackModel = isComplex ? "llama-3.1-8b-instant" : "llama-3.3-70b-versatile";
+                groqResult = await CallGroqAsync(prompt, apiKey, fallbackModel, baseUrl);
+            }
+
             if (string.IsNullOrEmpty(groqResult.Text))
                 return new AIResponse { Action = "message", ErrorMessage = "AI service error (Groq)." };
 
@@ -234,6 +294,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 var clean    = CleanJsonResponse(groqResult.Text);
                 var response = JsonSerializer.Deserialize<AIResponse>(clean, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new AIResponse();
 
+                response.Parameters ??= new(StringComparer.OrdinalIgnoreCase);
                 response.PromptTokens    = groqResult.Prompt;
                 response.ResponseTokens  = groqResult.Response;
                 response.TotalTokens     = groqResult.Total;
@@ -287,6 +348,14 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                         ";
 
             var groqResult = await CallGroqAsync(prompt, apiKey, model, baseUrl);
+
+            // --- FALLBACK ---
+            if (string.IsNullOrEmpty(groqResult.Text))
+            {
+                var fallbackModel = (model == "llama-3.3-70b-versatile") ? "llama-3.1-8b-instant" : "llama-3.3-70b-versatile";
+                groqResult = await CallGroqAsync(prompt, apiKey, fallbackModel, baseUrl);
+            }
+
             if (string.IsNullOrEmpty(groqResult.Text))
                 return new AIResponse { Action = "get_summary", Sql = templateSql, SuccessMessage = "Proceeding with standard template." };
 
@@ -368,7 +437,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                     (SELECT COUNT(*) FROM dbo.Orders WHERE TenantId = @TenantId AND IsDeleted = 0) AS OrdersCount,
                     (SELECT '₹ ' + FORMAT(ISNULL(SUM(GrandTotal), 0), 'N2') FROM dbo.Invoices WHERE TenantId = @TenantId AND IsDeleted = 0) AS TotalRevenue,
                     (SELECT '₹ ' + FORMAT(ISNULL(SUM(Amount), 0), 'N2') FROM dbo.Expenses WHERE TenantId = @TenantId AND IsDeleted = 0) AS TotalExpenses,
-                    (SELECT TOP 10 l.LeadNo, c.CompanyName, ls.StatusName, CONVERT(varchar(10), l.Date, 120) AS Date FROM dbo.Leads l JOIN dbo.Clients c ON l.ClientID = c.ClientID JOIN dbo.LeadStatusMaster ls ON l.LeadStatusID = ls.LeadStatusID WHERE l.TenantId = @TenantId AND l.IsDeleted = 0 ORDER BY l.Date DESC FOR JSON PATH) AS RecentLeads,
+                    (SELECT TOP 10 l.LeadNo, c.CompanyName, ls.StatusName, CONVERT(varchar(10), l.CreatedDate, 120) AS Date FROM dbo.Leads l JOIN dbo.Clients c ON l.ClientID = c.ClientID JOIN dbo.LeadStatusMaster ls ON l.LeadStatusID = ls.LeadStatusID WHERE l.TenantId = @TenantId AND l.IsDeleted = 0 ORDER BY l.CreatedDate DESC FOR JSON PATH) AS RecentLeads,
                     (SELECT TOP 10 o.OrderNo, c.CompanyName, '₹ ' + FORMAT(o.GrandTotal, 'N2') AS Amount, osm.StatusName AS Status FROM dbo.Orders o JOIN dbo.Clients c ON o.ClientID = c.ClientID JOIN dbo.OrderStatusMaster osm ON o.Status = osm.StatusID WHERE o.TenantId = @TenantId AND o.IsDeleted = 0 ORDER BY o.OrderDate DESC FOR JSON PATH) AS RecentOrders,
                     (SELECT TOP 10 t.Title, p.ProjectName, t.Priority, t.StartDate FROM dbo.TaskSeries t JOIN dbo.Projects p ON t.ProjectId = p.ProjectID WHERE p.TenantId = @TenantId AND p.IsDeleted = 0 AND t.IsActive = 1 ORDER BY t.StartDate DESC FOR JSON PATH) AS RecentTasks
                 FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
@@ -383,7 +452,19 @@ namespace AvinyaAICRM.Infrastructure.Repositories
             ";
 
             var result = await CallGroqAsync(prompt, groqKey, model, baseUrl);
-            return new AIResponse {
+
+            // --- FALLBACK ---
+            if (string.IsNullOrEmpty(result.Text))
+            {
+                var fallbackModel = (model == "llama-3.3-70b-versatile") ? "llama-3.1-8b-instant" : "llama-3.3-70b-versatile";
+                result = await CallGroqAsync(prompt, groqKey, fallbackModel, baseUrl);
+            }
+
+            if (string.IsNullOrEmpty(result.Text))
+                return new AIResponse { Action = "message", ErrorMessage = "Healing AI failed." };
+                
+            return new AIResponse 
+            { 
                 Sql = result.Text.Replace("```sql", "").Replace("```", "").Trim(),
                 TotalTokens = result.Total,
                 PromptTokens = result.Prompt,
