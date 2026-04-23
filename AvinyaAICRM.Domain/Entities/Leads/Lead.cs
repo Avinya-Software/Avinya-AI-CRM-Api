@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
@@ -13,8 +13,6 @@ namespace AvinyaAICRM.Domain.Entities.Leads
         public string? LeadNo { get; set; }
 
         public Guid? ClientID { get; set; }
-
-        public DateTime? Date { get; set; } = DateTime.UtcNow;
 
         public string? RequirementDetails { get; set; }
 

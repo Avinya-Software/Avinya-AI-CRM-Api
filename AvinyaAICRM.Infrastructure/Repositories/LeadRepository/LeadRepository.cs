@@ -135,7 +135,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                 CityID = client?.CityID,
                 StateName = _context.States.Where(s=>s.StateID == client.StateID).Select(s=> s.StateName).FirstOrDefault() ?? "",
                 CityName = _context.Cities.Where(s=>s.CityID == client.CityID).Select(c=> c.CityName).FirstOrDefault()??"",
-                Date = lead.Date,
+
                 Notes = lead.Notes,
                 Links = lead.Links,
                 RequirementDetails = lead.RequirementDetails,
@@ -276,7 +276,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                 {
                     LeadID = Guid.NewGuid(),
                     ClientID = finalClientId,
-                    Date = dto.Date ?? DateTime.Now,
+                    CreatedDate = dto.CreatedDate ?? DateTime.UtcNow,
                     RequirementDetails = dto.RequirementDetails,
                     Notes = dto.Notes,
                     Links = dto.Links,
@@ -357,8 +357,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                         existing.ClientID = dto.ClientID;
                 }
 
-                if (dto.Date.HasValue && dto.Date.Value != default)
-                    existing.Date = dto.Date;
+                if (dto.CreatedDate.HasValue && dto.CreatedDate.Value != default)
+                    existing.CreatedDate = dto.CreatedDate.Value;
 
                 if (!string.IsNullOrWhiteSpace(dto.RequirementDetails) && dto.RequirementDetails != "string")
                     existing.RequirementDetails = dto.RequirementDetails;
@@ -400,40 +400,6 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
 
                 if (clientDataProvided)
                 {
-                   //  🔹 If ClientID is not provided → create NEW client
-                    //if (!string.IsNullOrWhiteSpace(dto.GSTNo) && dto.GSTNo != "string")
-                    //{
-                    //    bool gstExists = await _context.Clients
-                    //        .AnyAsync(c => c.GSTNo == dto.GSTNo
-                    //                       && !c.IsDeleted
-                    //                       && c.ClientID != dto.ClientID);
-
-                    //    if (gstExists)
-                    //        throw new Exception("GST Number already exists for another client.");
-                    //}
-
-                    //if (!string.IsNullOrWhiteSpace(dto.Email) && dto.Email != "string")
-                    //{
-                    //    bool emailExists = await _context.Clients
-                    //        .AnyAsync(c => c.Email == dto.Email
-                    //                       && !c.IsDeleted
-                    //                       && c.ClientID != dto.ClientID);
-
-                    //    if (emailExists)
-                    //        throw new Exception("Email already exists for another client.");
-                    //}
-
-                    //if (!string.IsNullOrWhiteSpace(dto.Mobile) && dto.Mobile != "string")
-                    //{
-                    //    bool mobileExists = await _context.Clients
-                    //        .AnyAsync(c => c.Mobile == dto.Mobile
-                    //                       && !c.IsDeleted
-                    //                       && c.ClientID != dto.ClientID);
-
-                    //    if (mobileExists)
-                    //        throw new Exception("Mobile number already exists for another client.");
-                    //}
-
                     if (dto.ClientID == null || dto.ClientID == Guid.Empty)
                     {
                         // -------- CREATE NEW CLIENT ----------
@@ -676,9 +642,9 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                     toDate = toDate.Value.AddDays(1).AddTicks(-1);
 
                 if (fromDate.HasValue && toDate.HasValue)
-                    query = query.Where(l => l.Date >= fromDate && l.Date <= toDate);
+                    query = query.Where(l => l.CreatedDate >= fromDate && l.CreatedDate <= toDate);
                 else if (toDate.HasValue)
-                    query = query.Where(l => l.Date <= toDate);
+                    query = query.Where(l => l.CreatedDate <= toDate);
 
                 #endregion
 
@@ -1039,7 +1005,6 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                     StateID = client?.StateID,
                     CityID = client?.CityID,
 
-                    Date = l.Date,
                     RequirementDetails = l.RequirementDetails,
 
                     LeadSourceID = l.LeadSourceID,

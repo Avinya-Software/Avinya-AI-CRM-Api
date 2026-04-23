@@ -1,4 +1,4 @@
-﻿
+
 namespace AvinyaAICRM.Application.DTOs.Lead
 {
     public class LeadDto
@@ -14,7 +14,6 @@ namespace AvinyaAICRM.Application.DTOs.Lead
         public string? CityName { get; set; }
         public string? StateName { get; set; }
         public int? CityID { get; set; }
-        public DateTime? Date { get; set; }
         public string? RequirementDetails { get; set; }
         public Guid? LeadSourceID { get; set; }
         public string? LeadSourceName { get; set; }

@@ -4,7 +4,7 @@ namespace AvinyaAICRM.Application.DTOs.Report
     {
         public Guid LeadID { get; set; }
         public string? LeadNo { get; set; }
-        public DateTime? Date { get; set; }
+        public DateTime? CreatedDate { get; set; }
         public string? RequirementDetails { get; set; }
         public string? ClientName { get; set; }
         public string? StatusName { get; set; }

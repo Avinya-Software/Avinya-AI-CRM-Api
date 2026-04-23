@@ -184,7 +184,8 @@ namespace AvinyaAICRM.Domain.Constant
                     new() { Name = "ClientID",      Type = "uniqueidentifier", ForeignKey = "Clients.ClientID",            IsImportant = true },
                     new() { Name = "LeadStatusID",  Type = "uniqueidentifier", ForeignKey = "LeadStatusMaster.LeadStatusID", IsImportant = true },
                     new() { Name = "LeadSourceID",  Type = "uniqueidentifier", ForeignKey = "LeadSourceMaster.LeadSourceID", IsImportant = true },
-                    new() { Name = "Date",          Type = "datetime",                            IsImportant = true },
+                    new() { Name = "CreatedDate",   Type = "datetime",                            IsImportant = true },
+                    new() { Name = "CreatedBy",     Type = "nvarchar(50)",                        IsImportant = false },
                     new() { Name = "AssignedTo",    Type = "nvarchar(50)",                        IsImportant = true },
                     new() { Name = "RequirementDetails", Type = "nvarchar(max)",                  IsImportant = false },
                     new() { Name = "Notes",         Type = "nvarchar(100)",                       IsImportant = false },
@@ -913,12 +914,26 @@ namespace AvinyaAICRM.Domain.Constant
                     new() {
                         Question = "Show all leads with client name and status",
                         Analysis = "Join Leads → Clients (CompanyName and ContactPerson) and LeadStatusMaster (StatusName). Filter TenantId and IsDeleted.",
-                        Sql = "SELECT TOP 50 l.LeadNo, COALESCE(NULLIF(c.CompanyName, ''), c.ContactPerson, 'Unknown') AS ClientName, s.StatusName, l.Date FROM dbo.Leads l JOIN dbo.Clients c ON l.ClientID = c.ClientID JOIN dbo.LeadStatusMaster s ON l.LeadStatusID = s.LeadStatusID WHERE l.TenantId = @TenantId AND l.IsDeleted = 0 ORDER BY l.Date DESC"
+                        Sql = "SELECT TOP 50 l.LeadNo, COALESCE(NULLIF(c.CompanyName, ''), c.ContactPerson, 'Unknown') AS ClientName, s.StatusName, l.CreatedDate FROM dbo.Leads l JOIN dbo.Clients c ON l.ClientID = c.ClientID JOIN dbo.LeadStatusMaster s ON l.LeadStatusID = s.LeadStatusID WHERE l.TenantId = @TenantId AND l.IsDeleted = 0 ORDER BY l.CreatedDate DESC"
                     },
                     new() {
                         Question = "How many new leads this month?",
                         Analysis = "Filter Leads by TenantId, current month date range, and LeadStatusMaster where StatusName = 'New'.",
-                        Sql = "SELECT COUNT(*) AS NewLeadCount FROM dbo.Leads l JOIN dbo.LeadStatusMaster s ON l.LeadStatusID = s.LeadStatusID WHERE l.TenantId = @TenantId AND l.IsDeleted = 0 AND s.StatusName = 'New' AND MONTH(l.Date) = MONTH(GETDATE()) AND YEAR(l.Date) = YEAR(GETDATE())"
+                        Sql = "SELECT COUNT(*) AS NewLeadCount FROM dbo.Leads l JOIN dbo.LeadStatusMaster s ON l.LeadStatusID = s.LeadStatusID WHERE l.TenantId = @TenantId AND l.IsDeleted = 0 AND s.StatusName = 'New' AND MONTH(l.CreatedDate) = MONTH(GETDATE()) AND YEAR(l.CreatedDate) = YEAR(GETDATE())"
+                    }
+                }
+            }},
+            { "create_lead", new IntentConfig {
+                Tables = new[] { "Leads", "Clients" },
+                Rules = new() {
+                    new() { Rule = "This is an ACTION intent. DO NOT generate SQL.", Type = "action" },
+                    new() { Rule = "Extract CompanyName and RequirementDetails as mandatory parameters.", Type = "parameters" }
+                },
+                Examples = new() {
+                    new() {
+                        Question = "Create a lead for Google with requirement 'Cloud services'",
+                        Analysis = "Action: create_lead, Params: { CompanyName: 'Google', RequirementDetails: 'Cloud services' }",
+                        Sql = ""
                     }
                 }
             }},

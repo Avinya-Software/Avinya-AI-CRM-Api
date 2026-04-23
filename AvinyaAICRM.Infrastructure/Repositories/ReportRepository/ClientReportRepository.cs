@@ -117,7 +117,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ReportRepository
 
             var leads360 = await _context.Leads
                 .Where(l => !l.IsDeleted && l.ClientID.HasValue && paginatedClientIds.Contains(l.ClientID.Value))
-                .Select(l => new { l.LeadID, l.ClientID, l.Date, l.LeadStatusID })
+                .Select(l => new { l.LeadID, l.ClientID, l.CreatedDate, l.LeadStatusID })
                 .ToListAsync();
 
             var quots360 = await _context.Quotations
@@ -231,7 +231,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ReportRepository
                     AvgDaysToPayment = avgDays,
                     LastOrderDate = cOrders.Any() ? cOrders.Max(o => o.OrderDate) : null,
                     LastPaymentDate = cPayments.Any() ? cPayments.Max(p => p.PaymentDate) : null,
-                    LastLeadDate = cLeads.Any() ? cLeads.Max(l => l.Date) : null
+                    LastLeadDate = cLeads.Any() ? cLeads.Max(l => l.CreatedDate) : null
                 };
             }).ToList();
 
@@ -308,12 +308,12 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ReportRepository
             var leadStatusMap = await _context.leadStatusMasters.ToDictionaryAsync(s => s.LeadStatusID, s => s.StatusName);
             response.Leads = await _context.Leads
                 .Where(l => l.ClientID == clientId && l.TenantId == tenantId && !l.IsDeleted)
-                .OrderByDescending(l => l.Date)
+                .OrderByDescending(l => l.CreatedDate)
                 .Select(l => new ClientDrillDownLeadDto
                 {
                     LeadId = l.LeadID,
                     LeadNo = l.LeadNo ?? string.Empty,
-                    Date = l.Date ?? DateTime.MinValue,
+                    CreatedDate = l.CreatedDate,
                     Status = l.LeadStatusID.HasValue && leadStatusMap.ContainsKey(l.LeadStatusID.Value) ? leadStatusMap[l.LeadStatusID.Value] : "Pending",
                     AssignedTo = l.AssignedTo != null && usersMap.ContainsKey(l.AssignedTo) ? usersMap[l.AssignedTo]! : "Unassigned",
                     Requirement = l.RequirementDetails ?? string.Empty

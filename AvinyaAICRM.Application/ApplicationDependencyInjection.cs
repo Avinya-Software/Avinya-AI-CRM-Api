@@ -63,7 +63,7 @@ namespace AvinyaAICRM.Application
     {
         public static IServiceCollection AddApplication(this IServiceCollection services)
         {
-            services.AddScoped<ILeadFlowService, LeadFlowService>();
+
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
             services.AddScoped<IErrorLogService, ErrorLogService>();
