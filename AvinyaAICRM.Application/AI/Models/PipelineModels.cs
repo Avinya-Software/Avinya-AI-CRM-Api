@@ -23,5 +23,6 @@ namespace AvinyaAICRM.Application.AI.Models
         public int ResponseTokens { get; set; }
         public int TotalTokens { get; set; }
         public int RemainingCredits { get; set; }
+        public List<string>? Suggestions { get; set; }
     }
 }

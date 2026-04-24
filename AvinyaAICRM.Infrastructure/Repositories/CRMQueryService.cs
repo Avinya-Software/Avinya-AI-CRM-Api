@@ -50,12 +50,12 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             _clientRepo = clientRepo;
         }
 
-        public async Task<List<Dictionary<string, object>>> ExecuteRawSqlAsync(string sql, Guid tenantId, bool isSuperAdmin)
+        public async Task<List<Dictionary<string, object>>> ExecuteRawSqlAsync(string sql, Guid tenantId, bool isSuperAdmin, string userId = "")
         {
-            return await ExecuteRawSqlWithHealingAsync(sql, tenantId, isSuperAdmin, "", 2);
+            return await ExecuteRawSqlWithHealingAsync(sql, tenantId, isSuperAdmin, "", 2, userId);
         }
 
-        private async Task<List<Dictionary<string, object>>> ExecuteRawSqlWithHealingAsync(string sql, Guid tenantId, bool isSuperAdmin, string originalMessage, int maxRetries)
+        private async Task<List<Dictionary<string, object>>> ExecuteRawSqlWithHealingAsync(string sql, Guid tenantId, bool isSuperAdmin, string originalMessage, int maxRetries, string userId = "")
         {
             if (string.IsNullOrWhiteSpace(sql)) return new List<Dictionary<string, object>>();
 
@@ -78,13 +78,28 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                     {
                         if (!currentSql.Contains("@TenantId", StringComparison.OrdinalIgnoreCase) && !currentSql.Contains(tenantId.ToString(), StringComparison.OrdinalIgnoreCase))
                         {
+                            if (attempt < maxRetries && !string.IsNullOrWhiteSpace(originalMessage))
+                            {
+                                currentSql = await _aiService.FixSqlAsync(
+                                    currentSql,
+                                    "Security Error: Query must be filtered by TenantId.",
+                                    originalMessage,
+                                    tenantId,
+                                    isSuperAdmin);
+
+                                if (!string.IsNullOrWhiteSpace(currentSql))
+                                {
+                                    continue;
+                                }
+                            }
+
                             throw new UnauthorizedAccessException("Security Error: Query must be filtered by TenantId.");
                         }
                     }
 
                     using (var connection = new Microsoft.Data.SqlClient.SqlConnection(_context.Database.GetConnectionString()))
                     {
-                        var queryParams = new { TenantId = tenantId };
+                        var queryParams = new { TenantId = tenantId, UserId = userId };
                         var results = (await connection.QueryAsync(currentSql, queryParams)).ToList();
 
                         if (results.Any())
@@ -106,7 +121,10 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                         return results.Select(x => (Dictionary<string, object>)new Dictionary<string, object>((IDictionary<string, object>)x)).ToList();
                     }
                 }
-                catch (UnauthorizedAccessException) { throw; }
+                catch (UnauthorizedAccessException)
+                {
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     lastError = ex;
@@ -134,7 +152,7 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             {
                 try 
                 {
-                    var data = await ExecuteRawSqlAsync(response.Sql, tenantId, isSuperAdmin);
+                    var data = await ExecuteRawSqlWithHealingAsync(response.Sql, tenantId, isSuperAdmin, request.Message, 2, userId);
                     response.Data = data;
                     response.Count = data.Count;
                     response.Query = response.Sql;
@@ -154,7 +172,7 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                     }
                     else
                     {
-                        finalMessage = finalMessage.Replace("{count}", data.Count.ToString());
+                        finalMessage = finalMessage.Replace("{count}", data.Count.ToString()).Replace("[count]", data.Count.ToString());
                         finalMessage = FormatMessageWithData(finalMessage, data[0]);
                     }
                     response.Message = finalMessage;
@@ -421,7 +439,8 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                         {
                             foreach (var kvp in dashboard)
                             {
-                                formatted = formatted.Replace("{" + kvp.Key + "}", kvp.Value?.ToString() ?? "0");
+                                formatted = formatted.Replace("{" + kvp.Key + "}", kvp.Value?.ToString() ?? "0")
+                                                   .Replace("[" + kvp.Key + "]", kvp.Value?.ToString() ?? "0");
                             }
                         }
                     } catch { /* Ignore malformed JSON */ }
@@ -431,7 +450,8 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             // Replace standard placeholders
             foreach (var kvp in displayValues)
             {
-                formatted = formatted.Replace("{" + kvp.Key + "}", kvp.Value);
+                formatted = formatted.Replace("{" + kvp.Key + "}", kvp.Value)
+                                   .Replace("[" + kvp.Key + "]", kvp.Value);
             }
 
             return formatted;
@@ -456,7 +476,8 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                 ResponseTokens = pipelineResult.ResponseTokens,
                 TotalTokens = pipelineResult.TotalTokens,
                 RemainingCredits = pipelineResult.RemainingCredits,
-                Source = pipelineResult.Source
+                Source = pipelineResult.Source,
+                Suggestions = pipelineResult.Suggestions
             };
 
             return aiResponse;

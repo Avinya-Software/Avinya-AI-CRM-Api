@@ -69,10 +69,11 @@ namespace AvinyaAICRM.Application.AI.Pipeline
             result.TotalTokens = aiSqlResponse.TotalTokens;
             result.Sql = aiSqlResponse.Sql;
             result.Action = aiSqlResponse.Action;
-            result.Intent = aiSqlResponse.Intent;
+            result.Intent = aiSqlResponse.Intent;           
             result.Parameters = aiSqlResponse.Parameters;
             result.SuccessMessage = aiSqlResponse.SuccessMessage;
             result.ErrorMessage = aiSqlResponse.ErrorMessage;
+            result.Suggestions = aiSqlResponse.Suggestions;
             
             return await DeductAndReturnAsync(result, userId);
         }

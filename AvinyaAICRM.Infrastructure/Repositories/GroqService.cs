@@ -145,7 +145,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories
             var historyContext = new StringBuilder();
             if (history != null && history.Any())
             {
-                historyContext.AppendLine("RECENT CONVERSATION HISTORY:");
+                historyContext.AppendLine("RECENT CONVERSATION HISTORY (Last 5 messages):");
                 foreach (var h in history.TakeLast(5))
                 {
                     historyContext.AppendLine($"{h.Role.ToUpper()}: {h.Content}");
@@ -161,16 +161,17 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                             
             var model = isComplex ? "llama-3.3-70b-versatile" : "llama-3.1-8b-instant";
 
-            var prompt = $@"
+         var prompt = $@"
                 You are a CRM Data Analyst and T-SQL Expert. Generate a SQL query based on the JSON context provided.
 
                 GLOBAL RULES:
-                - SECURITY      : Always filter by 'TenantId = @TenantId'. Use JOINs if the table lacks a direct 'TenantId'.
-                - INTEGRITY     : Always include 'IsDeleted = 0' for every table that has that column.
+                - SECURITY      : Every single query MUST filter by 'TenantId = @TenantId'. This is MANDATORY.
+                - SECURITY HINT : Check the 'hint' property in the table schema. If it says 'NO TenantId', YOU MUST JOIN a parent table that has it (e.g., JOIN Leads, Projects, AspNetUsers, or Teams) and filter by that table's TenantId.
+                - INTEGRITY     : ONLY include 'IsDeleted = 0' IF the table explicitly has that column in the schema. (Note: TaskOccurrences and TaskSeries do NOT have IsDeleted, use IsActive for TaskSeries if relevant).
                 - HALLUCINATION : Only use tables and columns defined in the JSON context.
                 - LIMITS        : Use 'SELECT TOP 50' if the user doesn't specify a count.
                 - TIME          : Current Date/Time is {DateTime.Now:f} (Year {DateTime.Now.Year}).
-                - SECURITY      : You MUST use '@TenantId' parameter in every WHERE clause. NEVER hardcode a Guid or ID for TenantId.
+                - PARAMETERS    : You MUST use '@TenantId' parameter in every WHERE clause. NEVER hardcode a Guid or ID for TenantId.
                 - USER FRIENDLY : NEVER SELECT raw internal IDs (like ClientID, StatusID) in the final output. ALWAYS JOIN the reference tables and SELECT the human-readable names (e.g. CompanyName, StatusName, SourceName).
                 {historyContext}
                 - DURATION vs COUNT: 
@@ -204,6 +205,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 3. NEVER combine SELECT TOP with DATEADD unless the user specifically asked for both.
                 4. GLOBAL SEARCH: If the user provides a search term (name, ID, or reference) without specifying a column, you MUST search for that term across all relevant human-readable columns (CompanyName, ContactPerson, LeadNo, OrderNo, etc.) using LIKE and OR. Do NOT just check one specific ID column.
                 5. ANTI-HALLUCINATION: NEVER invent table names (like 'LeadNotes' or 'LeadItems'). ONLY use the tables provided in the JSON context. Notes for Leads are located in `Leads.Notes` or `Leads.RequirementDetails`.
+                6. DYNAMIC SUGGESTIONS: You MUST always provide 3-5 highly relevant, short follow-up questions or actions in the ""suggestions"" array.
 
                 DATABASE CONTEXT (JSON):
                 {targetedSchema}
@@ -248,21 +250,25 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                     ""Notes"": ""Additional internal notes"",
                     ""AssignedTo"": ""Alias for AssignToName (Full Name)""
                 }},
-                ""successMessage"": ""Write a highly conversational, engaging business reply. If create_lead, say 'I've successfully created the lead for [CompanyName].'. If create_task, say 'I've successfully created the task: [Title].'"",
-                ""errorMessage"": ""Use this to ask for MISSING REQUIRED FIELDS (e.g. 'Is this for personal use or for a team?', 'What is the due date?', 'Which team should I assign this to?')""
+                ""successMessage"": ""Write a highly conversational, engaging business reply. Use {{ColumnName}} syntax for data placeholders (e.g., 'I found {{TotalLeads}} leads.') and ALWAYS use {{count}} to represent the total number of records returned (e.g., 'I found {{count}} leads for you.')."",
+                ""errorMessage"": ""Use this ONLY to ask for MISSING REQUIRED FIELDS or explain errors. Keep it brief."",
+                ""suggestions"": [""Next logical question 1"", ""Next logical question 2"", ""Next logical question 3""]
                 }}
  
                 ACTION SELECTION RULES:
-                1. If the user wants to ADD, CREATE, or REGISTER a lead → action: ""create_lead"".
-                2. If the user wants to ADD, CREATE, or SCHEDULE a task/todo → action: ""create_task"".
+                1. If the user wants to ADD, CREATE, or REGISTER a lead:
+                   - IF CompanyName and RequirementDetails are provided → action: ""create_lead"".
+                   - IF either is missing → action: ""message"" and ask the user for the missing info.
+                2. If the user wants to ADD, CREATE, or SCHEDULE a task/todo:
+                   - IF Title, DueDateTime, and TaskType are provided → action: ""create_task"".
+                   - IF any are missing → action: ""message"" and ask the user for the missing info.
                 3. If the user asks a question that requires data from the database → action: ""get_summary"".
                 4. If the user is just saying hello or asking a general question → action: ""message"".
 
                 ACTION 'create_lead' RULES:
-                - If the user provides a company and a requirement, ALWAYS choose `action: ""create_lead""`.
-                - DO NOT ask for permission or clarification if you have the data. Just create it.
-                - Extract CompanyName and RequirementDetails as mandatory parameters.
-                - If missing, set an appropriate `errorMessage`.
+                - ALWAYS extract CompanyName and RequirementDetails.
+                - IF the user has NOT provided them yet, YOU MUST set `action: ""message""` and ask: ""Sure, I can help with that. What is the Company Name and their Requirement?""
+                - NEVER use ""Required"" or ""Missing"" as a value in parameters. Use actual user data only.
 
                 ACTION 'create_task' RULES:
                 - Extract Title, DueDateTime, and TaskType.
@@ -398,7 +404,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                         {errorMessage}
 
                         FIX RULES:
-                        - Always filter with TenantId = @TenantId (or '{tenantId}' if no param available)
+                        - Always filter with TenantId = @TenantId. If the table lacks TenantId, JOIN a parent table that has it (Leads, Projects, AspNetUsers, etc.).
                         - Only SELECT statements are allowed
                         - Fix ONLY the error — do not change the intent or columns
                         - Return ONLY the fixed SQL string. No explanation, no JSON, no markdown.

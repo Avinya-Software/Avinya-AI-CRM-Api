@@ -115,6 +115,7 @@ namespace AvinyaAICRM.Domain.Constant
             var minifiedTables = finalTables.Select(t => new
             {
                 n = t.Name,
+                hint = t.SecurityHint,
                 cols = t.Columns.Where(c => c.IsImportant).Select(c => new
                 {
                     n = c.Name,
@@ -1014,16 +1015,17 @@ namespace AvinyaAICRM.Domain.Constant
             }},
 
             { "query_tasks", new IntentConfig {
-                Tables = new[] { "TaskSeries", "TaskOccurrences", "TaskLists", "Projects" },
+                Tables = new[] { "TaskSeries", "TaskOccurrences", "TaskLists", "Projects", "Teams", "AspNetUsers" },
                 Rules = new() {
-                    new() { Rule = "No TenantId on tasks — scope by TaskLists.OwnerId = @UserId or TeamId", Type = "security" },
+                    new() { Rule = "TaskSeries and TaskOccurrences do not have TenantId. You MUST join to a tenant-aware table such as AspNetUsers, Teams, or Projects and filter with @TenantId.", Type = "security" },
+                    new() { Rule = "For 'my tasks' queries, JOIN AspNetUsers on TaskOccurrences.AssignedTo = AspNetUsers.Id and filter AspNetUsers.TenantId = @TenantId plus AspNetUsers.Id = @UserId.", Type = "security" },
                     new() { Rule = "TaskOccurrences.Status values: Pending, Completed, Skipped", Type = "filter" }
                 },
                 Examples = new() {
                     new() {
                         Question = "Show my pending tasks due today",
-                        Analysis = "Join TaskOccurrences → TaskSeries → TaskLists. Filter AssignedTo = @UserId, Status='Pending', DueDateTime = today.",
-                        Sql = "SELECT ts.Title, to2.DueDateTime, to2.Status FROM dbo.TaskOccurrences to2 JOIN dbo.TaskSeries ts ON to2.TaskSeriesId = ts.Id JOIN dbo.TaskLists tl ON ts.ListId = tl.Id WHERE to2.AssignedTo = @UserId AND to2.Status = 'Pending' AND CAST(to2.DueDateTime AS DATE) = CAST(GETDATE() AS DATE) ORDER BY to2.DueDateTime"
+                        Analysis = "Join TaskOccurrences → TaskSeries and AspNetUsers so the query is filtered by both the current user and TenantId. Filter Status='Pending' and DueDateTime=today.",
+                        Sql = "SELECT ts.Title, to2.DueDateTime, to2.Status FROM dbo.TaskOccurrences to2 JOIN dbo.TaskSeries ts ON to2.TaskSeriesId = ts.Id JOIN dbo.AspNetUsers u ON to2.AssignedTo = u.Id WHERE u.TenantId = @TenantId AND u.Id = @UserId AND to2.Status = 'Pending' AND CAST(to2.DueDateTime AS DATE) = CAST(GETDATE() AS DATE) ORDER BY to2.DueDateTime"
                     }
                 }
             }},
