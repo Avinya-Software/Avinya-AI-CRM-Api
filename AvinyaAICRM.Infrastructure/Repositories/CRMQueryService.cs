@@ -1,7 +1,6 @@
 using AvinyaAICRM.Application.DTOs.Lead;
 using AvinyaAICRM.Application.DTOs.Tasks;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.AIChat;
-using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Team;
 using AvinyaAICRM.Application.Interfaces.Clients;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.AICHAT;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Leads;
@@ -22,7 +21,6 @@ namespace AvinyaAICRM.Application.Services.AICHATS
         private readonly IAIService _aiService;
         private readonly ILeadService _leadService;
         private readonly ITaskService _taskService;
-        private readonly ITeamRepository _teamRepo;
         private readonly AIPipeline _pipeline;
         private readonly ICreditService _credits;
         private readonly IAIKnowledgeService _knowledge;
@@ -33,7 +31,6 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             IAIService aiService,
             ILeadService leadService,
             ITaskService taskService,
-            ITeamRepository teamRepo,
             AIPipeline pipeline,
             ICreditService credits,
             IAIKnowledgeService knowledge,
@@ -43,7 +40,6 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             _aiService = aiService;
             _leadService = leadService;
             _taskService = taskService;
-            _teamRepo = teamRepo;
             _pipeline = pipeline;
             _credits = credits;
             _knowledge = knowledge;
@@ -388,19 +384,21 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             }
             else if (response.Action == "message")
             {
-                response.Message = response.SuccessMessage ?? response.Message ?? "I'm here to help! What can I do for you?";
-                response.Data = new List<Dictionary<string, object>>();
-                response.Count = 0;
+                SetEmptyResponse(response, response.SuccessMessage ?? response.Message ?? "I'm here to help! What can I do for you?");
             }
             else 
             {
-                // Default fallback message
-                response.Message = response.SuccessMessage ?? response.ClarificationMessage ?? response.ErrorMessage ?? "I'm not sure how to help with that. Could you please rephrase?";
-                response.Data = new List<Dictionary<string, object>>();
-                response.Count = 0;
+                SetEmptyResponse(response, response.SuccessMessage ?? response.ClarificationMessage ?? response.ErrorMessage ?? "I'm not sure how to help with that. Could you please rephrase?");
             }
 
             return response;
+        }
+
+        private static void SetEmptyResponse(AIResponse response, string message)
+        {
+            response.Message = message;
+            response.Data = new List<Dictionary<string, object>>();
+            response.Count = 0;
         }
 
         private string FormatMessageWithData(string template, Dictionary<string, object> row)
@@ -439,8 +437,7 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                         {
                             foreach (var kvp in dashboard)
                             {
-                                formatted = formatted.Replace("{" + kvp.Key + "}", kvp.Value?.ToString() ?? "0")
-                                                   .Replace("[" + kvp.Key + "]", kvp.Value?.ToString() ?? "0");
+                                formatted = ReplaceTemplateToken(formatted, kvp.Key, kvp.Value?.ToString() ?? "0");
                             }
                         }
                     } catch { /* Ignore malformed JSON */ }
@@ -450,12 +447,14 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             // Replace standard placeholders
             foreach (var kvp in displayValues)
             {
-                formatted = formatted.Replace("{" + kvp.Key + "}", kvp.Value)
-                                   .Replace("[" + kvp.Key + "]", kvp.Value);
+                formatted = ReplaceTemplateToken(formatted, kvp.Key, kvp.Value);
             }
 
             return formatted;
         }
+
+        private static string ReplaceTemplateToken(string template, string key, string value)
+            => template.Replace("{" + key + "}", value).Replace("[" + key + "]", value);
 
         public async Task<AIResponse> ProcessCommandAsync(string message, Guid tenantId, string userId, bool isSuperAdmin, List<string> allowedModules, List<AIChatHistoryDto> history = null)
         {

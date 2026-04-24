@@ -11,6 +11,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories
 {
     public class GroqService : IAIService
     {
+        private const string DefaultModel = "llama-3.1-8b-instant";
+        private const string SmartModel = "llama-3.3-70b-versatile";
+        private const string DefaultBaseUrl = "https://api.groq.com/openai/v1/chat/completions";
+
         private readonly HttpClient _httpClient;
         private readonly IConfiguration _config;
         public bool PreferRawGeneration => true;
@@ -135,22 +139,13 @@ namespace AvinyaAICRM.Infrastructure.Repositories
 
         public async Task<AIResponse> AnalyzeMessageAsync(string userMessage, Guid tenantId, bool isSuperAdmin, List<string> allowedModules, List<AIChatHistoryDto> history = null)
         {
-            var apiKey  = _config["Groq:ApiKey"];
-            var baseUrl = _config["Groq:BaseUrl"]  ?? "https://api.groq.com/openai/v1/chat/completions";
+            var apiKey = _config["Groq:ApiKey"];
+            var baseUrl = GetBaseUrl();
 
             var lowerMsg       = userMessage.ToLower();
             var intents        = DetectIntents(lowerMsg);
             var targetedSchema = AISchema.GetContextForIntent(intents);
-
-            var historyContext = new StringBuilder();
-            if (history != null && history.Any())
-            {
-                historyContext.AppendLine("RECENT CONVERSATION HISTORY (Last 5 messages):");
-                foreach (var h in history.TakeLast(5))
-                {
-                    historyContext.AppendLine($"{h.Role.ToUpper()}: {h.Content}");
-                }
-            }
+            var historyContext = BuildHistoryContext(history);
 
             // ─── DYNAMIC MODEL SELECTION (SPEED VS BRAIN) ────────────────────
             var isComplex = intents.Count > 1 || 
@@ -159,7 +154,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                             lowerMsg.Contains("report") || lowerMsg.Contains("summary") || 
                             lowerMsg.Contains("how many") || lowerMsg.Contains("top ");
                             
-            var model = isComplex ? "llama-3.3-70b-versatile" : "llama-3.1-8b-instant";
+            var model = isComplex ? SmartModel : DefaultModel;
 
          var prompt = $@"
                 You are a CRM Data Analyst and T-SQL Expert. Generate a SQL query based on the JSON context provided.
@@ -282,15 +277,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 Generate ONLY the JSON object. No explanation, no markdown.
                 ";
 
-            var groqResult = await CallGroqAsync(prompt, apiKey, model, baseUrl);
-            
-            // --- FALLBACK MECHANISM ---
-            if (string.IsNullOrEmpty(groqResult.Text))
-            {
-                // If the primary model failed, try the alternative
-                var fallbackModel = isComplex ? "llama-3.1-8b-instant" : "llama-3.3-70b-versatile";
-                groqResult = await CallGroqAsync(prompt, apiKey, fallbackModel, baseUrl);
-            }
+            var groqResult = await CallGroqWithFallbackAsync(prompt, apiKey, model, GetFallbackModel(model), baseUrl);
 
             if (string.IsNullOrEmpty(groqResult.Text))
                 return new AIResponse { Action = "message", ErrorMessage = "AI service error (Groq)." };
@@ -315,9 +302,9 @@ namespace AvinyaAICRM.Infrastructure.Repositories
 
         public async Task<AIResponse> RefineTemplateAsync(string userMessage, string templateSql, Guid tenantId, bool isSuperAdmin)
         {
-            var apiKey  = _config["Groq:ApiKey"];
-            var model   = _config["Groq:Model"]   ?? "llama-3.1-8b-instant";
-            var baseUrl = _config["Groq:BaseUrl"]  ?? "https://api.groq.com/openai/v1/chat/completions";
+            var apiKey = _config["Groq:ApiKey"];
+            var model = GetConfiguredModel();
+            var baseUrl = GetBaseUrl();
 
             var prompt = $@"
                         You are a T-SQL expert. Refine the BASE TEMPLATE to match the USER REQUEST exactly.
@@ -353,14 +340,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                         }}
                         ";
 
-            var groqResult = await CallGroqAsync(prompt, apiKey, model, baseUrl);
-
-            // --- FALLBACK ---
-            if (string.IsNullOrEmpty(groqResult.Text))
-            {
-                var fallbackModel = (model == "llama-3.3-70b-versatile") ? "llama-3.1-8b-instant" : "llama-3.3-70b-versatile";
-                groqResult = await CallGroqAsync(prompt, apiKey, fallbackModel, baseUrl);
-            }
+            var groqResult = await CallGroqWithFallbackAsync(prompt, apiKey, model, GetFallbackModel(model), baseUrl);
 
             if (string.IsNullOrEmpty(groqResult.Text))
                 return new AIResponse { Action = "get_summary", Sql = templateSql, SuccessMessage = "Proceeding with standard template." };
@@ -386,9 +366,9 @@ namespace AvinyaAICRM.Infrastructure.Repositories
 
         public async Task<string> FixSqlAsync(string badSql, string errorMessage, string originalQuestion, Guid tenantId, bool isSuperAdmin)
         {
-            var apiKey  = _config["Groq:ApiKey"];
-            var model   = _config["Groq:Model"]   ?? "llama-3.1-8b-instant";
-            var baseUrl = _config["Groq:BaseUrl"]  ?? "https://api.groq.com/openai/v1/chat/completions";
+            var apiKey = _config["Groq:ApiKey"];
+            var model = GetConfiguredModel();
+            var baseUrl = GetBaseUrl();
 
             var fixSchema = AISchema.GetContextForIntent(DetectIntents(originalQuestion.ToLower()));
 
@@ -413,15 +393,15 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                         {fixSchema}
                         ";
 
-            var groqResult = await CallGroqAsync(prompt, apiKey, model, baseUrl);
+            var groqResult = await CallGroqWithFallbackAsync(prompt, apiKey, model, GetFallbackModel(model), baseUrl);
             return groqResult.Text.Replace("```sql", "").Replace("```", "").Trim();
         }
 
         public async Task<AIResponse> RefineQueryAsync(string originalMessage, string badSql, string userCorrection, Guid tenantId)
         {
             var groqKey = _config["Groq:ApiKey"];
-            var model   = _config["Groq:Model"]   ?? "llama-3.1-8b-instant";
-            var baseUrl = _config["Groq:BaseUrl"]  ?? "https://api.groq.com/openai/v1/chat/completions";
+            var model = GetConfiguredModel();
+            var baseUrl = GetBaseUrl();
             
             var intents = DetectIntents(originalMessage.ToLower());
             var schema  = AISchema.GetContextForIntent(intents);
@@ -457,14 +437,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 5. Return ONLY the corrected SQL string. No markdown, no explanation.
             ";
 
-            var result = await CallGroqAsync(prompt, groqKey, model, baseUrl);
-
-            // --- FALLBACK ---
-            if (string.IsNullOrEmpty(result.Text))
-            {
-                var fallbackModel = (model == "llama-3.3-70b-versatile") ? "llama-3.1-8b-instant" : "llama-3.3-70b-versatile";
-                result = await CallGroqAsync(prompt, groqKey, fallbackModel, baseUrl);
-            }
+            var result = await CallGroqWithFallbackAsync(prompt, groqKey, model, GetFallbackModel(model), baseUrl);
 
             if (string.IsNullOrEmpty(result.Text))
                 return new AIResponse { Action = "message", ErrorMessage = "Healing AI failed." };
@@ -476,6 +449,45 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 PromptTokens = result.Prompt,
                 ResponseTokens = result.Response
             };
+        }
+
+        private string GetConfiguredModel()
+            => _config["Groq:Model"] ?? DefaultModel;
+
+        private string GetBaseUrl()
+            => _config["Groq:BaseUrl"] ?? DefaultBaseUrl;
+
+        private static string GetFallbackModel(string model)
+            => model == SmartModel ? DefaultModel : SmartModel;
+
+        private static string BuildHistoryContext(List<AIChatHistoryDto> history)
+        {
+            if (history == null || !history.Any())
+            {
+                return string.Empty;
+            }
+
+            var historyContext = new StringBuilder();
+            historyContext.AppendLine("RECENT CONVERSATION HISTORY (Last 5 messages):");
+
+            foreach (var message in history.TakeLast(5))
+            {
+                historyContext.AppendLine($"{message.Role.ToUpper()}: {message.Content}");
+            }
+
+            return historyContext.ToString();
+        }
+
+        private async Task<(string Text, int Prompt, int Response, int Total)> CallGroqWithFallbackAsync(
+            string prompt, string apiKey, string primaryModel, string fallbackModel, string baseUrl)
+        {
+            var result = await CallGroqAsync(prompt, apiKey, primaryModel, baseUrl);
+            if (!string.IsNullOrEmpty(result.Text))
+            {
+                return result;
+            }
+
+            return await CallGroqAsync(prompt, apiKey, fallbackModel, baseUrl);
         }
 
         private async Task<(string Text, int Prompt, int Response, int Total)> CallGroqAsync(

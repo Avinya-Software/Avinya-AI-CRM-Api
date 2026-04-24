@@ -1,5 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using AvinyaAICRM.Application.DTOs.Projects;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.Orders;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Projects;
 using Microsoft.AspNetCore.Authorization;
 
@@ -11,10 +12,12 @@ namespace AvinyaAICRM.API.Controllers.Projects
     public class ProjectController : Controller
     {
         private readonly IProjectService _projectService;
+        private readonly IStatusDropDownServices _statusDropDownServices;
 
-        public ProjectController(IProjectService projectService)
+        public ProjectController(IProjectService projectService, IStatusDropDownServices statusDropDownServices)
         {
             _projectService = projectService;
+            _statusDropDownServices = statusDropDownServices;
         }
 
         [HttpGet]
@@ -22,6 +25,20 @@ namespace AvinyaAICRM.API.Controllers.Projects
         {
             var tenantId = User.FindFirst("tenantId")?.Value!;
             var response = await _projectService.GetAllAsync(tenantId);
+            return new JsonResult(response) { StatusCode = response.StatusCode };
+        }
+
+        [HttpGet("status-dropdown")]
+        public async Task<IActionResult> GetProjectStatusDropDown()
+        {
+            var response = await _statusDropDownServices.GetAllProjectStatusAsync();
+            return new JsonResult(response) { StatusCode = response.StatusCode };
+        }
+
+        [HttpGet("priority-dropdown")]
+        public async Task<IActionResult> GetProjectPriorityDropDown()
+        {
+            var response = await _statusDropDownServices.GetAllProjectPriorityAsync();
             return new JsonResult(response) { StatusCode = response.StatusCode };
         }
 

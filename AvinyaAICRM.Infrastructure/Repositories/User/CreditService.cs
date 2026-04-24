@@ -12,7 +12,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
     {
         private readonly AppDbContext _context;
         private readonly IUserCreditRepository _repository;
-        private const int DEFAULT_BALANCE = 15000;
+        private const int DEFAULT_BALANCE = 30000;
 
         public CreditService(AppDbContext context, IUserCreditRepository repository)
         {
@@ -147,7 +147,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
 
         public async Task<int> ResetAllBalancesAsync(int amount)
         {
-            // Reset all active users' balance to the specified amount (e.g. 15000)
+            // Reset all active users' balance to the specified amount (e.g. 30000)
             return await _context.Database.ExecuteSqlRawAsync($"UPDATE dbo.[UserCredits] SET Balance = {amount}, UpdatedAt = GETUTCDATE()");
         }
 

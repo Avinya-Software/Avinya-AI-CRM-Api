@@ -12,7 +12,7 @@ namespace AvinyaAICRM.Infrastructure.BackgroundServices
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<CreditResetWorker> _logger;
-        private const int RESET_AMOUNT = 15000;
+        private const int RESET_AMOUNT = 30000;
 
         public CreditResetWorker(IServiceProvider serviceProvider, ILogger<CreditResetWorker> logger)
         {

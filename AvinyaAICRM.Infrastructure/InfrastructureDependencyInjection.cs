@@ -190,7 +190,6 @@ namespace AvinyaAICRM.Infrastructure
             services.AddScoped<ICRMQueryService, CRMQueryService>();
             
             // AI Pipeline Components
-            services.AddScoped<AvinyaAICRM.Application.AI.Pipeline.SqlValidator>();
             services.AddScoped<AvinyaAICRM.Application.AI.Pipeline.AIPipeline>();
 
             services.AddScoped<ICreditService, CreditService>();

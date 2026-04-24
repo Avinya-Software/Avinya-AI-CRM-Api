@@ -9,20 +9,17 @@ namespace AvinyaAICRM.Application.AI.Pipeline
 {
     public class AIPipeline
     {
-        private readonly SqlValidator _validator;
         private readonly IAIService _aiService;
         private readonly ILogger<AIPipeline> _logger;
         private readonly ICreditService _creditService;
         private readonly IAIKnowledgeService _knowledge;
 
         public AIPipeline(
-            SqlValidator validator,
             IAIService aiService,
             ILogger<AIPipeline> logger,
             ICreditService creditService,
             IAIKnowledgeService knowledge)
         {
-            _validator = validator;
             _aiService = aiService;
             _logger = logger;
             _creditService = creditService;

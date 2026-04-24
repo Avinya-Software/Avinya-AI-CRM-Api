@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Shared.Model;
+using AvinyaAICRM.Shared.Model;
 
 namespace AvinyaAICRM.Application.Interfaces.ServiceInterface.Orders
 {
@@ -6,5 +6,7 @@ namespace AvinyaAICRM.Application.Interfaces.ServiceInterface.Orders
     {
         Task<ResponseModel> GetAllDesignStatusAsync();
         Task<ResponseModel> GetAllOrderStatusAsync();
+        Task<ResponseModel> GetAllProjectStatusAsync();
+        Task<ResponseModel> GetAllProjectPriorityAsync();
     }
 }
