@@ -185,7 +185,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 - ""overdue""         → DateColumn < GETDATE()
                 - ""upcoming""        → DateColumn >= GETDATE()
                 - ""revenue""         → SUM(Invoices.GrandTotal)
-                - ""outstanding""     → SUM(Invoices.OutstandingAmount)
+                - ""outstanding""     → SUM(Invoices.AmountAfterDiscount)
                 - ""collected""       → SUM(Payments.Amount)
                 - ""top clients""     → GROUP BY + ORDER BY SUM DESC
                 - ""by category""     → GROUP BY CategoryName
@@ -245,7 +245,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                     ""Notes"": ""Additional internal notes"",
                     ""AssignedTo"": ""Alias for AssignToName (Full Name)""
                 }},
-                ""successMessage"": ""Write a highly conversational, engaging business reply. Use {{ColumnName}} syntax for data placeholders (e.g., 'I found {{TotalLeads}} leads.') and ALWAYS use {{count}} to represent the total number of records returned (e.g., 'I found {{count}} leads for you.')."",
+                ""successMessage"": ""Write a highly conversational, engaging business reply. 
+                    - For 'create_lead' or 'create_task', use {{FieldName}} syntax for parameters (e.g., 'I created a lead for {{CompanyName}}'). 
+                    - For 'get_summary', ALWAYS use {{count}} for the total record count (e.g., 'I found {{count}} leads.').
+                    - IMPORTANT: Do NOT mention counts for 'create_lead' or 'create_task' unless explicitly relevant."",
                 ""errorMessage"": ""Use this ONLY to ask for MISSING REQUIRED FIELDS or explain errors. Keep it brief."",
                 ""suggestions"": [""Next logical question 1"", ""Next logical question 2"", ""Next logical question 3""]
                 }}
@@ -262,7 +265,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories
 
                 ACTION 'create_lead' RULES:
                 - ALWAYS extract CompanyName and RequirementDetails.
-                - IF the user has NOT provided them yet, YOU MUST set `action: ""message""` and ask: ""Sure, I can help with that. What is the Company Name and their Requirement?""
+                - IF the user mentions a source like 'Referral', 'Facebook', 'Other', etc., extract it into `OtherSources`.
+                - IF the user has NOT provided CompanyName and RequirementDetails yet, YOU MUST set `action: ""message""` and ask for them.
                 - NEVER use ""Required"" or ""Missing"" as a value in parameters. Use actual user data only.
 
                 ACTION 'create_task' RULES:
@@ -364,13 +368,14 @@ namespace AvinyaAICRM.Infrastructure.Repositories
 
    
 
-        public async Task<string> FixSqlAsync(string badSql, string errorMessage, string originalQuestion, Guid tenantId, bool isSuperAdmin)
+        public async Task<string> FixSqlAsync(string badSql, string errorMessage, string originalQuestion, Guid tenantId, bool isSuperAdmin, List<AIChatHistoryDto> history = null)
         {
             var apiKey = _config["Groq:ApiKey"];
             var model = GetConfiguredModel();
             var baseUrl = GetBaseUrl();
 
             var fixSchema = AISchema.GetContextForIntent(DetectIntents(originalQuestion.ToLower()));
+            var historyContext = BuildHistoryContext(history);
 
             var prompt = $@"
                         You are a T-SQL expert. Fix the broken SQL query below so it runs without errors.
@@ -380,13 +385,16 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                         BROKEN SQL:
                         {badSql}
 
-                        SQL ERROR:
+                        SQL ERROR / VALIDATION FAILURE:
                         {errorMessage}
+
+                        {(string.IsNullOrEmpty(historyContext) ? "" : $"CONVERSATION CONTEXT (why the user asked this):\n{historyContext}")}
 
                         FIX RULES:
                         - Always filter with TenantId = @TenantId. If the table lacks TenantId, JOIN a parent table that has it (Leads, Projects, AspNetUsers, etc.).
-                        - Only SELECT statements are allowed
-                        - Fix ONLY the error — do not change the intent or columns
+                        - Only SELECT statements are allowed.
+                        - Fix ONLY the error — do not change the intent or columns.
+                        - Use the SCHEMA CONTEXT below to find the correct table/column names.
                         - Return ONLY the fixed SQL string. No explanation, no JSON, no markdown.
 
                         SCHEMA CONTEXT (JSON):
@@ -396,6 +404,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories
             var groqResult = await CallGroqWithFallbackAsync(prompt, apiKey, model, GetFallbackModel(model), baseUrl);
             return groqResult.Text.Replace("```sql", "").Replace("```", "").Trim();
         }
+
 
         public async Task<AIResponse> RefineQueryAsync(string originalMessage, string badSql, string userCorrection, Guid tenantId)
         {

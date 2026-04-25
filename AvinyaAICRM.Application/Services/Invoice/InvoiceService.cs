@@ -60,7 +60,7 @@ namespace AvinyaAICRM.Application.Services.Invoice
                 VehicleNo = dto.VehicleNo,
                 Station = dto.Station,
                 EWayBillNo = dto.EWayBillNo,
-                OutstandingAmount = dto.GrandTotal - dto.Discount,
+                AmountAfterDiscount = dto.GrandTotal - dto.Discount,
                 RemainingPayment = (dto.GrandTotal - dto.Discount),
                 TenantId = tenantId
             };
@@ -83,8 +83,8 @@ namespace AvinyaAICRM.Application.Services.Invoice
             existing.Discount = dto.Discount;
             
             existing.GrandTotal = dto.GrandTotal;
-            existing.OutstandingAmount = existing.GrandTotal - existing.Discount;
-            existing.RemainingPayment = existing.OutstandingAmount - existing.PaidAmount;
+            existing.AmountAfterDiscount = existing.GrandTotal - existing.Discount;
+            existing.RemainingPayment = existing.AmountAfterDiscount - existing.PaidAmount;
             existing.InvoiceStatusID = dto.InvoiceStatusID;
             existing.PlaceOfSupply = dto.PlaceOfSupply;
             existing.ReverseCharge = dto.ReverseCharge;
@@ -154,7 +154,7 @@ namespace AvinyaAICRM.Application.Services.Invoice
                 VehicleNo = invoice.VehicleNo,
                 Station = invoice.Station,
                 EWayBillNo = invoice.EWayBillNo,
-                OutstandingAmount = invoice.OutstandingAmount
+                AmountAfterDiscount = invoice.AmountAfterDiscount
             };
         }
 

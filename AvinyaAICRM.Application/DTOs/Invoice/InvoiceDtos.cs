@@ -31,7 +31,7 @@ namespace AvinyaAICRM.Application.DTOs.Invoice
         public string? ContactPerson { get; set; }
         public string? StatusName { get; set; }
         public int? TotalCount { get; set; }
-        public decimal OutstandingAmount { get; set; }
+        public decimal AmountAfterDiscount { get; set; }
         public List<OrderItemReponceDto>? OrderItems { get; set; }
     }
 

@@ -59,7 +59,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Invoices
                VehicleNo = i.VehicleNo,
                Station = i.Station,
                EWayBillNo = i.EWayBillNo,
-               OutstandingAmount = i.OutstandingAmount,
+               AmountAfterDiscount = i.AmountAfterDiscount,
 
                // 👇 Order Items Mapping
                OrderItems = _context.OrderItems
@@ -216,7 +216,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Invoices
                 VehicleNo = i.VehicleNo,
                 Station = i.Station,
                 EWayBillNo = i.EWayBillNo,
-                OutstandingAmount = i.OutstandingAmount,
+                AmountAfterDiscount = i.AmountAfterDiscount,
                 CompanyName = clients.FirstOrDefault(c => c.ClientID.ToString() == i.ClientID)?.CompanyName,
                 ContactPerson = clients.FirstOrDefault(c => c.ClientID.ToString() == i.ClientID)?.ContactPerson,
                 StatusName = statusesList.FirstOrDefault(s => s.InvoiceStatusID == i.InvoiceStatusID)?.InvoiceStatusName

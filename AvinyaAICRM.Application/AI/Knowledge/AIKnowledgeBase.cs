@@ -27,7 +27,7 @@ LEADS:
 FINANCE:
 - Revenue = SUM(Invoices.GrandTotal) WHERE IsDeleted = 0
 - Collected = SUM(PaidAmount) FROM Invoices
-- Outstanding = SUM(OutstandingAmount) FROM Invoices
+- Outstanding = SUM(AmountAfterDiscount) FROM Invoices
 - Profit = Revenue - Expenses
 - Revenue Trend = Group by MONTH of InvoiceDate
 
@@ -41,10 +41,10 @@ STAFF:
 SELECT 
     c.CompanyName, c.ContactPerson, c.Mobile, c.Email, c.GSTNo, c.BillingAddress,
     (SELECT '₹ ' + FORMAT(ISNULL(SUM(GrandTotal), 0), 'N2') FROM dbo.Invoices WHERE ClientID = CAST(c.ClientID AS nvarchar(max)) AND IsDeleted = 0) AS TotalRevenue,
-    (SELECT '₹ ' + FORMAT(ISNULL(SUM(OutstandingAmount), 0), 'N2') FROM dbo.Invoices WHERE ClientID = CAST(c.ClientID AS nvarchar(max)) AND IsDeleted = 0) AS TotalOutstanding,
+    (SELECT '₹ ' + FORMAT(ISNULL(SUM(AmountAfterDiscount), 0), 'N2') FROM dbo.Invoices WHERE ClientID = CAST(c.ClientID AS nvarchar(max)) AND IsDeleted = 0) AS TotalOutstanding,
     (SELECT TOP 10 LeadNo, ls.StatusName, CONVERT(varchar(10), CreatedDate, 120) AS Date FROM dbo.Leads l JOIN dbo.LeadStatusMaster ls ON l.LeadStatusID = ls.LeadStatusID WHERE l.ClientID = c.ClientID AND l.IsDeleted = 0 ORDER BY l.CreatedDate DESC FOR JSON PATH) AS RecentLeads,
     (SELECT TOP 10 OrderNo, osm.StatusName, '₹ ' + FORMAT(GrandTotal, 'N2') AS Amount, CONVERT(varchar(10), OrderDate, 120) AS Date FROM dbo.Orders o JOIN dbo.OrderStatusMaster osm ON o.Status = osm.StatusID WHERE o.ClientID = c.ClientID AND o.IsDeleted = 0 ORDER BY o.OrderDate DESC FOR JSON PATH) AS RecentOrders,
-    (SELECT TOP 10 InvoiceNo, GrandTotal, OutstandingAmount, CONVERT(varchar(10), InvoiceDate, 120) AS Date FROM dbo.Invoices WHERE ClientID = CAST(c.ClientID AS nvarchar(max)) AND IsDeleted = 0 ORDER BY InvoiceDate DESC FOR JSON PATH) AS RecentInvoices,
+    (SELECT TOP 10 InvoiceNo, GrandTotal, AmountAfterDiscount, CONVERT(varchar(10), InvoiceDate, 120) AS Date FROM dbo.Invoices WHERE ClientID = CAST(c.ClientID AS nvarchar(max)) AND IsDeleted = 0 ORDER BY InvoiceDate DESC FOR JSON PATH) AS RecentInvoices,
     (SELECT TOP 10 lf.Notes, lf.NextFollowupDate, lfs.StatusName FROM dbo.LeadFollowups lf JOIN dbo.Leads l ON lf.LeadID = l.LeadID LEFT JOIN dbo.LeadFollowupStatus lfs ON lf.Status = lfs.LeadFollowupStatusID WHERE l.ClientID = c.ClientID ORDER BY lf.CreatedDate DESC FOR JSON PATH) AS RecentActivity
 FROM dbo.Clients c WHERE c.CompanyName LIKE '%ABC%'
 FOR JSON PATH, WITHOUT_ARRAY_WRAPPER

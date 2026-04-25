@@ -12,7 +12,7 @@ namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.AIChat
         bool PreferRawGeneration { get; }
         Task<AIResponse> AnalyzeMessageAsync(string userMessage, Guid tenantId, bool isAdmin, List<string> allowedModules, List<AIChatHistoryDto> history = null);
         Task<AIResponse> RefineTemplateAsync(string userMessage, string templateSql, Guid tenantId, bool isSuperAdmin);
-        Task<string> FixSqlAsync(string badSql, string errorMessage, string originalQuestion, Guid tenantId, bool isSuperAdmin);
+        Task<string> FixSqlAsync(string badSql, string errorMessage, string originalQuestion, Guid tenantId, bool isSuperAdmin, List<AIChatHistoryDto> history = null);
         Task<AIResponse> RefineQueryAsync(string originalMessage, string badSql, string userCorrection, Guid tenantId);
     }
 }

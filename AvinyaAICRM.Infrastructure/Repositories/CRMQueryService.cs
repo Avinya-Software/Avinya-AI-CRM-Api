@@ -48,92 +48,103 @@ namespace AvinyaAICRM.Application.Services.AICHATS
 
         public async Task<List<Dictionary<string, object>>> ExecuteRawSqlAsync(string sql, Guid tenantId, bool isSuperAdmin, string userId = "")
         {
-            return await ExecuteRawSqlWithHealingAsync(sql, tenantId, isSuperAdmin, "", 2, userId);
+            return await ExecuteRawSqlWithHealingAsync(sql, tenantId, isSuperAdmin, "", userId);
         }
 
-        private async Task<List<Dictionary<string, object>>> ExecuteRawSqlWithHealingAsync(string sql, Guid tenantId, bool isSuperAdmin, string originalMessage, int maxRetries, string userId = "")
+
+        private async Task<List<Dictionary<string, object>>> ExecuteRawSqlWithHealingAsync(
+            string sql, Guid tenantId, bool isSuperAdmin, string originalMessage, string userId = "",
+            List<AIChatHistoryDto> history = null)
         {
             if (string.IsNullOrWhiteSpace(sql)) return new List<Dictionary<string, object>>();
 
-            string currentSql = sql;
-            Exception lastError = null;
+            // ── PHASE 1: Validate + Execute the original SQL ─────────────────────────
+            string healReason = null;
 
-            for (int attempt = 1; attempt <= maxRetries; attempt++)
+            try
             {
-                try
+                // Safety guard: block mutating statements
+                var forbidden = new[] { "UPDATE", "DELETE", "DROP", "INSERT", "ALTER", "TRUNCATE", "CREATE" };
+                if (!isSuperAdmin && sql.ToUpper().Split(' ', StringSplitOptions.RemoveEmptyEntries).Any(w => forbidden.Contains(w)))
+                    throw new UnauthorizedAccessException("Only SELECT queries are allowed for safety.");
+
+                // Security guard: must contain TenantId filter
+                if (!isSuperAdmin &&
+                    !sql.Contains("@TenantId", StringComparison.OrdinalIgnoreCase) &&
+                    !sql.Contains(tenantId.ToString(), StringComparison.OrdinalIgnoreCase))
                 {
-                    // Basic safety check (Server side)
-                    var forbidden = new[] { "UPDATE", "DELETE", "DROP", "INSERT", "ALTER", "TRUNCATE", "CREATE" };
-                    if (!isSuperAdmin && currentSql.ToUpper().Split(' ', System.StringSplitOptions.RemoveEmptyEntries).Any(word => forbidden.Contains(word)))
-                    {
-                        throw new UnauthorizedAccessException("Only SELECT queries are allowed for safety.");
-                    }
-
-                    // Security Guard
-                    if (!isSuperAdmin)
-                    {
-                        if (!currentSql.Contains("@TenantId", StringComparison.OrdinalIgnoreCase) && !currentSql.Contains(tenantId.ToString(), StringComparison.OrdinalIgnoreCase))
-                        {
-                            if (attempt < maxRetries && !string.IsNullOrWhiteSpace(originalMessage))
-                            {
-                                currentSql = await _aiService.FixSqlAsync(
-                                    currentSql,
-                                    "Security Error: Query must be filtered by TenantId.",
-                                    originalMessage,
-                                    tenantId,
-                                    isSuperAdmin);
-
-                                if (!string.IsNullOrWhiteSpace(currentSql))
-                                {
-                                    continue;
-                                }
-                            }
-
-                            throw new UnauthorizedAccessException("Security Error: Query must be filtered by TenantId.");
-                        }
-                    }
-
-                    using (var connection = new Microsoft.Data.SqlClient.SqlConnection(_context.Database.GetConnectionString()))
-                    {
-                        var queryParams = new { TenantId = tenantId, UserId = userId };
-                        var results = (await connection.QueryAsync(currentSql, queryParams)).ToList();
-
-                        if (results.Any())
-                        {
-                            var firstRow = (IDictionary<string, object>)results[0];
-                            var jsonKey = firstRow.Keys.FirstOrDefault(k => k.StartsWith("JSON_"));
-
-                            if (jsonKey != null)
-                            {
-                                // Handle SQL Server FOR JSON multi-line fragmentation
-                                var fullJson = string.Concat(results.Select(r => ((IDictionary<string, object>)r)[jsonKey]?.ToString() ?? ""));
-                                return new List<Dictionary<string, object>> 
-                                { 
-                                    new Dictionary<string, object> { { "JsonResult", fullJson } } 
-                                };
-                            }
-                        }
-
-                        return results.Select(x => (Dictionary<string, object>)new Dictionary<string, object>((IDictionary<string, object>)x)).ToList();
-                    }
+                    healReason = "Security Validation Failed: The generated SQL does not filter by TenantId. " +
+                                 "You MUST add a WHERE or JOIN condition with TenantId = @TenantId.";
                 }
-                catch (UnauthorizedAccessException)
+                else
                 {
-                    throw;
+                    return await RunSqlAsync(sql, tenantId, userId);
                 }
-                catch (Exception ex)
+            }
+            catch (UnauthorizedAccessException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                healReason = $"SQL Execution Error: {ex.Message}";
+            }
+
+            // ── PHASE 2: One-time AI Heal ────────────────────────────────────────────
+            if (string.IsNullOrEmpty(originalMessage))
+                throw new Exception(healReason ?? "Query failed and no context was available to heal it.");
+
+            var healedSql = await _aiService.FixSqlAsync(
+                sql,
+                healReason,
+                originalMessage,
+                tenantId,
+                isSuperAdmin,
+                history);
+
+            if (string.IsNullOrWhiteSpace(healedSql))
+                throw new Exception($"SQL healing returned no result. Original error: {healReason}");
+
+            // ── PHASE 3: Execute healed SQL exactly once ─────────────────────────────
+            try
+            {
+                return await RunSqlAsync(healedSql, tenantId, userId);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(
+                    $"Healed SQL also failed. Heal reason: {healReason} | Healed SQL error: {ex.Message}");
+            }
+        }
+
+        /// <summary>Executes a SQL string and returns results as a list of dictionaries.</summary>
+        private async Task<List<Dictionary<string, object>>> RunSqlAsync(string sql, Guid tenantId, string userId)
+        {
+            using var connection = new Microsoft.Data.SqlClient.SqlConnection(_context.Database.GetConnectionString());
+            var queryParams = new { TenantId = tenantId, UserId = userId };
+            var results = (await connection.QueryAsync(sql, queryParams)).ToList();
+
+            if (results.Any())
+            {
+                var firstRow = (IDictionary<string, object>)results[0];
+                var jsonKey = firstRow.Keys.FirstOrDefault(k => k.StartsWith("JSON_"));
+
+                if (jsonKey != null)
                 {
-                    lastError = ex;
-                    if (attempt < maxRetries && !string.IsNullOrEmpty(originalMessage))
+                    // Handle SQL Server FOR JSON multi-line fragmentation
+                    var fullJson = string.Concat(results.Select(r => ((IDictionary<string, object>)r)[jsonKey]?.ToString() ?? ""));
+                    return new List<Dictionary<string, object>>
                     {
-                        currentSql = await _aiService.FixSqlAsync(currentSql, ex.Message, originalMessage, tenantId, isSuperAdmin);
-                        if (string.IsNullOrEmpty(currentSql)) break;
-                    }
+                        new Dictionary<string, object> { { "JsonResult", fullJson } }
+                    };
                 }
             }
 
-            throw lastError ?? new Exception("Database query failed.");
+            return results
+                .Select(x => (Dictionary<string, object>)new Dictionary<string, object>((IDictionary<string, object>)x))
+                .ToList();
         }
+
 
         public async Task<AIResponse> ProcessChatRequestAsync(AIRequest request, Guid tenantId, string userId, bool isSuperAdmin, List<string> allowedModules)
         {
@@ -148,10 +159,20 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             {
                 try 
                 {
-                    var data = await ExecuteRawSqlWithHealingAsync(response.Sql, tenantId, isSuperAdmin, request.Message, 2, userId);
+                    var data = await ExecuteRawSqlWithHealingAsync(response.Sql, tenantId, isSuperAdmin, request.Message, userId, request.History);
+
                     response.Data = data;
                     response.Count = data.Count;
                     response.Query = response.Sql;
+
+                    if (response.TotalTokens > 0)
+                    {
+                        response.CreditsUsed = await _credits.DeductCreditsForTokenUsageAsync(
+                            userId,
+                            response.TotalTokens,
+                            response.Source.ToUpper());
+                        response.RemainingCredits = await _credits.GetRemainingCreditsAsync(userId);
+                    }
 
                     // 3b. Automatic Knowledge Recording (First time queries)
                     if (response.Source == "ai_sql")
@@ -168,8 +189,7 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                     }
                     else
                     {
-                        finalMessage = finalMessage.Replace("{count}", data.Count.ToString()).Replace("[count]", data.Count.ToString());
-                        finalMessage = FormatMessageWithData(finalMessage, data[0]);
+                        finalMessage = FormatMessage(finalMessage, response);
                     }
                     response.Message = finalMessage;
                 }
@@ -243,6 +263,13 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                         if (status != null) dto.LeadStatusID = status.LeadStatusID;
                     }
 
+                    // Fallback: If no status specified, default to "New"
+                    if (dto.LeadStatusID == null)
+                    {
+                        var defaultStatus = await _context.leadStatusMasters.FirstOrDefaultAsync(s => s.StatusName.ToLower() == "new" && s.IsActive);
+                        if (defaultStatus != null) dto.LeadStatusID = defaultStatus.LeadStatusID;
+                    }
+
                     // 3. Resolve AssignedTo (User)
                     if (response.Parameters.TryGetValue("AssignedTo", out var userName) && !string.IsNullOrEmpty(userName))
                     {
@@ -276,9 +303,20 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                     var result = await _leadService.CreateAsync(dto, userId);
                     if (result.StatusCode == 200)
                     {
-                        response.Message = !string.IsNullOrWhiteSpace(response.SuccessMessage) 
+                        var template = !string.IsNullOrWhiteSpace(response.SuccessMessage) 
                             ? response.SuccessMessage 
                             : $"I've successfully created the lead for {companyName}.";
+                            
+                        response.Message = FormatMessage(template, response);
+
+                        // Return the created lead data to frontend
+                        if (result.Data != null)
+                        {
+                            response.Data = new List<Dictionary<string, object>> { 
+                                new Dictionary<string, object> { { "CreatedLead", result.Data } } 
+                            };
+                            response.Count = 1;
+                        }
                     }
                     else
                     {
@@ -366,9 +404,20 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                     var result = await _taskService.CreateTaskAsync(dto, userId);
                     if (result.StatusCode == 200)
                     {
-                        response.Message = !string.IsNullOrWhiteSpace(response.SuccessMessage) 
+                        var template = !string.IsNullOrWhiteSpace(response.SuccessMessage) 
                             ? response.SuccessMessage 
                             : $"I've successfully created the task: {title}.";
+                            
+                        response.Message = FormatMessage(template, response);
+
+                        // Return the created task data to frontend
+                        if (result.Data != null)
+                        {
+                            response.Data = new List<Dictionary<string, object>> { 
+                                new Dictionary<string, object> { { "CreatedTask", result.Data } } 
+                            };
+                            response.Count = 1;
+                        }
                     }
                     else
                     {
@@ -401,60 +450,77 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             response.Count = 0;
         }
 
-        private string FormatMessageWithData(string template, Dictionary<string, object> row)
+        private string FormatMessage(string template, AIResponse response)
         {
+            if (string.IsNullOrEmpty(template)) return "";
+
             var formatted = template;
-            var displayValues = new Dictionary<string, string>();
 
-            foreach (var kvp in row)
+            // 1. Replace placeholders from Data (if any)
+            if (response.Data != null && response.Data.Any())
             {
-                string val = kvp.Value?.ToString() ?? "";
+                var row = response.Data[0];
                 
-                if (kvp.Value is DateTime dt)
+                // Handle standard {Key} placeholders
+                foreach (var kvp in row)
                 {
-                    val = dt.ToString("dd MMM yyyy HH:mm");
-                }
-                else if (kvp.Key.Contains("Date") || kvp.Key.Contains("Time"))
-                {
-                    if (DateTime.TryParse(val, out var dtParsed))
-                        val = dtParsed.ToString("dd MMM yyyy HH:mm");
-                }
-
-                if (string.IsNullOrEmpty(val) || val == "0") val = "N/A";
-                displayValues[kvp.Key] = val;
-            }
-
-            // Handle JsonResult (Dashboard/360)
-            if (row.ContainsKey("JsonResult"))
-            {
-                var jsonStr = row["JsonResult"]?.ToString();
-                if (!string.IsNullOrEmpty(jsonStr))
-                {
-                    try 
+                    string val = kvp.Value?.ToString() ?? "";
+                    if (kvp.Value is DateTime dt) val = dt.ToString("dd MMM yyyy HH:mm");
+                    else if (kvp.Key.Contains("Date") || kvp.Key.Contains("Time"))
                     {
-                        var dashboard = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(jsonStr);
-                        if (dashboard != null)
+                        if (DateTime.TryParse(val, out var dtParsed)) val = dtParsed.ToString("dd MMM yyyy HH:mm");
+                    }
+                    if (string.IsNullOrEmpty(val) || val == "0") val = "N/A";
+                    
+                    formatted = ReplaceTemplateToken(formatted, kvp.Key, val);
+                }
+
+                // Handle JsonResult
+                if (row.ContainsKey("JsonResult"))
+                {
+                    var jsonStr = row["JsonResult"]?.ToString();
+                    if (!string.IsNullOrEmpty(jsonStr))
+                    {
+                        try 
                         {
-                            foreach (var kvp in dashboard)
+                            var dashboard = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(jsonStr);
+                            if (dashboard != null)
                             {
-                                formatted = ReplaceTemplateToken(formatted, kvp.Key, kvp.Value?.ToString() ?? "0");
+                                foreach (var kvp in dashboard)
+                                    formatted = ReplaceTemplateToken(formatted, kvp.Key, kvp.Value?.ToString() ?? "0");
                             }
-                        }
-                    } catch { /* Ignore malformed JSON */ }
+                        } catch { }
+                    }
                 }
             }
 
-            // Replace standard placeholders
-            foreach (var kvp in displayValues)
+            // 2. Replace placeholders from Parameters
+            if (response.Parameters != null)
             {
-                formatted = ReplaceTemplateToken(formatted, kvp.Key, kvp.Value);
+                foreach (var kvp in response.Parameters)
+                {
+                    formatted = ReplaceTemplateToken(formatted, kvp.Key, kvp.Value?.ToString() ?? "");
+                }
             }
 
+            // 3. Handle {count} - Special Case
+            // If it's an action, {count} usually doesn't make sense unless it's a search.
+            // But we'll replace it with response.Count or 0 if not set.
+            formatted = formatted.Replace("{count}", response.Count.ToString())
+                                 .Replace("[count]", response.Count.ToString())
+                                 .Replace("{{count}}", response.Count.ToString());
+
+            // 4. Final Cleanup: If any {Placeholder} remains, it's likely a hallucination or empty data
+            // We'll replace them with "..." or empty string to avoid showing raw braces to user
+            // However, we'll keep it for now to help debug if needed, or replace with N/A
+            
             return formatted;
         }
 
         private static string ReplaceTemplateToken(string template, string key, string value)
-            => template.Replace("{" + key + "}", value).Replace("[" + key + "]", value);
+            => template.Replace("{" + key + "}", value)
+                       .Replace("[" + key + "]", value)
+                       .Replace("{{" + key + "}}", value);
 
         public async Task<AIResponse> ProcessCommandAsync(string message, Guid tenantId, string userId, bool isSuperAdmin, List<string> allowedModules, List<AIChatHistoryDto> history = null)
         {
@@ -474,6 +540,7 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                 PromptTokens = pipelineResult.PromptTokens,
                 ResponseTokens = pipelineResult.ResponseTokens,
                 TotalTokens = pipelineResult.TotalTokens,
+                CreditsUsed = pipelineResult.CreditsUsed,
                 RemainingCredits = pipelineResult.RemainingCredits,
                 Source = pipelineResult.Source,
                 Suggestions = pipelineResult.Suggestions

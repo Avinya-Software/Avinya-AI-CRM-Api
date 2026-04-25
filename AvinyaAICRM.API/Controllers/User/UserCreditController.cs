@@ -50,8 +50,8 @@ namespace AvinyaAICRM.API.Controllers.User
         [HttpPost("test-daily-reset")]
         public async Task<IActionResult> TestDailyReset()
         {
-            await _creditService.ResetAllBalancesAsync(30000);
-            return Ok(new { message = "Daily reset logic triggered successfully. All users updated to 15,000 tokens." });
+            await _creditService.ResetAllBalancesAsync(30);
+            return Ok(new { message = "Daily reset logic triggered successfully. All users updated to 30,000 credits." });
         }
     }
 }

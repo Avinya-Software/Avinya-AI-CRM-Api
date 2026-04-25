@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Lead;
+using AvinyaAICRM.Application.DTOs.Lead;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Leads;
 using AvinyaAICRM.Domain.Entities.Leads;
 using AvinyaAICRM.Infrastructure.Persistence;
@@ -144,7 +144,15 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
             var lead = await _context.Leads.FirstOrDefaultAsync(l => l.LeadID == dto.LeadID);
             if (lead == null)
                 return (null, "Lead not found");
-                
+
+            // CHECK: Is there any incomplete follow-up for this lead?
+            // Status 3 is 'Completed'.
+            var incompleteFollowup = await _context.LeadFollowups
+                .AnyAsync(f => f.LeadID == dto.LeadID && f.Status != 3);
+
+            if (incompleteFollowup)
+                return (null, "Cannot add a new follow-up. The previous follow-up is not completed yet.");
+
             var newFollowup = new LeadFollowups
             {
                 FollowUpID = Guid.NewGuid(),

@@ -42,7 +42,7 @@ namespace AvinyaAICRM.Application.AI.Pipeline
                 result.RemainingCredits = 0;
                 return result;
             }
-            
+
             // 1. Check Verified Knowledge Base (Reuse 'Good' queries from DB)
             var verifiedSql = await _knowledge.GetVerifiedQueryAsync(message);
             if (!string.IsNullOrEmpty(verifiedSql))
@@ -52,39 +52,37 @@ namespace AvinyaAICRM.Application.AI.Pipeline
                 result.Source = "knowledge_base";
                 result.Action = "get_summary";
                 result.TotalTokens = 100; // Verified knowledge is cheap
-                return await DeductAndReturnAsync(result, userId);
+
+                // Populate follow-up suggestions from other known queries in the knowledge base
+                result.Suggestions = await _knowledge.GetRandomSuggestionsAsync(message, 4);
+
+                return await ReturnWithBalanceAsync(result, userId);
             }
 
             // 2. AI SQL Generation (Groq)
             _logger.LogInformation("Requesting AI Generation for: {Message}", message);
             result.Source = "ai_sql";
-            
+
             var aiSqlResponse = await _aiService.AnalyzeMessageAsync(message, tenantId, isSuperAdmin, allowedModules, history);
-            
+
             result.PromptTokens = aiSqlResponse.PromptTokens;
             result.ResponseTokens = aiSqlResponse.ResponseTokens;
             result.TotalTokens = aiSqlResponse.TotalTokens;
             result.Sql = aiSqlResponse.Sql;
             result.Action = aiSqlResponse.Action;
-            result.Intent = aiSqlResponse.Intent;           
+            result.Intent = aiSqlResponse.Intent;
             result.Parameters = aiSqlResponse.Parameters;
             result.SuccessMessage = aiSqlResponse.SuccessMessage;
             result.ErrorMessage = aiSqlResponse.ErrorMessage;
             result.Suggestions = aiSqlResponse.Suggestions;
-            
-            return await DeductAndReturnAsync(result, userId);
+
+            return await ReturnWithBalanceAsync(result, userId);
         }
 
-        private async Task<PipelineResult> DeductAndReturnAsync(PipelineResult result, string userId)
+        private async Task<PipelineResult> ReturnWithBalanceAsync(PipelineResult result, string userId)
         {
-            if (result.TotalTokens > 0)
-            {
-                await _creditService.DeductCreditsAsync(userId, result.TotalTokens, result.Source.ToUpper());
-            }
-            
             result.RemainingCredits = await _creditService.GetRemainingCreditsAsync(userId);
             return result;
         }
     }
 }
-

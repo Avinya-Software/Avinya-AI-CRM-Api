@@ -12,7 +12,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
     {
         private readonly AppDbContext _context;
         private readonly IUserCreditRepository _repository;
-        private const int DEFAULT_BALANCE = 30000;
+        private const int DEFAULT_BALANCE = 30;
 
         public CreditService(AppDbContext context, IUserCreditRepository repository)
         {
@@ -107,11 +107,36 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
 
         public async Task DeductCreditsAsync(string userId, int amount, string action)
         {
+            await DeductCreditsInternalAsync(userId, amount, action, $"Used for {action}");
+        }
+
+        public async Task<int> DeductCreditsForTokenUsageAsync(string userId, int totalTokens, string action)
+        {
+            if (totalTokens <= 0) return 0;
+
+            var creditsToDeduct = CalculateCreditsForTokenUsage(totalTokens);
+            return await DeductCreditsInternalAsync(
+                userId,
+                creditsToDeduct,
+                action,
+                $"Used {totalTokens} tokens for {action}");
+        }
+
+        private static int CalculateCreditsForTokenUsage(int totalTokens)
+        {
+            if (totalTokens <= 3000) return 1;
+            if (totalTokens <= 5000) return 2;
+            if (totalTokens <= 7000) return 3;
+            return 4;
+        }
+
+        private async Task<int> DeductCreditsInternalAsync(string userId, int amount, string action, string description)
+        {
             var credit = await _context.UserCredits
                 .Where(x => x.UserId == userId)
                 .FirstOrDefaultAsync();
 
-            if (credit == null) return;
+            if (credit == null || amount <= 0) return 0;
 
             // Ensure balance doesn't go below 0
             credit.Balance = Math.Max(0, credit.Balance - amount);
@@ -122,11 +147,12 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
                 UserCreditId = credit.Id,
                 Amount = amount,
                 Action = action,
-                Description = $"Used for {action}",
+                Description = description,
                 Timestamp = DateTime.UtcNow
             });
 
             await _context.SaveChangesAsync();
+            return amount;
         }
 
         public async Task EnsureUserCreditExistsAsync(string userId, Guid tenantId)
@@ -147,7 +173,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
 
         public async Task<int> ResetAllBalancesAsync(int amount)
         {
-            // Reset all active users' balance to the specified amount (e.g. 30000)
+            // Reset all active users' balance to the specified amount (e.g. 30)
             return await _context.Database.ExecuteSqlRawAsync($"UPDATE dbo.[UserCredits] SET Balance = {amount}, UpdatedAt = GETUTCDATE()");
         }
 

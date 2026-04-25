@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -23,7 +23,7 @@ namespace AvinyaAICRM.Application.DTOs.Report
         /// <summary>Filter payments by mode: Cash, UPI, Card, Online</summary>
         public string? PaymentMode { get; set; }
 
-        /// <summary>Show only overdue invoices (OutstandingAmount > 0 and past DueDate)</summary>
+        /// <summary>Show only overdue invoices (AmountAfterDiscount > 0 and past DueDate)</summary>
         public bool OverdueOnly { get; set; } = false;
 
         // Injected from JWT

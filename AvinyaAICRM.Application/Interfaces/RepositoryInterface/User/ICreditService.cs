@@ -6,6 +6,7 @@ namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.User
     {
         Task<bool> HasEnoughCreditsAsync(string userId, int required);
         Task DeductCreditsAsync(string userId, int amount, string action);
+        Task<int> DeductCreditsForTokenUsageAsync(string userId, int totalTokens, string action);
         Task<int> GetRemainingCreditsAsync(string userId);
         Task EnsureUserCreditExistsAsync(string userId, Guid tenantId);
         Task<AvinyaAICRM.Shared.Model.ResponseModel> GetByUserIdAsync(string userId);

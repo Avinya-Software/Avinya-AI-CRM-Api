@@ -32,11 +32,16 @@ namespace AvinyaAICRM.Shared.AI
         public string? ClarificationMessage { get; set; }
         public List<ClientDisambiguationDto>? SuggestedClients { get; set; }
 
-        // Token Usage Metrics
+        // Token usage is kept internal; API responses expose CreditsUsed.
+        [System.Text.Json.Serialization.JsonIgnore]
         public int PromptTokens { get; set; }
+        [System.Text.Json.Serialization.JsonIgnore]
         public int ResponseTokens { get; set; }
+        [System.Text.Json.Serialization.JsonIgnore]
         public int ThoughtsTokens { get; set; }
+        [System.Text.Json.Serialization.JsonIgnore]
         public int TotalTokens { get; set; }
+        public int CreditsUsed { get; set; }
         public int RemainingCredits { get; set; }
 
         public string? Summary { get; set; }

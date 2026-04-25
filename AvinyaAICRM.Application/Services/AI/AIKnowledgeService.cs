@@ -2,6 +2,7 @@ using AvinyaAICRM.Application.Interfaces.RepositoryInterface.AI;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.AI;
 using AvinyaAICRM.Domain.Entities.AI;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace AvinyaAICRM.Application.Services.AI
@@ -82,6 +83,11 @@ namespace AvinyaAICRM.Application.Services.AI
                 await _repository.AddAsync(newKnowledge);
                 await _repository.SaveChangesAsync();
             }
+        }
+
+        public async Task<List<string>> GetRandomSuggestionsAsync(string excludeMessage, int count = 4)
+        {
+            return await _repository.GetRandomSuggestionsAsync(excludeMessage, count);
         }
     }
 }

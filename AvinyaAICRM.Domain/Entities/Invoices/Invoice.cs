@@ -33,8 +33,7 @@ namespace AvinyaAICRM.Domain.Entities.Invoice
         public string? VehicleNo { get; set; }
         public string? Station { get; set; }
         public string? EWayBillNo { get; set; }
-        public decimal OutstandingAmount { get; set; } = 0;
-
+        public decimal AmountAfterDiscount { get; set; } = 0;
         public string TenantId { get; set; }
     }
 }

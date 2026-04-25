@@ -10,5 +10,11 @@ namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.AI
         Task<AIQueryKnowledge> AddAsync(AIQueryKnowledge knowledge);
         Task UpdateAsync(AIQueryKnowledge knowledge);
         Task SaveChangesAsync();
+
+        /// <summary>
+        /// Returns up to <paramref name="count"/> random OriginalMessage values
+        /// from the knowledge base (excluding the current message) to use as suggestions.
+        /// </summary>
+        Task<List<string>> GetRandomSuggestionsAsync(string excludeMessage, int count = 4);
     }
 }

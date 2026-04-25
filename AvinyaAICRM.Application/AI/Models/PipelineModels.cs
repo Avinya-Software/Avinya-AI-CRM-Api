@@ -22,6 +22,7 @@ namespace AvinyaAICRM.Application.AI.Models
         public int PromptTokens { get; set; }
         public int ResponseTokens { get; set; }
         public int TotalTokens { get; set; }
+        public int CreditsUsed { get; set; }
         public int RemainingCredits { get; set; }
         public List<string>? Suggestions { get; set; }
     }

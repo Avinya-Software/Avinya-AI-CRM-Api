@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Report;
+using AvinyaAICRM.Application.DTOs.Report;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Report;
 using AvinyaAICRM.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -57,7 +57,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ReportRepository
                 invoiceQuery = invoiceQuery.Where(i => i.ClientID == filter.ClientId.Value.ToString());
             if (filter.OverdueOnly)
                 invoiceQuery = invoiceQuery.Where(i =>
-                    i.OutstandingAmount > 0 &&
+                    i.AmountAfterDiscount > 0 &&
                     i.DueDate.HasValue &&
                     i.DueDate.Value < today);
 
@@ -74,7 +74,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ReportRepository
                     i.GrandTotal,
                     i.PaidAmount,
                     i.RemainingPayment,
-                    i.OutstandingAmount,
+                    i.AmountAfterDiscount,
                     i.InvoiceStatusID,
                     i.DueDate,
                     i.OrderID
@@ -144,15 +144,15 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ReportRepository
 
             decimal totalInvoiced = invoices.Sum(i => i.GrandTotal);
             decimal totalCollected = payments.Sum(p => p.Amount);
-            decimal totalOutstanding = invoices.Sum(i => i.OutstandingAmount);
+            decimal totalOutstanding = invoices.Sum(i => i.AmountAfterDiscount);
             decimal totalExpenses = expenses.Sum(e => e.Amount);
             decimal netPosition = totalCollected - totalExpenses;
 
             decimal totalOverdue = invoices
-                .Where(i => i.OutstandingAmount > 0 &&
+                .Where(i => i.AmountAfterDiscount > 0 &&
                             i.DueDate.HasValue &&
                             i.DueDate.Value < today)
-                .Sum(i => i.OutstandingAmount);
+                .Sum(i => i.AmountAfterDiscount);
 
             string GetInvoiceStatus(int id) =>
                 invoiceStatusMap.TryGetValue(id, out var s) ? s : string.Empty;
@@ -161,7 +161,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ReportRepository
             int partialCount = invoices.Count(i => GetInvoiceStatus(i.InvoiceStatusID) == "Partial");
             int unpaidCount = invoices.Count(i => GetInvoiceStatus(i.InvoiceStatusID) == "Unpaid");
             int overdueCount = invoices.Count(i =>
-                i.OutstandingAmount > 0 &&
+                i.AmountAfterDiscount > 0 &&
                 i.DueDate.HasValue &&
                 i.DueDate.Value < today);
 
@@ -198,7 +198,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ReportRepository
                     Count = group.Count,
                     TotalValue = group.Sum(i => i.GrandTotal),
                     TotalPaid = group.Sum(i => i.PaidAmount),
-                    TotalOutstanding = group.Sum(i => i.OutstandingAmount),
+                    TotalOutstanding = group.Sum(i => i.AmountAfterDiscount),
                     Percentage = invoices.Count > 0
                         ? Math.Round((double)group.Count / invoices.Count * 100, 1) : 0
                 };
@@ -216,12 +216,12 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ReportRepository
             };
 
             var overdueInvoices = invoices
-                .Where(i => i.OutstandingAmount > 0 &&
+                .Where(i => i.AmountAfterDiscount > 0 &&
                             i.DueDate.HasValue &&
                             i.DueDate.Value < today)
                 .ToList();
 
-            decimal totalOutstandingOverdue = overdueInvoices.Sum(i => i.OutstandingAmount);
+            decimal totalOutstandingOverdue = overdueInvoices.Sum(i => i.AmountAfterDiscount);
 
             var invoiceAging = agingBuckets.Select(bucket =>
             {
@@ -232,7 +232,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ReportRepository
                            (bucket.MaxDays == int.MaxValue || days <= bucket.MaxDays);
                 }).ToList();
 
-                decimal bucketOutstanding = group.Sum(i => i.OutstandingAmount);
+                decimal bucketOutstanding = group.Sum(i => i.AmountAfterDiscount);
                 return new InvoiceAgingBucketDto
                 {
                     Bucket = bucket.Label,
@@ -251,10 +251,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ReportRepository
                 {
                     var list = g.ToList();
                     decimal cOverdue = list
-                        .Where(i => i.OutstandingAmount > 0 &&
+                        .Where(i => i.AmountAfterDiscount > 0 &&
                                     i.DueDate.HasValue &&
                                     i.DueDate.Value < today)
-                        .Sum(i => i.OutstandingAmount);
+                        .Sum(i => i.AmountAfterDiscount);
 
                     Guid.TryParse(g.Key, out var clientGuid);
                     return new InvoiceClientOutstandingDto
@@ -264,7 +264,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ReportRepository
                         TotalInvoices = list.Count,
                         TotalInvoiced = list.Sum(i => i.GrandTotal),
                         TotalPaid = list.Sum(i => i.PaidAmount),
-                        Outstanding = list.Sum(i => i.OutstandingAmount),
+                        Outstanding = list.Sum(i => i.AmountAfterDiscount),
                         Overdue = cOverdue
                     };
                 })
@@ -278,7 +278,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ReportRepository
                     InvoiceNo = i.InvoiceNo,
                     CompanyName = clientMap.TryGetValue(i.ClientID ?? string.Empty, out var cn) ? cn : "—",
                     GrandTotal = i.GrandTotal,
-                    Outstanding = i.OutstandingAmount,
+                    Outstanding = i.AmountAfterDiscount,
                     InvoiceDate = i.InvoiceDate,
                     DueDate = i.DueDate!.Value,
                     DaysOverdue = (int)(today - i.DueDate!.Value).TotalDays,

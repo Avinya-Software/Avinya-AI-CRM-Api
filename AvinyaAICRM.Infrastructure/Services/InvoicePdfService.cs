@@ -215,7 +215,7 @@ namespace AvinyaAICRM.Infrastructure.Services
                     // Left — Amount in words
                     row.RelativeItem().Padding(5).Column(col =>
                     {
-                        col.Item().Text(NumberToWords((double)Invoice.OutstandingAmount)).Bold();
+                        col.Item().Text(NumberToWords((double)Invoice.AmountAfterDiscount)).Bold();
                     });
 
                     // Right — Numeric totals
@@ -244,7 +244,7 @@ namespace AvinyaAICRM.Infrastructure.Services
                         col.Item().Row(r =>
                         {
                             r.RelativeItem().Text("Grand Total").Bold().FontSize(10);
-                            r.RelativeItem().AlignRight().Text(Invoice.OutstandingAmount.ToString("F2")).Bold().FontSize(10);
+                            r.RelativeItem().AlignRight().Text(Invoice.AmountAfterDiscount.ToString("F2")).Bold().FontSize(10);
                         });
 
                         col.Item().PaddingTop(5).BorderTop(0.5f).Row(r =>

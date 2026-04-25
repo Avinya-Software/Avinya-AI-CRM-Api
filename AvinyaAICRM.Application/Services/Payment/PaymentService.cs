@@ -139,8 +139,8 @@ namespace AvinyaAICRM.Application.Services.Payment
         {
             var allPayments = await _paymentRepository.GetPaymentsByInvoiceIdAsync(invoiceId);
             invoice.PaidAmount = allPayments.Sum(p => p.Amount);
-            invoice.OutstandingAmount = invoice.GrandTotal - invoice.Discount;
-            invoice.RemainingPayment = invoice.OutstandingAmount - invoice.PaidAmount;
+            invoice.AmountAfterDiscount = invoice.GrandTotal - invoice.Discount;
+            invoice.RemainingPayment = invoice.AmountAfterDiscount - invoice.PaidAmount;
 
             // Optional: Auto-update status based on balance
             if (invoice.RemainingPayment <= 0) invoice.InvoiceStatusID = 3; // Assuming 3 is 'Paid'

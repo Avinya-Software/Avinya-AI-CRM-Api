@@ -50,6 +50,7 @@ namespace AvinyaAICRM.API.Controllers
                 string successMessage = "I've corrected the query based on your feedback.";
 
                 int usedTokens = 0;
+                int usedCredits = 0;
 
                 // If it's a correction, we "Heal" the query first
                 if (!feedback.IsGood && !string.IsNullOrWhiteSpace(feedback.UserCorrection))
@@ -58,15 +59,14 @@ namespace AvinyaAICRM.API.Controllers
                     finalSql = aiResult.Sql ?? feedback.GeneratedSql;
                     usedTokens = aiResult.TotalTokens;
 
-                    // Deduct Credits
-                    if (usedTokens > 0)
-                    {
-                        await _credits.DeductCreditsAsync(userId ?? "", usedTokens, "AI_FEEDBACK_CORRECTION");
-                    }
-                    
                     // Re-run the query
                     try {
                         data = await _crmService.ExecuteRawSqlAsync(finalSql, tenantId, User.IsInRole("SuperAdmin"));
+
+                        if (usedTokens > 0)
+                        {
+                            usedCredits = await _credits.DeductCreditsForTokenUsageAsync(userId ?? "", usedTokens, "AI_FEEDBACK_CORRECTION");
+                        }
                     } catch (Exception ex) {
                         successMessage = "I refined the query, but encountered an error running it: " + ex.Message;
                     }
@@ -83,7 +83,7 @@ namespace AvinyaAICRM.API.Controllers
                     message = successMessage,
                     count = data?.Count ?? 0,
                     remainingCredits = balance,
-                    totalTokens = usedTokens
+                    creditsUsed = usedCredits
                 });
             }
             catch (Exception ex)

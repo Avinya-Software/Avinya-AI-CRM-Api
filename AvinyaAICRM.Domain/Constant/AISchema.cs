@@ -378,7 +378,7 @@ namespace AvinyaAICRM.Domain.Constant
                     new() { Name = "GrandTotal",       Type = "decimal(18,2)",                       IsImportant = true },
                     new() { Name = "PaidAmount",       Type = "decimal(18,2)",                       IsImportant = true },
                     new() { Name = "RemainingPayment", Type = "decimal(18,2)",                       IsImportant = true },
-                    new() { Name = "OutstandingAmount",Type = "decimal(18,2)",                       IsImportant = true },
+                    new() { Name = "AmountAfterDiscount", Type = "decimal(18,2)", IsImportant = true, Description = "Invoice total after discount applied (GrandTotal - Discount). Use this for outstanding/payable amount queries." },
                     new() { Name = "SubTotal",         Type = "decimal(18,2)",                       IsImportant = false },
                     new() { Name = "Taxes",            Type = "decimal(18,2)",                       IsImportant = false },
                     new() { Name = "IsDeleted",        Type = "bit",                                 IsImportant = true },
@@ -978,8 +978,8 @@ namespace AvinyaAICRM.Domain.Constant
                 Examples = new() {
                     new() {
                         Question = "Show outstanding invoices",
-                        Analysis = "Filter Invoices where OutstandingAmount > 0 and IsDeleted = 0.",
-                        Sql = "SELECT i.InvoiceNo, i.GrandTotal, i.PaidAmount, i.OutstandingAmount, i.DueDate, s.InvoiceStatusName FROM dbo.Invoices i JOIN dbo.InvoiceStatuses s ON i.InvoiceStatusID = s.InvoiceStatusID WHERE CAST(i.TenantId AS nvarchar(max)) = CAST(@TenantId AS nvarchar(max)) AND i.IsDeleted = 0 AND i.OutstandingAmount > 0 ORDER BY i.DueDate ASC"
+                        Analysis = "Filter Invoices where AmountAfterDiscount > 0 and IsDeleted = 0.",
+                        Sql = "SELECT i.InvoiceNo, i.GrandTotal, i.PaidAmount, i.AmountAfterDiscount, i.DueDate, s.InvoiceStatusName FROM dbo.Invoices i JOIN dbo.InvoiceStatuses s ON i.InvoiceStatusID = s.InvoiceStatusID WHERE CAST(i.TenantId AS nvarchar(max)) = CAST(@TenantId AS nvarchar(max)) AND i.IsDeleted = 0 AND i.AmountAfterDiscount > 0 ORDER BY i.DueDate ASC"
                     }
                 }
             }},
