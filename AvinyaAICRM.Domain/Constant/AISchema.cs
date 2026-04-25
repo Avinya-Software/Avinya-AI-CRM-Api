@@ -171,6 +171,8 @@ namespace AvinyaAICRM.Domain.Constant
             });
         }
 
+        public static string GetFullContext() => GetContextForIntent(IntentConfigs.Keys);
+
         public static HashSet<string> TableNames => GetAllTables().Select(t => t.Name).ToHashSet();
 
         public static List<TableSchema> GetAllTables() => new()

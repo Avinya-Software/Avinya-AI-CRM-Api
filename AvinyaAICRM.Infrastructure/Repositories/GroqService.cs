@@ -368,17 +368,21 @@ namespace AvinyaAICRM.Infrastructure.Repositories
 
    
 
-        public async Task<string> FixSqlAsync(string badSql, string errorMessage, string originalQuestion, Guid tenantId, bool isSuperAdmin, List<AIChatHistoryDto> history = null)
+        public async Task<string> FixSqlAsync(string badSql, string errorMessage, string originalQuestion, Guid tenantId, string userId, bool isSuperAdmin, List<AIChatHistoryDto> history = null)
         {
             var apiKey = _config["Groq:ApiKey"];
             var model = GetConfiguredModel();
             var baseUrl = GetBaseUrl();
 
-            var fixSchema = AISchema.GetContextForIntent(DetectIntents(originalQuestion.ToLower()));
+            var fixSchema = AISchema.GetFullContext(); // Use full context for healing to ensure all tables in broken SQL are covered
             var historyContext = BuildHistoryContext(history);
 
             var prompt = $@"
                         You are a T-SQL expert. Fix the broken SQL query below so it runs without errors.
+                        
+                        TENANT CONTEXT:
+                        - Current TenantId: {tenantId}
+                        - Current UserId: {userId}
 
                         ORIGINAL USER QUESTION: {originalQuestion}
 
@@ -406,7 +410,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories
         }
 
 
-        public async Task<AIResponse> RefineQueryAsync(string originalMessage, string badSql, string userCorrection, Guid tenantId)
+        public async Task<AIResponse> RefineQueryAsync(string originalMessage, string badSql, string userCorrection, Guid tenantId, string userId)
         {
             var groqKey = _config["Groq:ApiKey"];
             var model = GetConfiguredModel();
@@ -422,6 +426,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 
                 The user says this is wrong because: '{userCorrection}'
                 
+                TENANT CONTEXT:
+                - Current TenantId: {tenantId}
+                - Current UserId: {userId}
+
                 DATABASE SCHEMA CONTEXT:
                 {schema}
 
@@ -439,10 +447,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories
 
                 Fix the SQL to incorporate the user's feedback. 
                 RULES:
-                1. Include 'IsDeleted = 0' and '@TenantId' ONLY if those columns exist in the provided SCHEMA for the table.
-                2. If a table lacks security columns (like TaskSeries), JOIN it with a related table that has them (like Projects).
-                3. ONLY use tables and columns from the SCHEMA CONTEXT provided.
-                4. If the user asks for 'all modules', 'full detail', or 'business summary', use the FOR JSON PATH format shown in the SPECIAL TEMPLATE.
+                1. SECURITY MANDATE: You MUST include 'TenantId = @TenantId' in the WHERE clause if the table supports it. NEVER remove this filter even if the user correction doesn't mention it.
+                2. INTEGRITY: Include 'IsDeleted = 0' ONLY if that column exists in the provided SCHEMA for the table.
+                3. JOIN SECURITY: If a table lacks security columns (like TaskSeries), JOIN it with a related table that has them (like Projects).
+                4. SCHEMA ADHERENCE: ONLY use tables and columns from the SCHEMA CONTEXT provided.
                 5. Return ONLY the corrected SQL string. No markdown, no explanation.
             ";
 

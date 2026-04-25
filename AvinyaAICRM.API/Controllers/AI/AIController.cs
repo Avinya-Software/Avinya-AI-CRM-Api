@@ -55,13 +55,13 @@ namespace AvinyaAICRM.API.Controllers
                 // If it's a correction, we "Heal" the query first
                 if (!feedback.IsGood && !string.IsNullOrWhiteSpace(feedback.UserCorrection))
                 {
-                    var aiResult = await _aiService.RefineQueryAsync(feedback.OriginalMessage, feedback.GeneratedSql, feedback.UserCorrection, tenantId);
+                    var aiResult = await _aiService.RefineQueryAsync(feedback.OriginalMessage, feedback.GeneratedSql, feedback.UserCorrection, tenantId, userId ?? "");
                     finalSql = aiResult.Sql ?? feedback.GeneratedSql;
                     usedTokens = aiResult.TotalTokens;
 
                     // Re-run the query
                     try {
-                        data = await _crmService.ExecuteRawSqlAsync(finalSql, tenantId, User.IsInRole("SuperAdmin"));
+                        data = await _crmService.ExecuteRawSqlAsync(finalSql, tenantId, User.IsInRole("SuperAdmin"), userId ?? "", feedback.OriginalMessage);
 
                         if (usedTokens > 0)
                         {

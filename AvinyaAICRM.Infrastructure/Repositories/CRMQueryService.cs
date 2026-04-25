@@ -46,9 +46,9 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             _clientRepo = clientRepo;
         }
 
-        public async Task<List<Dictionary<string, object>>> ExecuteRawSqlAsync(string sql, Guid tenantId, bool isSuperAdmin, string userId = "")
+        public async Task<List<Dictionary<string, object>>> ExecuteRawSqlAsync(string sql, Guid tenantId, bool isSuperAdmin, string userId = "", string contextMessage = "")
         {
-            return await ExecuteRawSqlWithHealingAsync(sql, tenantId, isSuperAdmin, "", userId);
+            return await ExecuteRawSqlWithHealingAsync(sql, tenantId, isSuperAdmin, contextMessage, userId);
         }
 
 
@@ -99,6 +99,7 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                 healReason,
                 originalMessage,
                 tenantId,
+                userId,
                 isSuperAdmin,
                 history);
 
