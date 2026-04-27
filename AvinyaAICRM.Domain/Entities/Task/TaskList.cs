@@ -1,4 +1,4 @@
-﻿
+
 namespace AvinyaAICRM.Domain.Entities.Tasks
 {
     public class TaskList
@@ -7,7 +7,7 @@ namespace AvinyaAICRM.Domain.Entities.Tasks
         public string Name { get; set; }
         public Guid OwnerId { get; set; }
         public long? TeamId { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
 
         public ICollection<TaskSeries> TaskSeries { get; set; }
     }

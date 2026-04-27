@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace AvinyaAICRM.Domain.Entities.Quotations
@@ -14,6 +14,6 @@ namespace AvinyaAICRM.Domain.Entities.Quotations
         public string? StatusName { get; set; }
 
         public bool IsActive { get; set; } = true;
-        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedDate { get; set; } = DateTime.Now;
     }
 }

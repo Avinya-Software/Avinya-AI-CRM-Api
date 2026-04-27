@@ -19,6 +19,6 @@ namespace AvinyaAICRM.Domain.Entities.User
         
         public string? Description { get; set; }
         
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public DateTime Timestamp { get; set; } = DateTime.Now;
     }
 }

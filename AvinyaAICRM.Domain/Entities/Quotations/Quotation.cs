@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
@@ -23,7 +23,7 @@ namespace AvinyaAICRM.Domain.Entities.Quotations
         public decimal Taxes { get; set; }
         public decimal GrandTotal { get; set; }
         public string? CreatedBy { get; set; }
-        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedDate { get; set; } = DateTime.Now;
         [JsonIgnore]
         public bool IsDeleted { get; set; }
         public bool EnableTax { get; set; }

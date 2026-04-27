@@ -73,9 +73,6 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
             var leadSources = await _context.leadSourceMasters.ToListAsync();
             var statuses = await _context.leadStatusMasters.ToListAsync();
 
-            DateTime ConvertUtcToLocal(DateTime utcDate) =>
-                TimeZoneInfo.ConvertTimeFromUtc(utcDate, TimeZoneInfo.FindSystemTimeZoneById("India Standard Time"));
-
             var latestFollowupDate = await GetLatestFollowupDateAsync(id);
 
             var client = clients.FirstOrDefault(c => c.ClientID == lead.ClientID);
@@ -148,7 +145,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                 CreatedbyName = createdByName,
                 AssignedTo = lead.AssignedTo,
                 AssignToName = assignedToName,
-                CreatedDate = ConvertUtcToLocal(lead.CreatedDate),
+                CreatedDate = lead.CreatedDate,
 
                 ClientType = client?.ClientType ?? 0,
                 clientTypeName = client != null
@@ -276,7 +273,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                 {
                     LeadID = Guid.NewGuid(),
                     ClientID = finalClientId,
-                    CreatedDate = dto.CreatedDate ?? DateTime.UtcNow,
+                    CreatedDate = dto.CreatedDate ?? DateTime.Now,
                     RequirementDetails = dto.RequirementDetails,
                     Notes = dto.Notes,
                     Links = dto.Links,
@@ -697,11 +694,6 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
 
                 var followupStatuses = await _context.LeadFollowupStatuses.ToListAsync();
 
-                DateTime ConvertUtcToLocal(DateTime utc) =>
-                    TimeZoneInfo.ConvertTimeFromUtc(
-                        utc,
-                        TimeZoneInfo.FindSystemTimeZoneById("India Standard Time"));
-
                 // ✅ DTO Mapping
                 var result = leads.Select(l =>
                 {
@@ -748,13 +740,16 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                         LeadSourceID = l.LeadSourceID,
                         LeadSourceName = leadSourceName,
 
+                        StateID = client.StateID ?? null,
+                        CityID=client.CityID ?? null,
+
                         AssignedTo = l.AssignedTo,
                         AssignToName = assignedToName,
 
                         CreatedBy = l.CreatedBy,
                         CreatedbyName = createdByName,
 
-                        CreatedDate = ConvertUtcToLocal(l.CreatedDate),
+                        CreatedDate = l.CreatedDate,
 
                         NextFollowupDate = followup?.LatestNextFollowupDate,
                         LatestLeadFollowupId = followup?.LatestLeadFollowupId,

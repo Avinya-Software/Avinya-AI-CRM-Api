@@ -184,11 +184,6 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Invoices
             var clients = await _context.Clients.ToListAsync();
             var statusesList = await _context.InvoiceStatuses.ToListAsync();
 
-            DateTime ConvertUtcToLocal(DateTime utc) =>
-                   TimeZoneInfo.ConvertTimeFromUtc(
-                       utc,
-                       TimeZoneInfo.FindSystemTimeZoneById("India Standard Time"));
-
             var dataItems = invoicesPaged.Select(i => new InvoiceDto
             {
                 InvoiceID = i.InvoiceID,
@@ -205,7 +200,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Invoices
                 Discount = i.Discount,
                 GrandTotal = i.GrandTotal,
                 InvoiceStatusID = i.InvoiceStatusID,
-                CreatedDate = ConvertUtcToLocal(i.CreatedDate),
+                CreatedDate = i.CreatedDate,
                 RemainingPayment = i.RemainingPayment,
                 PaidAmount = i.PaidAmount,
                 PlaceOfSupply = i.PlaceOfSupply,

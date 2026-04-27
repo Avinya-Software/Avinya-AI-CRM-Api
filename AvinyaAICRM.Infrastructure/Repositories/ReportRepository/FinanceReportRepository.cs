@@ -21,7 +21,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ReportRepository
 
         public async Task<FinanceReportDto> GetFinanceReportAsync(FinanceReportFilterDto filter)
         {
-            var today = DateTime.UtcNow;
+            var today = DateTime.Now;
 
             // ── Master lookups ────────────────────────────────────────────────────
             var invoiceStatusMap = await _context.InvoiceStatuses

@@ -41,7 +41,7 @@ namespace AvinyaAICRM.Application.Services.AI
                 existing.GeneratedSql = sql;
                 existing.IsPositiveFeedback = isGood;
                 existing.UserCorrection = correction;
-                existing.UpdatedAt = DateTime.UtcNow;
+                existing.UpdatedAt = DateTime.Now;
                 existing.CreatedBy = userId ?? existing.CreatedBy;
                 
                 await _repository.UpdateAsync(existing);
@@ -55,7 +55,7 @@ namespace AvinyaAICRM.Application.Services.AI
                     GeneratedSql = sql,
                     IsPositiveFeedback = isGood,
                     UserCorrection = correction,
-                    CreatedAt = DateTime.UtcNow,
+                    CreatedAt = DateTime.Now,
                     CreatedBy = userId ?? "System"
                 };
                 await _repository.AddAsync(newKnowledge);
@@ -77,7 +77,7 @@ namespace AvinyaAICRM.Application.Services.AI
                     OriginalMessage = message.Trim(),
                     GeneratedSql = sql,
                     IsPositiveFeedback = null, // Pending
-                    CreatedAt = DateTime.UtcNow,
+                    CreatedAt = DateTime.Now,
                     CreatedBy = userId ?? "System"
                 };
                 await _repository.AddAsync(newKnowledge);

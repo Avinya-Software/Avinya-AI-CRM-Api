@@ -24,12 +24,6 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
 
         public async Task<OrderResponseDto?> GetByIdAsync(Guid id, string tenantId)
         {
-            DateTime ConvertUtcToLocal(DateTime utcDate) =>
-               TimeZoneInfo.ConvertTimeFromUtc(
-                   utcDate,
-                   TimeZoneInfo.FindSystemTimeZoneById("India Standard Time")
-               );
-
             var order = await (
                 from o in _context.Orders.AsNoTracking()
                 join c in _context.Clients.AsNoTracking() on o.ClientID equals c.ClientID into cj
@@ -98,15 +92,6 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
                     FirmGSTNo = "-" // Tenant entity might not have GSTNo yet
                 }
             ).FirstOrDefaultAsync();
-
-            if (order != null)
-            {
-                order.CreatedDate = TimeZoneInfo.ConvertTimeFromUtc(
-                    order.CreatedDate,
-                    TimeZoneInfo.FindSystemTimeZoneById("India Standard Time")
-                );
-            }
-
 
             if (order == null)
                 return null;
@@ -197,11 +182,6 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
         {
             try
             {
-                DateTime ConvertUtcToLocal(DateTime utcDate) =>
-                    TimeZoneInfo.ConvertTimeFromUtc(
-                        utcDate,
-                        TimeZoneInfo.FindSystemTimeZoneById("India Standard Time"));
-
                 var userData = await _context.Users.FindAsync(userId);
 
                 var query = _context.Orders
@@ -367,19 +347,6 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
 
                 // 🔹 (Your existing WorkOrderItems loading logic stays SAME)
                 // 🔹 (Your UTC → Local conversion stays SAME)
-
-                orders.ForEach(o =>
-                {
-                    o.Bill?.ForEach(b =>
-                    {
-                        b.BillDate = ConvertUtcToLocal(b.BillDate);
-
-                        if (b.DueDate.HasValue)
-                            b.DueDate = ConvertUtcToLocal(b.DueDate.Value);
-
-                        b.CreatedDate = ConvertUtcToLocal(b.CreatedDate);
-                    });
-                });
 
                 // ✅ RETURN PAGED RESULT
                 return new PagedResult<OrderResponseDto>
@@ -701,7 +668,6 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
             var order = await _context.Orders.FirstOrDefaultAsync(o => o.OrderID == id && !o.IsDeleted);
             if (order == null) return false;
             order.IsDeleted = true;
-            //order.UpdatedDate = DateTime.UtcNow;
             await _context.SaveChangesAsync();
             return true;
         }

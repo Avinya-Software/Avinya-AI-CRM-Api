@@ -132,7 +132,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ReportRepository
 
 
             // ── KPI CALCULATIONS (Using filtered data) ──────────────────────────
-            var today = DateTime.UtcNow;
+            var today = DateTime.Now;
             decimal totInvoiced = invoicesForKpi.Sum(i => i.GrandTotal);
             decimal totCollected = paymentsForKpi.Sum(p => p.Amount);
             decimal totRemainingPayment = invoicesForKpi.Sum(i => i.RemainingPayment);

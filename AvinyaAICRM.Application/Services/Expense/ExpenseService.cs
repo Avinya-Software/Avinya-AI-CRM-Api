@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Expense;
+using AvinyaAICRM.Application.DTOs.Expense;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Expenses;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Expense;
 using AvinyaAICRM.Shared.Helper;
@@ -73,7 +73,7 @@ namespace AvinyaAICRM.Application.Services.Expense
                 Description = dto.Description,
                 ReceiptPath = receiptPath,
                 CreatedBy = userId,
-                CreatedDate = DateTime.UtcNow
+                CreatedDate = DateTime.Now
             };
 
             var success = await _repository.CreateAsync(expense);
@@ -117,7 +117,7 @@ namespace AvinyaAICRM.Application.Services.Expense
             expense.PaymentMode = dto.PaymentMode;
             expense.Description = dto.Description;
             expense.ModifiedBy = userId;
-            expense.ModifiedDate = DateTime.UtcNow;
+            expense.ModifiedDate = DateTime.Now;
 
             var success = await _repository.UpdateAsync(expense);
             if (!success)

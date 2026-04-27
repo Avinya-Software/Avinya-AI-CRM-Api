@@ -24,7 +24,7 @@ namespace AvinyaAICRM.Domain.Entities.Leads
         public string? CreatedBy { get; set; }
         public string? AssignedTo { get; set; }
 
-        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedDate { get; set; } = DateTime.Now;
         [JsonIgnore]
         public bool IsDeleted { get; set; } = false;
         [JsonIgnore]

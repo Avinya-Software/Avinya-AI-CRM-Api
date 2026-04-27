@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Settings;
+using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Settings;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Tenant;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.User;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.SuperAdmin;
@@ -59,7 +59,7 @@ public class SuperAdminService : ISuperAdminService
         // Approve tenant
         tenant.IsApproved = true;
         tenant.IsActive = true;
-        tenant.ApprovedAt = DateTime.UtcNow;
+        tenant.ApprovedAt = DateTime.Now;
 
         // Activate Admin user linked to tenant
         var adminUser = await _userRepository.GetAdminByTenantIdAsync(tenantId);
@@ -107,8 +107,8 @@ public class SuperAdminService : ISuperAdminService
                     UserId = adminUser.Id,
                     TenantId = tenantId,
                     Balance = signupCredit,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.Now,
+                    UpdatedAt = DateTime.Now
                 };
 
                 await _userCreditRepository.AddUserCreditAsync(uc);
@@ -118,13 +118,13 @@ public class SuperAdminService : ISuperAdminService
                     Amount = signupCredit,
                     Action = "SignupCredit",
                     Description = "Signup credit on approval",
-                    Timestamp = DateTime.UtcNow
+                    Timestamp = DateTime.Now
                 });
             }
             else
             {
                 userCredit.Balance += signupCredit;
-                userCredit.UpdatedAt = DateTime.UtcNow;
+                userCredit.UpdatedAt = DateTime.Now;
                 await _userCreditRepository.UpdateUserCreditAsync(userCredit);
                 await _userCreditRepository.AddTransactionAsync(new CreditTransaction
                 {
@@ -132,7 +132,7 @@ public class SuperAdminService : ISuperAdminService
                     Amount = signupCredit,
                     Action = "SignupCredit",
                     Description = "Signup credit added on approval",
-                    Timestamp = DateTime.UtcNow
+                    Timestamp = DateTime.Now
                 });
             }
         }

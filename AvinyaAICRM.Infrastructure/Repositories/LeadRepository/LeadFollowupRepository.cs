@@ -42,9 +42,6 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                 .OrderByDescending(f => f.CreatedDate)
                 .ToListAsync();
 
-            DateTime ConvertUtcToLocal(DateTime utcDate) =>
-                TimeZoneInfo.ConvertTimeFromUtc(utcDate, TimeZoneInfo.FindSystemTimeZoneById("India Standard Time"));
-
             return followups.Select(f =>
             {
                 var lead = leads.FirstOrDefault(l => l.LeadID == f.LeadID);
@@ -62,7 +59,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                     StatusName = status?.StatusName,
                     FollowUpBy = f.FollowUpBy,
                     FollowUpByName = user?.UserName,
-                    CreatedDate = f.CreatedDate.HasValue ? ConvertUtcToLocal(f.CreatedDate.Value) : (DateTime?)null,
+                    CreatedDate = f.CreatedDate,
                 };
             }).ToList();
         }

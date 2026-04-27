@@ -34,19 +34,16 @@ namespace AvinyaAICRM.Infrastructure.BackgroundServices
                     {
                         var creditService = scope.ServiceProvider.GetRequiredService<ICreditService>();
                         
-                        // 1. Check when the last reset happened (in UTC)
-                        var lastResetUtc = await creditService.GetLastResetDateAsync();
+                        // 1. Check when the last reset happened (in Local)
+                        var lastResetLocal = await creditService.GetLastResetDateAsync();
                         
-                        // 2. Convert to IST for a consistent business-day check
-                        var nowIst = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, istZone);
-                        var lastResetIst = lastResetUtc.HasValue 
-                            ? TimeZoneInfo.ConvertTimeFromUtc(lastResetUtc.Value, istZone) 
-                            : (DateTime?)null;
+                        // 2. Use current local time
+                        var nowLocal = DateTime.Now;
 
                         // 3. Logic: If it hasn't been reset today, do it now.
-                        if (!lastResetIst.HasValue || lastResetIst.Value.Date < nowIst.Date)
+                        if (!lastResetLocal.HasValue || lastResetLocal.Value.Date < nowLocal.Date)
                         {
-                            _logger.LogInformation("Last reset was {LastReset}. Resetting all balances to {Amount}...", lastResetIst?.ToString() ?? "Never", RESET_AMOUNT);
+                            _logger.LogInformation("Last reset was {LastReset}. Resetting all balances to {Amount}...", lastResetLocal?.ToString() ?? "Never", RESET_AMOUNT);
                             
                             int updatedCount = await creditService.ResetAllBalancesAsync(RESET_AMOUNT);
                             
@@ -54,7 +51,7 @@ namespace AvinyaAICRM.Infrastructure.BackgroundServices
                         }
                         else
                         {
-                            _logger.LogInformation("Credits were already reset today ({LastResetDate}). Skipping.", lastResetIst.Value.ToShortDateString());
+                            _logger.LogInformation("Credits were already reset today ({LastResetDate}). Skipping.", lastResetLocal.Value.ToShortDateString());
                         }
                     }
 

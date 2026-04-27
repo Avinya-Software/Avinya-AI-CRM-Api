@@ -162,7 +162,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ReportRepository
             .ToList();
 
             // ── Overdue follow-ups ────────────────────────────────────────────────
-            var today = DateTime.UtcNow;
+            var today = DateTime.Now;
 
             var overdueRaw = await _context.LeadFollowups
                 .Where(f =>

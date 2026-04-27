@@ -32,7 +32,7 @@ namespace AvinyaAICRM.Application.DTOs.Lead
         public string? CreatedBy { get; set; }
         public string? AssignedTo { get; set; }
         [JsonIgnore]
-        public DateTime? CreatedDate { get; set; } = DateTime.UtcNow;
+        public DateTime? CreatedDate { get; set; } = DateTime.Now;
         public int? ClientType { get; set; }       // 'Individual' or 'Company'
         public string? CompanyName { get; set; }
         public string? GSTNo { get; set; }

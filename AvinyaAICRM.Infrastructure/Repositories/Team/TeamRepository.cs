@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Team;
+using AvinyaAICRM.Application.DTOs.Team;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Team;
 using AvinyaAICRM.Infrastructure.Persistence;
 using AvinyaAICRM.Shared.Helper;
@@ -124,7 +124,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Team
                     Name = dto.Name,
                     ManagerId = managerGuid,
                     TenantId = tenantId,
-                    CreatedAt = DateTime.UtcNow,
+                    CreatedAt = DateTime.Now,
                     IsActive = true
                 };
 
@@ -137,7 +137,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Team
                     {
                         TeamId = team.Id,
                         UserId = managerGuid,
-                        JoinedAt = DateTime.UtcNow
+                        JoinedAt = DateTime.Now
                     }
                 };
 
@@ -154,7 +154,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Team
                         {
                             TeamId = team.Id,
                             UserId = memberId,
-                            JoinedAt = DateTime.UtcNow
+                            JoinedAt = DateTime.Now
                         });
                     }
                 }

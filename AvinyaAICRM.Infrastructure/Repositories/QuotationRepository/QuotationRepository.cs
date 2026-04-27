@@ -351,7 +351,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
 
                 if (sentStatus == null || rejectedStatus == null) return;
 
-                var now = DateTime.UtcNow;
+                var now = DateTime.Now;
 
                 // Find quotations that have expired (ValidTill < now) and are currently "Sent"
                 var expiredQuotations = await _context.Quotations

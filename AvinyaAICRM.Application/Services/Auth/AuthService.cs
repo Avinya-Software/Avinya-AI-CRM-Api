@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Auth;
+using AvinyaAICRM.Application.DTOs.Auth;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Settings;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Tenant;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.User;
@@ -21,8 +21,7 @@ namespace AvinyaAICRM.Application.Services.Auth
         public AuthService(
             IUserRepository userRepo,
             ITenantRepository tenantRepo,
-            IJwtTokenGenerator jwtTokenGenerator,
-            ISettingsRepository settingsRepository)
+            IJwtTokenGenerator jwtTokenGenerator)
         {
             _userRepo = userRepo;
             _tenantRepo = tenantRepo;
@@ -90,6 +89,7 @@ namespace AvinyaAICRM.Application.Services.Auth
             }
 
             var token = await _jwtTokenGenerator.GenerateToken(user);
+
             var data = new 
             {
                 Token = token,
@@ -118,6 +118,7 @@ namespace AvinyaAICRM.Application.Services.Auth
             }
 
             var token = await _jwtTokenGenerator.GenerateToken(user);
+
             var data = new
             {
                 Token = token,

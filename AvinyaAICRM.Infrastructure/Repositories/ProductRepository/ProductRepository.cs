@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Product;
+using AvinyaAICRM.Application.DTOs.Product;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Products;
 using AvinyaAICRM.Domain.Entities.Master;
 using AvinyaAICRM.Domain.Entities.Product;
@@ -146,7 +146,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ProductRepository
                 Description = dto.Description,
                 Status = dto.Status,
                 CreatedBy = dto.CreatedBy,
-                CreatedDate = DateTime.UtcNow,
+                CreatedDate = DateTime.Now,
                 TenantId = userData.TenantId
             };
 

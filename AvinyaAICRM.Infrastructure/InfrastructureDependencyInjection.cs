@@ -76,6 +76,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using System.ComponentModel;
 using System.Text;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.Auth;
 
 namespace AvinyaAICRM.Infrastructure
 {
@@ -210,6 +211,7 @@ namespace AvinyaAICRM.Infrastructure
             services.AddScoped<IBookingRepository, BookingdemoRepository>();
             services.AddScoped<AvinyaAICRM.Application.Interfaces.RepositoryInterface.AI.IAIKnowledgeRepository, AvinyaAICRM.Infrastructure.Repositories.AI.AIKnowledgeRepository>();
             services.AddScoped<IAIKnowledgeService, AIKnowledgeService>();
+            services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 
             return services;
         }

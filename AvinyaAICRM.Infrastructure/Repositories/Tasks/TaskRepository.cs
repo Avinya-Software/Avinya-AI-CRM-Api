@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Tasks;
+using AvinyaAICRM.Application.DTOs.Tasks;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Tasks;
 using AvinyaAICRM.Domain.Entities.Tasks;
 using AvinyaAICRM.Infrastructure.Persistence;
@@ -45,7 +45,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
                     TaskScope = dto.TeamId > 0 ? "Team" : "Personal",
                     CreatedBy = userId,
                     IsActive = true,
-                    CreatedAt = DateTime.UtcNow,
+                    CreatedAt = DateTime.Now,
                     ProjectId = !string.IsNullOrWhiteSpace(dto.ProjectId)
                         ? Guid.Parse(dto.ProjectId)
                         : null
@@ -59,7 +59,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
                     TaskSeriesId = series.Id,
                     DueDateTime = dto.DueDateTime,                    // UTC
                     Status = string.IsNullOrEmpty(dto.Status) ? "Pending" : dto.Status,
-                    CreatedAt = DateTime.UtcNow,
+                    CreatedAt = DateTime.Now,
                     AssignedTo = dto.AssignToId
                 };
 
@@ -81,7 +81,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
                             TriggerType = "BeforeDue",
                             OffsetMinutes = offsetMinutes,
                             Channel = dto.ReminderChannel ?? "InApp",
-                            CreatedAt = DateTime.UtcNow
+                            CreatedAt = DateTime.Now
                         };
 
                         _context.NotificationRules.Add(reminder);
@@ -127,23 +127,11 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
                 query = query.Where(x => x.TaskSeries.TaskScope == scope);
             }
 
-            var istTimeZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
-
-            // =========================
-            // ✅ FIX: FILTER (IMPORTANT)
-            // =========================
             if (from.HasValue && to.HasValue)
             {
-                // 🔥 FORCE Unspecified (CRITICAL FIX)
-                var fromUnspecified = DateTime.SpecifyKind(from.Value, DateTimeKind.Unspecified);
-                var toUnspecified = DateTime.SpecifyKind(to.Value, DateTimeKind.Unspecified);
-
-                var fromUtc = TimeZoneInfo.ConvertTimeToUtc(fromUnspecified, istTimeZone);
-                var toUtc = TimeZoneInfo.ConvertTimeToUtc(toUnspecified, istTimeZone);
-
                 query = query.Where(x =>
-                    x.DueDateTime >= fromUtc &&
-                    x.DueDateTime <= toUtc);
+                    x.DueDateTime >= from.Value &&
+                    x.DueDateTime <= to.Value);
             }
 
             var data = await query
@@ -160,19 +148,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
                 })
                 .ToListAsync();
 
-            // =========================
-            // ✅ FIX: DISPLAY
-            // =========================
-            foreach (var item in data)
-            {
-                if (item.DueDateTime.HasValue)
-                {
-                    item.DueDateTime = TimeZoneInfo.ConvertTimeFromUtc(
-                        item.DueDateTime.Value,
-                        istTimeZone
-                    );
-                }
-            }
+            return data;
 
             return data;
         }
@@ -219,7 +195,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
             if (series == null) return false;
 
             // End current series
-            series.EndDate = DateTime.UtcNow;
+            series.EndDate = DateTime.Now;
             series.IsActive = false;
 
             // Create new series (future)
@@ -231,7 +207,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tasks
                 ListId = series.ListId,
                 IsRecurring = true,
                 RecurrenceRule = dto.RecurrenceRule,
-                StartDate = DateTime.UtcNow,
+                StartDate = DateTime.Now,
                 EndDate = dto.EndDate,
                 CreatedBy = series.CreatedBy
             };

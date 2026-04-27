@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace AvinyaAICRM.Domain.Entities.Expenses
@@ -37,7 +37,7 @@ namespace AvinyaAICRM.Domain.Entities.Expenses
         [Required]
         public Guid CreatedBy { get; set; }
 
-        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedDate { get; set; } = DateTime.Now;
 
         public Guid? ModifiedBy { get; set; }
 

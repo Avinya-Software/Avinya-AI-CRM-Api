@@ -1,4 +1,4 @@
-﻿
+
 namespace AvinyaAICRM.Domain.Entities.Tasks
 {
     public class TaskSeries
@@ -24,7 +24,7 @@ namespace AvinyaAICRM.Domain.Entities.Tasks
         public long? TeamId { get; set; }
 
         public bool IsActive { get; set; } = true;
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
 
         public string? TaskScope { get; set; }
 

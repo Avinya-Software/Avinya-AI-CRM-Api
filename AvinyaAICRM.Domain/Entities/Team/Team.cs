@@ -1,4 +1,4 @@
-﻿
+
 namespace AvinyaAICRM.Domain.Entities.Team
 {
     public class Team
@@ -8,7 +8,7 @@ namespace AvinyaAICRM.Domain.Entities.Team
         public Guid? TenantId { get; set; }
         public Guid ManagerId { get; set; }
         public bool IsActive { get; set; } = true;
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
     }
 
 }
