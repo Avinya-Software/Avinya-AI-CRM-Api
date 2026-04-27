@@ -45,6 +45,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
 
         public async Task AddToRoleAsync(AppUser user, string role)
             => await _userManager.AddToRoleAsync(user, role);
+        public async Task RemoveFromRolesAsync(AppUser user, IEnumerable<string> roles)
+            => await _userManager.RemoveFromRolesAsync(user, roles);
 
         public async Task<bool> CheckPasswordAsync(AppUser user, string password)
             => await _userManager.CheckPasswordAsync(user, password);

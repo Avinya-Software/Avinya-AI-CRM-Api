@@ -16,6 +16,7 @@ namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.User
         Task<AppUser?> GetByEmailAsync(string email);
         Task<IdentityResult> CreateUserAsync(AppUser user, string password);
         Task AddToRoleAsync(AppUser user, string role);
+        Task RemoveFromRolesAsync(AppUser user, IEnumerable<string> roles);
         Task<bool> CheckPasswordAsync(AppUser user, string password);
         Task UpdateAsync(AppUser user);
         Task<IList<string>> GetRolesAsync(AppUser user);

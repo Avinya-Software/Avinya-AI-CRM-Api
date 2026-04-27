@@ -310,13 +310,22 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                             
                         response.Message = FormatMessage(template, response);
 
-                        // Return the created lead data to frontend
+                        // We no longer return the created lead data to avoid redundant UI rendering
+                        // The frontend uses parameters to show the success card
                         if (result.Data != null)
                         {
-                            response.Data = new List<Dictionary<string, object>> { 
-                                new Dictionary<string, object> { { "CreatedLead", result.Data } } 
-                            };
-                            response.Count = 1;
+                            response.Data = null;
+                            response.Count = 0;
+                        }
+
+                        // 5. Deduct Credits
+                        if (response.TotalTokens > 0)
+                        {
+                            response.CreditsUsed = await _credits.DeductCreditsForTokenUsageAsync(
+                                userId,
+                                response.TotalTokens,
+                                "CREATE_LEAD");
+                            response.RemainingCredits = await _credits.GetRemainingCreditsAsync(userId);
                         }
                     }
                     else
@@ -411,13 +420,21 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                             
                         response.Message = FormatMessage(template, response);
 
-                        // Return the created task data to frontend
+                        // We no longer return the created task data to avoid redundant UI rendering
                         if (result.Data != null)
                         {
-                            response.Data = new List<Dictionary<string, object>> { 
-                                new Dictionary<string, object> { { "CreatedTask", result.Data } } 
-                            };
-                            response.Count = 1;
+                            response.Data = null;
+                            response.Count = 0;
+                        }
+
+                        // 10. Deduct Credits
+                        if (response.TotalTokens > 0)
+                        {
+                            response.CreditsUsed = await _credits.DeductCreditsForTokenUsageAsync(
+                                userId,
+                                response.TotalTokens,
+                                "CREATE_TASK");
+                            response.RemainingCredits = await _credits.GetRemainingCreditsAsync(userId);
                         }
                     }
                     else
@@ -434,7 +451,7 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             }
             else if (response.Action == "message")
             {
-                SetEmptyResponse(response, response.SuccessMessage ?? response.Message ?? "I'm here to help! What can I do for you?");
+                SetEmptyResponse(response, response.ErrorMessage ?? response.SuccessMessage ?? response.Message ?? "I'm here to help! What can I do for you?");
             }
             else 
             {

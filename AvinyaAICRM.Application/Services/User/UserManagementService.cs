@@ -91,6 +91,17 @@ namespace AvinyaAICRM.Application.Services.User
             user.Email = request.Email;
 
             await _userRepo.UpdateAsync(user);
+            
+            // Update Role
+            if (!string.IsNullOrEmpty(request.Role))
+            {
+                var currentRoles = await _userRepo.GetRolesAsync(user);
+                if (currentRoles.Any())
+                {
+                    await _userRepo.RemoveFromRolesAsync(user, currentRoles);
+                }
+                await _userRepo.AddToRoleAsync(user, request.Role);
+            }
 
             var granter = await _userRepo.GetByIdAsync(grantedByUserId);
             if (granter == null)
