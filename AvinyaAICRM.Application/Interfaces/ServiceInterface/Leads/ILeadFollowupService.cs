@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Domain.Entities.Leads;
+using AvinyaAICRM.Domain.Entities.Leads;
 using AvinyaAICRM.Shared.Model;
 
 namespace AvinyaAICRM.Application.Interfaces.ServiceInterface.Leads

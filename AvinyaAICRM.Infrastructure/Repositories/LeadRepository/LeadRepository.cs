@@ -733,7 +733,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                         CompanyName = client?.CompanyName ?? "",
                         BillingAddress = client?.BillingAddress ?? "",
                         GSTNo = client?.GSTNo ?? "",
-
+                        ClientType = client.ClientType,
                         LeadStatusID = l.LeadStatusID,
                         StatusName = statusName,
 

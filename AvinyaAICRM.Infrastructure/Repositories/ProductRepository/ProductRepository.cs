@@ -131,7 +131,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ProductRepository
 
             var userData = await _context.Users.FindAsync(dto.CreatedBy);
 
-            Guid? unitTypeId = Guid.TryParse(dto.UnitType, out var uid) ? uid : null;
+            Guid? unitTypeId =dto.UnitTypeId ?? null;
             // Map DTO → Entity
             var entity = new Product
             {

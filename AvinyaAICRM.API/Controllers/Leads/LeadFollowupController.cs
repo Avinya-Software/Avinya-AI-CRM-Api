@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.Interfaces.ServiceInterface.Leads;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.Leads;
 using AvinyaAICRM.Domain.Entities.Leads;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

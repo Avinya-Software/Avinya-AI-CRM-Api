@@ -28,7 +28,7 @@ namespace AvinyaAICRM.Application.DTOs.Lead
         public string? AssignedTo { get; set; }
         public string? AssignToName { get; set; }
         public DateTime? CreatedDate { get; set; }
-        public int ClientType { get; set; }// 'Individual' or 'Company'
+        public int? ClientType { get; set; }// 'Individual' or 'Company'
         public string clientTypeName { get; set; }
         public string? CompanyName { get; set; }
         public string? GSTNo { get; set; }
