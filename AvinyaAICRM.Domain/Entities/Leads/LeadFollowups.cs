@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
@@ -17,7 +17,7 @@ namespace AvinyaAICRM.Domain.Entities.Leads
         public int Status { get; set; } = 1;
         public string? FollowUpBy { get; set; }
         [JsonIgnore]
-        public DateTime? CreatedDate { get; set; } = DateTime.UtcNow;
+        public DateTime? CreatedDate { get; set; } = DateTime.Now;
         [JsonIgnore]
         public DateTime? UpdatedDate { get; set; }
     }

@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Tenant;
+using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Tenant;
 using AvinyaAICRM.Infrastructure.Persistence;
 
 namespace AvinyaAICRM.Infrastructure.Repositories.Tenant
@@ -34,7 +34,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Tenant
         {
             tenant.IsApproved = true;
             tenant.IsActive = true;
-            tenant.ApprovedAt = DateTime.UtcNow;
+            tenant.ApprovedAt = DateTime.Now;
             await _context.SaveChangesAsync();
         }
 

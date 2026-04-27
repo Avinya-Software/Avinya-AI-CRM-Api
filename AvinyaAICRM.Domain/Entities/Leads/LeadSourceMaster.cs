@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace AvinyaAICRM.Domain.Entities.Leads
@@ -15,7 +15,7 @@ namespace AvinyaAICRM.Domain.Entities.Leads
 
         public bool IsActive { get; set; } = true;
 
-        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedDate { get; set; } = DateTime.Now;
         public int SortOrder { get; set; }
 
     }

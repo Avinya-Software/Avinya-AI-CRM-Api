@@ -18,6 +18,6 @@ namespace AvinyaAICRM.Domain.Entities.User
         public int Balance { get; set; }
         
         public DateTime? UpdatedAt { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
     }
 }

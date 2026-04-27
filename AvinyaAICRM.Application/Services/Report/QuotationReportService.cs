@@ -24,7 +24,7 @@ namespace AvinyaAICRM.Application.Services.Report
             // Default: current quarter
             if (filter.DateFrom is null && filter.DateTo is null)
             {
-                var today = DateTime.UtcNow;
+                var today = DateTime.Now;
                 var quarter = (today.Month - 1) / 3;
                 filter.DateFrom = new DateTime(today.Year, quarter * 3 + 1, 1);
                 filter.DateTo = today;

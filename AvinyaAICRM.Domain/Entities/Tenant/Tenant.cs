@@ -16,7 +16,7 @@ namespace AvinyaAICRM.Domain.Entities.Tenant
         public string? Address { get; set; }
         public bool IsApproved { get; set; }
         public bool IsActive { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
         public DateTime? ApprovedAt { get; set; }
         public string? ApprovedBySuperAdminId { get; set; }
     }

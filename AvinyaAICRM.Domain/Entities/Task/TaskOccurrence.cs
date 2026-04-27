@@ -1,4 +1,4 @@
-﻿
+
 namespace AvinyaAICRM.Domain.Entities.Tasks
 {
     public class TaskOccurrence
@@ -22,7 +22,7 @@ namespace AvinyaAICRM.Domain.Entities.Tasks
         public string? AssignedTo { get; set; }
         public long? RescheduledFromOccurrenceId { get; set; }
 
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
     }
 
 }

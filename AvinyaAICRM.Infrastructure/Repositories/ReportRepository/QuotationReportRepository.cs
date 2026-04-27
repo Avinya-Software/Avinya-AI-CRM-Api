@@ -21,7 +21,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ReportRepository
 
         public async Task<QuotationReportDto> GetQuotationReportAsync(QuotationReportFilterDto filter)
         {
-            var today = DateTime.UtcNow;
+            var today = DateTime.Now;
 
             // ── Master lookups ────────────────────────────────────────────────────
             var statusMaster = await _context.QuotationStatusMaster

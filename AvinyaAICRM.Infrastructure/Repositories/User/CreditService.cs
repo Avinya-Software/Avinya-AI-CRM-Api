@@ -43,7 +43,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
                 // Treat `newBalance` as an amount to add to existing balance
                 var addedAmount = newBalance;
                 credit.Balance = credit.Balance + addedAmount;
-                credit.UpdatedAt = DateTime.UtcNow;
+                credit.UpdatedAt = DateTime.Now;
 
                 await _repository.UpdateUserCreditAsync(credit);
 
@@ -53,7 +53,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
                     Amount = addedAmount,
                     Action = action,
                     Description = description,
-                    Timestamp = DateTime.UtcNow
+                    Timestamp = DateTime.Now
                 });
 
                 return AvinyaAICRM.Shared.Helper.CommonHelper.SuccessResponseMessage("Balance updated", credit);
@@ -140,7 +140,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
 
             // Ensure balance doesn't go below 0
             credit.Balance = Math.Max(0, credit.Balance - amount);
-            credit.UpdatedAt = DateTime.UtcNow;
+            credit.UpdatedAt = DateTime.Now;
 
             _context.CreditTransactions.Add(new CreditTransaction
             {
@@ -148,7 +148,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
                 Amount = amount,
                 Action = action,
                 Description = description,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.Now
             });
 
             await _context.SaveChangesAsync();
@@ -165,7 +165,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
                     UserId = userId,
                     TenantId = tenantId,
                     Balance = DEFAULT_BALANCE,
-                    UpdatedAt = DateTime.UtcNow
+                    UpdatedAt = DateTime.Now
                 });
                 await _context.SaveChangesAsync();
             }
@@ -174,7 +174,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
         public async Task<int> ResetAllBalancesAsync(int amount)
         {
             // Reset all active users' balance to the specified amount (e.g. 30)
-            return await _context.Database.ExecuteSqlRawAsync($"UPDATE dbo.[UserCredits] SET Balance = {amount}, UpdatedAt = GETUTCDATE()");
+            return await _context.Database.ExecuteSqlRawAsync($"UPDATE dbo.[UserCredits] SET Balance = {amount}, UpdatedAt = GETDATE()");
         }
 
         public async Task<DateTime?> GetLastResetDateAsync()

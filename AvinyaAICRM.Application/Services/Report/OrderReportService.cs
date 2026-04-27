@@ -25,7 +25,7 @@ namespace AvinyaAICRM.Application.Services.Report
             // Default: current month
             if (filter.DateFrom is null && filter.DateTo is null)
             {
-                var today = DateTime.UtcNow;
+                var today = DateTime.Now;
                 filter.DateFrom = new DateTime(today.Year, today.Month, 1);
                 filter.DateTo = today;
             }

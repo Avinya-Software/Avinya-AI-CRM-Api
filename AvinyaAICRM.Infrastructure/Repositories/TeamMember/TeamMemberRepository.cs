@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Team;
+using AvinyaAICRM.Application.DTOs.Team;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.TeamMember;
 using AvinyaAICRM.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -55,7 +55,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.TeamMember
             {
                 TeamId = teamId,
                 UserId = userId,
-                JoinedAt = DateTime.UtcNow
+                JoinedAt = DateTime.Now
             });
 
             await _context.SaveChangesAsync();

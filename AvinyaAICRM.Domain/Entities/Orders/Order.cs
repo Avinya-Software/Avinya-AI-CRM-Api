@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Domain.Entities.Quotations;
+using AvinyaAICRM.Domain.Entities.Quotations;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -42,7 +42,7 @@ namespace AvinyaAICRM.Domain.Entities.Orders
         public string? AssignedDesignTo { get; set; }
         public bool IsDeleted { get; set; } = false;
 
-        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedDate { get; set; } = DateTime.Now;
 
         [ForeignKey(nameof(QuotationID))]
         public virtual Quotation? Quotation { get; set; }

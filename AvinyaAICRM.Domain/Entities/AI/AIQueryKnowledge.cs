@@ -23,7 +23,7 @@ namespace AvinyaAICRM.Domain.Entities.AI
         /// </summary>
         public bool? IsPositiveFeedback { get; set; }
 
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
 
         public DateTime? UpdatedAt { get; set; }
 
