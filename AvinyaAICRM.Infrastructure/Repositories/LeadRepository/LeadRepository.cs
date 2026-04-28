@@ -312,10 +312,11 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                 {
                     FollowUpID = Guid.NewGuid(),
                     LeadID = lead.LeadID,
-                    Notes = "Add your Follow-Up notes.",
+                    Notes = "Initial follow-up created automatically.",
                     NextFollowupDate = dto.NextFollowupDate,
                     Status = 1, // Pending
-                    FollowUpBy = lead.AssignedTo
+                    FollowUpBy = lead.AssignedTo,
+                    CreatedDate = DateTime.Now
                 };
 
                 await _context.LeadFollowups.AddAsync(follow);
@@ -469,6 +470,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                 var latest = await _context.LeadFollowups
                     .Where(f => f.LeadID == existing.LeadID)
                     .OrderByDescending(f => f.CreatedDate)
+                    .ThenByDescending(f => f.FollowUpID)
                     .FirstOrDefaultAsync();
 
                 if (latest != null)
@@ -493,7 +495,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                         NextFollowupDate = dto.NextFollowupDate,
                         Status = 1,
                         FollowUpBy = dto.AssignedTo,
-                        //CreatedDate = DateTime.Now,
+                        CreatedDate = DateTime.Now,
                     };
 
                     await _context.LeadFollowups.AddAsync(follow);
@@ -818,14 +820,11 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                     .Where(s => s.LeadStatusID == statusId)
                     .FirstOrDefaultAsync();
 
-                DateTime ConvertUtcToLocal(DateTime utcDate) =>
-                    TimeZoneInfo.ConvertTimeFromUtc(utcDate, TimeZoneInfo.FindSystemTimeZoneById("India Standard Time"));
-
                 history.Add(new LeadHistoryDto
                 {
                     EntityType = "Lead",
                     Action = "Lead Created",
-                    Createddate = ConvertUtcToLocal(lead.CreatedDate),
+                    Createddate = lead.CreatedDate,
                     ClientName = client?.ContactPerson,
                     CompanyName = client?.CompanyName,
                     Status = lead.LeadStatusID.ToString(),
@@ -843,7 +842,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                     {
                         EntityType = "Follow-Up",
                         Action = "Follow-Up Created",
-                        Createddate = f.CreatedDate.HasValue ? ConvertUtcToLocal(f.CreatedDate.Value) : (DateTime?)null,
+                        Createddate = f.CreatedDate,
                         ClientName = client?.ContactPerson,
                         CompanyName = client?.CompanyName,
                         Status = f.Status.ToString(),
@@ -862,7 +861,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                     {
                         EntityType = "Quotation",
                         Action = "Quotation Created",
-                        Createddate = ConvertUtcToLocal(q.CreatedDate),
+                        Createddate = q.CreatedDate,
                         ClientName = client?.ContactPerson,
                         CompanyName = client?.CompanyName,
                         Status = q.QuotationStatusID.ToString(),
@@ -881,7 +880,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                     {
                         EntityType = "Order",
                         Action = "Order Created",
-                        Createddate = ConvertUtcToLocal(o.CreatedDate),
+                        Createddate = o.CreatedDate,
                         ClientName = client?.ContactPerson,
                         CompanyName = client?.CompanyName,
                         Status = o.Status.ToString(),

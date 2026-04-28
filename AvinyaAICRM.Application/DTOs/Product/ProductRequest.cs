@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 
 namespace AvinyaAICRM.Application.DTOs.Product
 {
@@ -10,6 +10,7 @@ namespace AvinyaAICRM.Application.DTOs.Product
 
         public string? Category { get; set; }
 
+        [System.Text.Json.Serialization.JsonPropertyName("unitType")]
         public Guid? UnitTypeId { get; set; }
 
         public decimal? DefaultRate { get; set; }

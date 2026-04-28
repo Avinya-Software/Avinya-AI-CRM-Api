@@ -11,6 +11,8 @@ namespace AvinyaAICRM.Application.DTOs.Product
         public bool IsDesignByUs { get; set; }
 
         public string? UnitTypeName { get; set; }
+        
+        [System.Text.Json.Serialization.JsonPropertyName("unitType")]
         public Guid? UnitTypeId { get; set; }
 
         public Guid? TaxCategoryID { get; set; }

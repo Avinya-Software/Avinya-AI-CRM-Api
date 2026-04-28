@@ -198,10 +198,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ProductRepository
                 existing.IsDesignByUs = dto.IsDesignByUs;
 
 
-                if (dto.UnitTypeId != null)
-                    existing.UnitTypeID = dto.UnitTypeId;
-                else
-                    existing.UnitTypeID = Guid.Empty;
+                if (dto.UnitTypeId.HasValue && dto.UnitTypeId.Value != Guid.Empty)
+                    existing.UnitTypeID = dto.UnitTypeId.Value;
 
                 if (dto.TaxCategoryID.HasValue)
                     existing.TaxCategoryID = dto.TaxCategoryID.Value;
