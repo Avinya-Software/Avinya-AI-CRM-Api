@@ -74,7 +74,7 @@ namespace AvinyaAICRM.Application.Services.Auth
                 return CommonHelper.UnauthorizedResponseMessage(ResponseType.Unauthorized.ToString(), "Invalid credentials");
 
             if (!user.IsActive)
-                return CommonHelper.ForbiddenResponseMessage("Account not approved");
+                return CommonHelper.ForbiddenResponseMessage("not approved");
 
             var validPassword = await _userRepo.CheckPasswordAsync(user, model.Password);
             if (!validPassword)
