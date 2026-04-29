@@ -51,17 +51,19 @@ namespace AvinyaAICRM.API.Controllers
 
                 int usedTokens = 0;
                 int usedCredits = 0;
+                var isSuperAdmin = User.IsInRole("SuperAdmin");
+                var allowedModules = await _crmService.GetUserAllowedModulesAsync(userId ?? "");
 
                 // If it's a correction, we "Heal" the query first
                 if (!feedback.IsGood && !string.IsNullOrWhiteSpace(feedback.UserCorrection))
                 {
-                    var aiResult = await _aiService.RefineQueryAsync(feedback.OriginalMessage, feedback.GeneratedSql, feedback.UserCorrection, tenantId, userId ?? "");
+                    var aiResult = await _aiService.RefineQueryAsync(feedback.OriginalMessage, feedback.GeneratedSql, feedback.UserCorrection, tenantId, userId ?? "", isSuperAdmin, allowedModules);
                     finalSql = aiResult.Sql ?? feedback.GeneratedSql;
                     usedTokens = aiResult.TotalTokens;
 
                     // Re-run the query
                     try {
-                        data = await _crmService.ExecuteRawSqlAsync(finalSql, tenantId, User.IsInRole("SuperAdmin"), userId ?? "", feedback.OriginalMessage);
+                        data = await _crmService.ExecuteRawSqlAsync(finalSql, tenantId, isSuperAdmin, userId ?? "", feedback.OriginalMessage, allowedModules);
 
                         if (usedTokens > 0)
                         {

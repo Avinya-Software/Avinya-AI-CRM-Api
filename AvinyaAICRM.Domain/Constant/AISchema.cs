@@ -78,8 +78,13 @@ namespace AvinyaAICRM.Domain.Constant
     public static class AISchema
     {
         public static string GetContextForIntent(IEnumerable<string> intents)
+            => GetContextForIntent(intents, null, true);
+
+        public static string GetContextForIntent(IEnumerable<string> intents, IEnumerable<string>? permissionClaims, bool isSuperAdmin)
         {
-            var activeIntents = intents.Any() ? intents : new[] { "default" };
+            var requestedIntents = intents?.Where(i => !string.IsNullOrWhiteSpace(i)).ToList() ?? new();
+            var activeIntents = requestedIntents.Any() ? requestedIntents : new List<string> { "default" };
+            var allowedTables = ResolveAllowedTableNames(permissionClaims, isSuperAdmin);
             var tables = new HashSet<string>();
             var rules = new List<AiRule>();
             var examples = new List<AiExample>();
@@ -87,7 +92,16 @@ namespace AvinyaAICRM.Domain.Constant
             foreach (var intent in activeIntents)
             {
                 var config = IntentConfigs.GetValueOrDefault(intent, DefaultConfig);
-                foreach (var t in config.Tables) tables.Add(t);
+                if (!isSuperAdmin && !config.Tables.Any(allowedTables.Contains))
+                {
+                    continue;
+                }
+
+                foreach (var t in config.Tables.Where(t => isSuperAdmin || allowedTables.Contains(t)))
+                {
+                    tables.Add(t);
+                }
+
                 rules.AddRange(config.Rules);
                 examples.AddRange(config.Examples);
             }
@@ -104,7 +118,10 @@ namespace AvinyaAICRM.Domain.Constant
                     if (!string.IsNullOrEmpty(col.ForeignKey))
                     {
                         var refTable = col.ForeignKey.Split('.')[0];
-                        expandedTables.Add(refTable);
+                        if (isSuperAdmin || allowedTables.Contains(refTable))
+                        {
+                            expandedTables.Add(refTable);
+                        }
                     }
                 }
             }
@@ -134,32 +151,8 @@ namespace AvinyaAICRM.Domain.Constant
             {
                 tbls = minifiedTables,
                 rels = minifiedRelationships,
-                maps = new List<SemanticMap>
-                {
-                    new() { Term = "customer",    MapsTo = "Clients" },
-                    new() { Term = "client",      MapsTo = "Clients" },
-                    new() { Term = "lead",        MapsTo = "Leads" },
-                    new() { Term = "followup",    MapsTo = "LeadFollowups" },
-                    new() { Term = "quotation",   MapsTo = "Quotations" },
-                    new() { Term = "quote",       MapsTo = "Quotations" },
-                    new() { Term = "order",       MapsTo = "Orders" },
-                    new() { Term = "invoice",     MapsTo = "Invoices" },
-                    new() { Term = "payment",     MapsTo = "Payments" },
-                    new() { Term = "sales",       MapsTo = "Orders + Invoices" },
-                    new() { Term = "revenue",     MapsTo = "Invoices.GrandTotal" },
-                    new() { Term = "expense",     MapsTo = "Expenses" },
-                    new() { Term = "product",     MapsTo = "Products" },
-                    new() { Term = "item",        MapsTo = "Products" },
-                    new() { Term = "project",     MapsTo = "Projects" },
-                    new() { Term = "task",        MapsTo = "TaskSeries + TaskOccurrences" },
-                    new() { Term = "team",        MapsTo = "Teams" },
-                    new() { Term = "user",        MapsTo = "AspNetUsers" },
-                    new() { Term = "role",        MapsTo = "AspNetRoles" },
-                    new() { Term = "permission",  MapsTo = "Permissions + RolePermissions + UserPermissions" },
-                    new() { Term = "tax",         MapsTo = "TaxCategoryMaster" },
-                    new() { Term = "bank",        MapsTo = "BankDetails" },
-                    new() { Term = "setting",     MapsTo = "Settings" }
-                },
+                allowed = finalTables.Select(t => t.Name).ToList(),
+                maps = GetSemanticMappings().Where(m => MappingIsAllowed(m, expandedTables)).ToList(),
                 rules = rules.DistinctBy(r => r.Rule).Select(r => r.Rule).ToList(),
                 ex = examples.DistinctBy(e => e.Question).ToList()
             };
@@ -173,7 +166,135 @@ namespace AvinyaAICRM.Domain.Constant
 
         public static string GetFullContext() => GetContextForIntent(IntentConfigs.Keys);
 
+        public static string GetFullContext(IEnumerable<string>? permissionClaims, bool isSuperAdmin)
+            => GetContextForIntent(IntentConfigs.Keys, permissionClaims, isSuperAdmin);
+
         public static HashSet<string> TableNames => GetAllTables().Select(t => t.Name).ToHashSet();
+
+        public static HashSet<string> ResolveAllowedTableNames(IEnumerable<string>? permissionClaims, bool isSuperAdmin)
+        {
+            if (isSuperAdmin)
+            {
+                return TableNames;
+            }
+
+            var normalizedClaims = (permissionClaims ?? Enumerable.Empty<string>())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .SelectMany(ExpandPermissionClaim)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var tables = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var moduleAccess in ModuleTableAccessMap)
+            {
+                if (!moduleAccess.Aliases.Any(normalizedClaims.Contains))
+                {
+                    continue;
+                }
+
+                foreach (var table in moduleAccess.Tables)
+                {
+                    tables.Add(table);
+                }
+            }
+
+            return tables;
+        }
+
+        private static IEnumerable<string> ExpandPermissionClaim(string claim)
+        {
+            var normalized = NormalizePermissionText(claim);
+            if (string.IsNullOrWhiteSpace(normalized))
+            {
+                yield break;
+            }
+
+            yield return normalized;
+
+            var parts = normalized.Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (parts.Length == 2 && parts[1].Equals("view", StringComparison.OrdinalIgnoreCase))
+            {
+                yield return parts[0];
+            }
+        }
+
+        private static string NormalizePermissionText(string value)
+            => new string(value.Trim().ToLowerInvariant().Select(ch => char.IsLetterOrDigit(ch) || ch == ':' ? ch : '_').ToArray())
+                .Replace("__", "_")
+                .Trim('_');
+
+        private sealed record ModuleTableAccess(string[] Aliases, string[] Tables);
+
+        private static readonly List<ModuleTableAccess> ModuleTableAccessMap = new()
+        {
+            new(new[] { "lead", "leads", "lead_management", "leadmanagement", "lead_manage", "leadmanage" },
+                new[] { "Leads", "Clients", "LeadStatusMaster", "LeadSourceMaster", "States", "Cities" }),
+            new(new[] { "lead_followup", "leadfollowup", "lead_followups", "leadfollowups", "followup", "followups" },
+                new[] { "LeadFollowups", "LeadFollowupStatus", "Leads", "Clients", "LeadStatusMaster" }),
+            new(new[] { "client", "clients", "customer", "customers", "client_management", "clientmanagement" },
+                new[] { "Clients", "States", "Cities" }),
+            new(new[] { "quotation", "quotations", "quote", "quotes", "quotation_management", "quotationmanagement" },
+                new[] { "Quotations", "QuotationItems", "QuotationStatusMaster", "Clients", "Leads", "Products", "TaxCategoryMaster" }),
+            new(new[] { "order", "orders", "order_management", "ordermanagement" },
+                new[] { "Orders", "OrderItems", "OrderStatusMaster", "DesignStatusMaster", "Clients", "Products", "TaxCategoryMaster" }),
+            new(new[] { "invoice", "invoices", "invoice_management", "invoicemanagement", "billing" },
+                new[] { "Invoices", "InvoiceStatuses", "Payments" }),
+            new(new[] { "payment", "payments" },
+                new[] { "Payments", "Invoices", "InvoiceStatuses" }),
+            new(new[] { "expense", "expenses", "expense_management", "expensemanagement" },
+                new[] { "Expenses", "ExpenseCategories" }),
+            new(new[] { "product", "products", "item", "items", "product_management", "productmanagement" },
+                new[] { "Products", "UnitTypeMaster", "TaxCategoryMaster" }),
+            new(new[] { "project", "projects", "project_management", "projectmanagement" },
+                new[] { "Projects", "ProjectStatusMaster", "ProjectPriorityMaster", "Teams", "Clients", "AspNetUsers" }),
+            new(new[] { "task", "tasks", "task_management", "taskmanagement" },
+                new[] { "TaskSeries", "TaskOccurrences", "TaskLists", "Teams", "TeamMembers", "Projects", "AspNetUsers" }),
+            new(new[] { "team", "teams", "team_management", "teammanagement" },
+                new[] { "Teams", "TeamMembers", "AspNetUsers" }),
+            new(new[] { "user", "users", "user_management", "usermanagement", "staff", "employee", "employees" },
+                new[] { "AspNetUsers", "AspNetRoles", "AspNetUserRoles" }),
+            new(new[] { "permission", "permissions", "permission_management", "permissionmanagement" },
+                new[] { "Modules", "Actions", "Permissions", "UserPermissions", "RolePermissions", "AspNetUsers", "AspNetRoles" }),
+            new(new[] { "bank", "banks", "bank_detail", "bankdetail", "bank_details", "bankdetails" },
+                new[] { "BankDetails" }),
+            new(new[] { "setting", "settings" },
+                new[] { "Settings" })
+        };
+
+        private static List<SemanticMap> GetSemanticMappings() => new()
+        {
+            new() { Term = "customer",    MapsTo = "Clients" },
+            new() { Term = "client",      MapsTo = "Clients" },
+            new() { Term = "lead",        MapsTo = "Leads" },
+            new() { Term = "followup",    MapsTo = "LeadFollowups" },
+            new() { Term = "quotation",   MapsTo = "Quotations" },
+            new() { Term = "quote",       MapsTo = "Quotations" },
+            new() { Term = "order",       MapsTo = "Orders" },
+            new() { Term = "invoice",     MapsTo = "Invoices" },
+            new() { Term = "payment",     MapsTo = "Payments" },
+            new() { Term = "sales",       MapsTo = "Orders + Invoices" },
+            new() { Term = "revenue",     MapsTo = "Invoices.GrandTotal" },
+            new() { Term = "expense",     MapsTo = "Expenses" },
+            new() { Term = "product",     MapsTo = "Products" },
+            new() { Term = "item",        MapsTo = "Products" },
+            new() { Term = "project",     MapsTo = "Projects" },
+            new() { Term = "task",        MapsTo = "TaskSeries + TaskOccurrences" },
+            new() { Term = "team",        MapsTo = "Teams" },
+            new() { Term = "user",        MapsTo = "AspNetUsers" },
+            new() { Term = "role",        MapsTo = "AspNetRoles" },
+            new() { Term = "permission",  MapsTo = "Permissions + RolePermissions + UserPermissions" },
+            new() { Term = "tax",         MapsTo = "TaxCategoryMaster" },
+            new() { Term = "bank",        MapsTo = "BankDetails" },
+            new() { Term = "setting",     MapsTo = "Settings" }
+        };
+
+        private static bool MappingIsAllowed(SemanticMap map, HashSet<string> expandedTables)
+        {
+            var knownTables = TableNames
+                .Where(t => map.MapsTo.Contains(t, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            return knownTables.Count == 0 || knownTables.All(expandedTables.Contains);
+        }
 
         public static List<TableSchema> GetAllTables() => new()
         {

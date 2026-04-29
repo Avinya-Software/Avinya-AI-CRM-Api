@@ -11,7 +11,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories
 {
     public class GroqService : IAIService
     {
-        private const string DefaultModel = "llama-3.1-8b-instant";
+        private const string DefaultModel = "meta-llama/llama-4-scout-17b-16e-instruct";
         private const string SmartModel = "llama-3.3-70b-versatile";
         private const string DefaultBaseUrl = "https://api.groq.com/openai/v1/chat/completions";
 
@@ -98,6 +98,11 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 intents.Add("query_projects");
 
             // ── TASKS ──────────
+            if (msg.Contains("add task") || msg.Contains("create task") ||
+                msg.Contains("schedule task") || msg.Contains("add todo") ||
+                msg.Contains("create todo"))
+                intents.Add("create_task");
+
             if (msg.Contains("task") || msg.Contains("todo") ||
                 msg.Contains("urgent task") || msg.Contains("pending task") ||
                 msg.Contains("pending work") || msg.Contains("what is overdue") ||
@@ -149,7 +154,11 @@ namespace AvinyaAICRM.Infrastructure.Repositories
 
             var lowerMsg       = userMessage.ToLower();
             var intents        = DetectIntents(lowerMsg);
-            var targetedSchema = AISchema.GetContextForIntent(intents);
+            var targetedSchema = AISchema.GetContextForIntent(intents, allowedModules, isSuperAdmin);
+            var allowedChatActions = ResolveAllowedChatActions(allowedModules, isSuperAdmin);
+            var allowedActionText = allowedChatActions.Count == 0
+                ? "none"
+                : string.Join(", ", allowedChatActions);
             var historyContext = BuildHistoryContext(history);
 
             // ─── DYNAMIC MODEL SELECTION (SPEED VS BRAIN) ────────────────────
@@ -173,6 +182,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 - TIME          : Current Date/Time is {DateTime.Now:f} (Year {DateTime.Now.Year}).
                 - PARAMETERS    : You MUST use '@TenantId' parameter in every WHERE clause. NEVER hardcode a Guid or ID for TenantId.
                 - USER FRIENDLY : NEVER SELECT raw internal IDs (like ClientID, StatusID) in the final output. ALWAYS JOIN the reference tables and SELECT the human-readable names (e.g. CompanyName, StatusName, SourceName).
+                - PERMISSIONS   : The JSON context contains ONLY the tables this user can access. If the requested module/table is missing, return action ""message"", empty sql, and explain that the user does not have permission for that data.
+                - ACTION ACCESS : Allowed write actions for this user: {allowedActionText}. Never choose a create_* action that is not listed here.
                 {historyContext}
                 - DURATION vs COUNT: 
                     - IF question contains 'days', 'weeks', 'months', or 'years' → Use DATEADD filter.
@@ -270,12 +281,15 @@ namespace AvinyaAICRM.Infrastructure.Repositories
  
                 ACTION SELECTION RULES:
                 1. If the user wants to ADD, CREATE, or REGISTER a lead:
+                   - Only choose ""create_lead"" when it is listed in Allowed write actions.
                    - IF CompanyName and RequirementDetails are provided → action: ""create_lead"".
                    - IF either is missing → action: ""message"" and ask the user for the missing info.
                 2. If the user wants to ADD, CREATE, or SCHEDULE a task/todo:
+                   - Only choose ""create_task"" when it is listed in Allowed write actions.
                    - IF Title, DueDateTime, and TaskType are provided → action: ""create_task"".
                    - IF any are missing → action: ""message"" and ask the user for the missing info.
                 3. If the user wants to ADD, RECORD, or SAVE an expense:
+                   - Only choose ""create_expense"" when it is listed in Allowed write actions.
                    - IF Amount and CategoryName are provided → action: ""create_expense"".
                    - IF either is missing → action: ""message"" and ask for missing info.
                 4. If the user asks a question that requires data from the database → action: ""get_summary"".
@@ -405,13 +419,14 @@ namespace AvinyaAICRM.Infrastructure.Repositories
 
    
 
-        public async Task<string> FixSqlAsync(string badSql, string errorMessage, string originalQuestion, Guid tenantId, string userId, bool isSuperAdmin, List<AIChatHistoryDto> history = null)
+        public async Task<string> FixSqlAsync(string badSql, string errorMessage, string originalQuestion, Guid tenantId, string userId, bool isSuperAdmin, List<AIChatHistoryDto> history = null, List<string> allowedModules = null)
         {
             var apiKey = _config["Groq:ApiKey"];
             var model = GetConfiguredModel();
             var baseUrl = GetBaseUrl();
 
-            var fixSchema = AISchema.GetFullContext(); // Use full context for healing to ensure all tables in broken SQL are covered
+            var intents = DetectIntents(originalQuestion.ToLower());
+            var fixSchema = AISchema.GetContextForIntent(intents, allowedModules, isSuperAdmin);
             var historyContext = BuildHistoryContext(history);
 
             var prompt = $@"
@@ -436,6 +451,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                         - Only SELECT statements are allowed.
                         - Fix ONLY the error — do not change the intent or columns.
                         - Use the SCHEMA CONTEXT below to find the correct table/column names.
+                        - Do not add tables that are not present in the SCHEMA CONTEXT.
                         - Return ONLY the fixed SQL string. No explanation, no JSON, no markdown.
 
                         SCHEMA CONTEXT (JSON):
@@ -447,14 +463,14 @@ namespace AvinyaAICRM.Infrastructure.Repositories
         }
 
 
-        public async Task<AIResponse> RefineQueryAsync(string originalMessage, string badSql, string userCorrection, Guid tenantId, string userId)
+        public async Task<AIResponse> RefineQueryAsync(string originalMessage, string badSql, string userCorrection, Guid tenantId, string userId, bool isSuperAdmin = false, List<string> allowedModules = null)
         {
             var groqKey = _config["Groq:ApiKey"];
             var model = GetConfiguredModel();
             var baseUrl = GetBaseUrl();
             
             var intents = DetectIntents(originalMessage.ToLower());
-            var schema  = AISchema.GetContextForIntent(intents);
+            var schema  = AISchema.GetContextForIntent(intents, allowedModules, isSuperAdmin);
 
             var prompt = $@"
                 You are a CRM SQL Expert.
@@ -470,7 +486,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 DATABASE SCHEMA CONTEXT:
                 {schema}
 
-                SPECIAL TEMPLATE - Universal Business Summary (Use if user wants 'all modules', 'full report', or 'business overview'):
+                PERMISSION NOTE: For broad reports, only use tables present in DATABASE SCHEMA CONTEXT. Do not use older universal summary templates.
+                DO NOT use this disabled legacy template:
                 SELECT 
                     (SELECT COUNT(*) FROM dbo.Clients WHERE TenantId = @TenantId AND IsDeleted = 0) AS ClientsCount,
                     (SELECT COUNT(*) FROM dbo.Leads WHERE TenantId = @TenantId AND IsDeleted = 0) AS LeadsCount,
@@ -488,7 +505,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 2. INTEGRITY: Include 'IsDeleted = 0' ONLY if that column exists in the provided SCHEMA for the table.
                 3. JOIN SECURITY: If a table lacks security columns (like TaskSeries), JOIN it with a related table that has it (like Projects).
                 4. SCHEMA ADHERENCE: ONLY use tables and columns from the SCHEMA CONTEXT provided.
-                5. Return ONLY the corrected SQL string. No markdown, no explanation.
+                5. PERMISSION: Never add invoice/payment/expense/lead/order tables unless those tables are present in SCHEMA CONTEXT.
+                6. Return ONLY the corrected SQL string. No markdown, no explanation.
             ";
 
             var result = await CallGroqWithFallbackAsync(prompt, groqKey, model, GetFallbackModel(model), baseUrl);
@@ -531,6 +549,60 @@ namespace AvinyaAICRM.Infrastructure.Repositories
 
             return historyContext.ToString();
         }
+
+        private static HashSet<string> ResolveAllowedChatActions(IEnumerable<string> permissionClaims, bool isSuperAdmin)
+        {
+            var actions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (isSuperAdmin)
+            {
+                actions.Add("create_lead");
+                actions.Add("create_task");
+                actions.Add("create_expense");
+                return actions;
+            }
+
+            var claims = (permissionClaims ?? Enumerable.Empty<string>())
+                .Select(NormalizePermissionText)
+                .ToList();
+
+            if (HasAnyAddPermission(claims, "lead", "leads", "lead_management", "leadmanagement"))
+            {
+                actions.Add("create_lead");
+            }
+
+            if (HasAnyAddPermission(claims, "task", "tasks", "task_management", "taskmanagement"))
+            {
+                actions.Add("create_task");
+            }
+
+            if (HasAnyAddPermission(claims, "expense", "expenses", "expense_management", "expensemanagement"))
+            {
+                actions.Add("create_expense");
+            }
+
+            return actions;
+        }
+
+        private static bool HasAnyAddPermission(IEnumerable<string> claims, params string[] moduleAliases)
+            => claims.Any(claim =>
+            {
+                var parts = claim.Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                if (parts.Length != 2)
+                {
+                    return false;
+                }
+
+                return moduleAliases.Contains(parts[0], StringComparer.OrdinalIgnoreCase) &&
+                       (parts[1].Equals("add", StringComparison.OrdinalIgnoreCase) ||
+                        parts[1].Equals("create", StringComparison.OrdinalIgnoreCase));
+            });
+
+        private static string NormalizePermissionText(string value)
+            => new string((value ?? string.Empty).Trim().ToLowerInvariant()
+                    .Select(ch => char.IsLetterOrDigit(ch) || ch == ':' ? ch : '_')
+                    .ToArray())
+                .Replace("__", "_")
+                .Trim('_');
 
         private async Task<(string Text, int Prompt, int Response, int Total)> CallGroqWithFallbackAsync(
             string prompt, string apiKey, string primaryModel, string fallbackModel, string baseUrl)

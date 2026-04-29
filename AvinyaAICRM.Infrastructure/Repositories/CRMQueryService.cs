@@ -14,6 +14,8 @@ using AvinyaAICRM.Application.AI.Pipeline;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.User;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.AI;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Expense;
+using AvinyaAICRM.Domain.Constant;
+using System.Text.RegularExpressions;
 
 namespace AvinyaAICRM.Application.Services.AICHATS
 {
@@ -51,17 +53,19 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             _expenseService = expenseService;
         }
 
-        public async Task<List<Dictionary<string, object>>> ExecuteRawSqlAsync(string sql, Guid tenantId, bool isSuperAdmin, string userId = "", string contextMessage = "")
+        public async Task<List<Dictionary<string, object>>> ExecuteRawSqlAsync(string sql, Guid tenantId, bool isSuperAdmin, string userId = "", string contextMessage = "", List<string> allowedModules = null)
         {
-            return await ExecuteRawSqlWithHealingAsync(sql, tenantId, isSuperAdmin, contextMessage, userId);
+            allowedModules ??= await GetUserAiPermissionClaimsAsync(userId, isSuperAdmin);
+            return await ExecuteRawSqlWithHealingAsync(sql, tenantId, isSuperAdmin, contextMessage, userId, null, allowedModules);
         }
 
 
         private async Task<List<Dictionary<string, object>>> ExecuteRawSqlWithHealingAsync(
             string sql, Guid tenantId, bool isSuperAdmin, string originalMessage, string userId = "",
-            List<AIChatHistoryDto> history = null)
+            List<AIChatHistoryDto> history = null, List<string> allowedModules = null)
         {
             if (string.IsNullOrWhiteSpace(sql)) return new List<Dictionary<string, object>>();
+            allowedModules ??= await GetUserAiPermissionClaimsAsync(userId, isSuperAdmin);
 
             // ── PHASE 1: Validate + Execute the original SQL ─────────────────────────
             string healReason = null;
@@ -72,6 +76,8 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                 var forbidden = new[] { "UPDATE", "DELETE", "DROP", "INSERT", "ALTER", "TRUNCATE", "CREATE" };
                 if (!isSuperAdmin && sql.ToUpper().Split(' ', StringSplitOptions.RemoveEmptyEntries).Any(w => forbidden.Contains(w)))
                     throw new UnauthorizedAccessException("Only SELECT queries are allowed for safety.");
+
+                ValidateSqlTableAccess(sql, allowedModules, isSuperAdmin);
 
                 // Security guard: must contain TenantId filter
                 if (!isSuperAdmin &&
@@ -106,7 +112,8 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                 tenantId,
                 userId,
                 isSuperAdmin,
-                history);
+                history,
+                allowedModules);
 
             if (string.IsNullOrWhiteSpace(healedSql))
                 throw new Exception($"SQL healing returned no result. Original error: {healReason}");
@@ -114,6 +121,7 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             // ── PHASE 3: Execute healed SQL exactly once ─────────────────────────────
             try
             {
+                ValidateSqlTableAccess(healedSql, allowedModules, isSuperAdmin);
                 return await RunSqlAsync(healedSql, tenantId, userId);
             }
             catch (Exception ex)
@@ -156,9 +164,14 @@ namespace AvinyaAICRM.Application.Services.AICHATS
         {
             // 0. Ensure credits record exists for the user
             await _credits.EnsureUserCreditExistsAsync(userId, tenantId);
+            var permissionClaims = await GetUserAiPermissionClaimsAsync(userId, isSuperAdmin);
+            foreach (var module in allowedModules ?? new List<string>())
+            {
+                permissionClaims.Add(module);
+            }
 
             // 1. Process Command (Intent + SQL Generation)
-            var response = await ProcessCommandAsync(request.Message, tenantId, userId, isSuperAdmin, allowedModules, request.History);
+            var response = await ProcessCommandAsync(request.Message, tenantId, userId, isSuperAdmin, permissionClaims, request.History);
 
             var writeActions = new[] { "create_lead", "create_task", "create_expense" };
 
@@ -168,7 +181,7 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             {
                 try 
                 {
-                    var data = await ExecuteRawSqlWithHealingAsync(response.Sql, tenantId, isSuperAdmin, request.Message, userId, request.History);
+                    var data = await ExecuteRawSqlWithHealingAsync(response.Sql, tenantId, isSuperAdmin, request.Message, userId, request.History, permissionClaims);
 
                     response.Data = data;
                     response.Count = data.Count;
@@ -202,6 +215,11 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                     }
                     response.Message = finalMessage;
                 }
+                catch (UnauthorizedAccessException ex)
+                {
+                    response.ErrorMessage = ex.Message;
+                    response.Message = ex.Message;
+                }
                 catch (Exception ex)
                 {
                     response.ErrorMessage = "Query execution failed: " + ex.Message;
@@ -212,6 +230,13 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             }
 
             // 4. Handle Specific Actions
+            if (writeActions.Contains(response.Action) && !CanRunWriteAction(response.Action, permissionClaims, isSuperAdmin))
+            {
+                SetEmptyResponse(response, $"You don't have permission to {GetFriendlyActionName(response.Action)}.");
+                response.Action = "message";
+                return response;
+            }
+
             if (response.Action == "create_lead")
             {
                 try
@@ -666,6 +691,196 @@ namespace AvinyaAICRM.Application.Services.AICHATS
 
             return aiResponse;
         }
+
+        private void ValidateSqlTableAccess(string sql, List<string> permissionClaims, bool isSuperAdmin)
+        {
+            if (isSuperAdmin)
+            {
+                return;
+            }
+
+            var usedTables = ExtractSqlTables(sql);
+            if (!usedTables.Any())
+            {
+                return;
+            }
+
+            var allowedTables = AISchema.ResolveAllowedTableNames(permissionClaims, isSuperAdmin);
+            var deniedTables = usedTables
+                .Where(t => !allowedTables.Contains(t))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (deniedTables.Any())
+            {
+                var deniedAreas = deniedTables
+                    .Select(GetFriendlyAccessArea)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                throw new UnauthorizedAccessException(
+                    $"You don't have permission to access {string.Join(", ", deniedAreas)}.");
+            }
+        }
+
+        private static HashSet<string> ExtractSqlTables(string sql)
+        {
+            var tables = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (string.IsNullOrWhiteSpace(sql))
+            {
+                return tables;
+            }
+
+            foreach (Match match in Regex.Matches(
+                sql,
+                @"\b(?:FROM|JOIN|APPLY)\s+(?:\[[^\]]+\]\.)?(?:dbo\.)?\[?(?<table>[A-Za-z_][A-Za-z0-9_]*)\]?",
+                RegexOptions.IgnoreCase))
+            {
+                var tableName = match.Groups["table"].Value;
+                if (AISchema.TableNames.Contains(tableName))
+                {
+                    tables.Add(tableName);
+                }
+            }
+
+            return tables;
+        }
+
+        private async Task<List<string>> GetUserAiPermissionClaimsAsync(string userId, bool isSuperAdmin)
+        {
+            if (string.IsNullOrWhiteSpace(userId) && !isSuperAdmin)
+            {
+                return new List<string>();
+            }
+
+            var query =
+                from p in _context.Permissions
+                join m in _context.Modules on p.ModuleId equals m.ModuleId
+                join a in _context.Actions on p.ActionId equals a.ActionId
+                where m.IsActive
+                select new
+                {
+                    m.ModuleKey,
+                    m.ModuleName,
+                    a.ActionKey,
+                    a.ActionName,
+                    UserId = ""
+                };
+
+            if (!isSuperAdmin)
+            {
+                query =
+                    from up in _context.UserPermissions
+                    join p in _context.Permissions on up.PermissionId equals p.PermissionId
+                    join m in _context.Modules on p.ModuleId equals m.ModuleId
+                    join a in _context.Actions on p.ActionId equals a.ActionId
+                    where up.UserId == userId && m.IsActive
+                    select new
+                    {
+                        m.ModuleKey,
+                        m.ModuleName,
+                        a.ActionKey,
+                        a.ActionName,
+                        up.UserId
+                    };
+            }
+
+            var permissions = await query.ToListAsync();
+            return permissions
+                .SelectMany(p =>
+                {
+                    var claims = new List<string>
+                    {
+                        $"{p.ModuleKey}:{p.ActionKey}",
+                        $"{p.ModuleName}:{p.ActionName}",
+                        $"{p.ModuleKey}:{p.ActionName}",
+                        $"{p.ModuleName}:{p.ActionKey}"
+                    };
+
+                    if (IsViewAction(p.ActionKey) || IsViewAction(p.ActionName))
+                    {
+                        claims.Add(p.ModuleKey);
+                        claims.Add(p.ModuleName);
+                    }
+
+                    return claims;
+                })
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        private static bool IsViewAction(string action)
+            => NormalizePermissionText(action).Equals("view", StringComparison.OrdinalIgnoreCase);
+
+        private static bool CanRunWriteAction(string action, IEnumerable<string> permissionClaims, bool isSuperAdmin)
+        {
+            if (isSuperAdmin)
+            {
+                return true;
+            }
+
+            return action switch
+            {
+                "create_lead" => HasAnyAddPermission(permissionClaims, "lead", "leads", "lead_management", "leadmanagement"),
+                "create_task" => HasAnyAddPermission(permissionClaims, "task", "tasks", "task_management", "taskmanagement"),
+                "create_expense" => HasAnyAddPermission(permissionClaims, "expense", "expenses", "expense_management", "expensemanagement"),
+                _ => false
+            };
+        }
+
+        private static bool HasAnyAddPermission(IEnumerable<string> permissionClaims, params string[] moduleAliases)
+            => (permissionClaims ?? Enumerable.Empty<string>())
+                .Select(NormalizePermissionText)
+                .Any(claim =>
+                {
+                    var parts = claim.Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    if (parts.Length != 2)
+                    {
+                        return false;
+                    }
+
+                    return moduleAliases.Contains(parts[0], StringComparer.OrdinalIgnoreCase) &&
+                           (parts[1].Equals("add", StringComparison.OrdinalIgnoreCase) ||
+                            parts[1].Equals("create", StringComparison.OrdinalIgnoreCase));
+                });
+
+        private static string NormalizePermissionText(string value)
+            => new string((value ?? string.Empty).Trim().ToLowerInvariant()
+                    .Select(ch => char.IsLetterOrDigit(ch) || ch == ':' ? ch : '_')
+                    .ToArray())
+                .Replace("__", "_")
+                .Trim('_');
+
+        private static string GetFriendlyActionName(string action)
+            => action switch
+            {
+                "create_lead" => "create leads",
+                "create_task" => "create tasks",
+                "create_expense" => "record expenses",
+                _ => "perform this action"
+            };
+
+        private static string GetFriendlyAccessArea(string table)
+            => table switch
+            {
+                "Leads" or "LeadStatusMaster" or "LeadSourceMaster" => "leads",
+                "LeadFollowups" or "LeadFollowupStatus" => "lead followups",
+                "Clients" or "States" or "Cities" => "clients",
+                "Quotations" or "QuotationItems" or "QuotationStatusMaster" => "quotations",
+                "Orders" or "OrderItems" or "OrderStatusMaster" or "DesignStatusMaster" => "orders",
+                "Invoices" or "InvoiceStatuses" or "Payments" => "invoices",
+                "Expenses" or "ExpenseCategories" => "expenses",
+                "Products" or "UnitTypeMaster" or "TaxCategoryMaster" => "products",
+                "Projects" or "ProjectStatusMaster" or "ProjectPriorityMaster" => "projects",
+                "TaskSeries" or "TaskOccurrences" or "TaskLists" => "tasks",
+                "Teams" or "TeamMembers" => "teams",
+                "AspNetUsers" or "AspNetRoles" or "AspNetUserRoles" => "users",
+                "Modules" or "Actions" or "Permissions" or "UserPermissions" or "RolePermissions" => "permissions",
+                "BankDetails" => "bank details",
+                "Settings" => "settings",
+                _ => table
+            };
 
         public async Task<List<string>> GetUserAllowedModulesAsync(string userId)
         {
