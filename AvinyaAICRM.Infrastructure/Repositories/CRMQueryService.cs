@@ -173,6 +173,14 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             // 1. Process Command (Intent + SQL Generation)
             var response = await ProcessCommandAsync(request.Message, tenantId, userId, isSuperAdmin, permissionClaims, request.History);
 
+            // 2. Validate File Upload Usage (Only for Expenses)
+            if (request.ReceiptFile != null && response.Action != "create_expense")
+            {
+                SetEmptyResponse(response, "This upload feature is currently only available for expense receipts. Please provide expense details (like amount and category) along with the image.");
+                response.Action = "message";
+                return response;
+            }
+
             var writeActions = new[] { "create_lead", "create_task", "create_expense" };
 
             // 3. Handle Execution
