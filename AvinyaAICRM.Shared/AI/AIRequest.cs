@@ -1,9 +1,12 @@
+using Microsoft.AspNetCore.Http;
+
 namespace AvinyaAICRM.Shared.AI
 {
     public class AIRequest
     {
         public string Message { get; set; } = string.Empty;
         public List<AIChatHistoryDto> History { get; set; } = new();
+        public IFormFile? ReceiptFile { get; set; }
     }
 
     public class AIChatHistoryDto
@@ -12,3 +15,4 @@ namespace AvinyaAICRM.Shared.AI
         public string Content { get; set; } = string.Empty;
     }
 }
+

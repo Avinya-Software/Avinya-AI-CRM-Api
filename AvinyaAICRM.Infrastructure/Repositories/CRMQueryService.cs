@@ -1,5 +1,6 @@
 using AvinyaAICRM.Application.DTOs.Lead;
 using AvinyaAICRM.Application.DTOs.Tasks;
+using AvinyaAICRM.Application.DTOs.Expense;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.AIChat;
 using AvinyaAICRM.Application.Interfaces.Clients;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.AICHAT;
@@ -12,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using AvinyaAICRM.Application.AI.Pipeline;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.User;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.AI;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.Expense;
 
 namespace AvinyaAICRM.Application.Services.AICHATS
 {
@@ -25,6 +27,7 @@ namespace AvinyaAICRM.Application.Services.AICHATS
         private readonly ICreditService _credits;
         private readonly IAIKnowledgeService _knowledge;
         private readonly IClientRepository _clientRepo;
+        private readonly IExpenseService _expenseService;
 
         public CRMQueryService(
             AppDbContext context,
@@ -34,7 +37,8 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             AIPipeline pipeline,
             ICreditService credits,
             IAIKnowledgeService knowledge,
-            IClientRepository clientRepo)
+            IClientRepository clientRepo,
+            IExpenseService expenseService)
         {
             _context = context;
             _aiService = aiService;
@@ -44,6 +48,7 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             _credits = credits;
             _knowledge = knowledge;
             _clientRepo = clientRepo;
+            _expenseService = expenseService;
         }
 
         public async Task<List<Dictionary<string, object>>> ExecuteRawSqlAsync(string sql, Guid tenantId, bool isSuperAdmin, string userId = "", string contextMessage = "")
@@ -155,8 +160,11 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             // 1. Process Command (Intent + SQL Generation)
             var response = await ProcessCommandAsync(request.Message, tenantId, userId, isSuperAdmin, allowedModules, request.History);
 
+            var writeActions = new[] { "create_lead", "create_task", "create_expense" };
+
             // 3. Handle Execution
-            if (!string.IsNullOrEmpty(response.Sql))
+            // If it's a query (Sql exists) AND it's NOT a creation action, execute it.
+            if (!string.IsNullOrEmpty(response.Sql) && !writeActions.Contains(response.Action))
             {
                 try 
                 {
@@ -199,8 +207,12 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                     response.ErrorMessage = "Query execution failed: " + ex.Message;
                     response.Message = response.ErrorMessage;
                 }
+                
+                return response; // Exit after query handling
             }
-            else if (response.Action == "create_lead")
+
+            // 4. Handle Specific Actions
+            if (response.Action == "create_lead")
             {
                 try
                 {
@@ -229,21 +241,23 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                         Links = response.Parameters.ContainsKey("Links") ? response.Parameters["Links"]?.ToString() : null,
                     };
 
-                    if (response.Parameters.TryGetValue("ClientType", out var cType))
+                    if (response.Parameters.TryGetValue("ClientType", out var cType) && cType != null)
                     {
-                        dto.ClientType = cType.Equals("Individual", StringComparison.OrdinalIgnoreCase) ? 1 : 2;
+                        dto.ClientType = cType.ToString().Equals("Individual", StringComparison.OrdinalIgnoreCase) ? 1 : 2;
                     }
 
                     // --- RESOLVE NAMES TO IDs ---
                     
                     // 1. Resolve State & City
-                    if (response.Parameters.TryGetValue("StateID", out var stateName) && !string.IsNullOrEmpty(stateName))
+                    if (response.Parameters.TryGetValue("StateID", out var stateNameObj) && !string.IsNullOrEmpty(stateNameObj?.ToString()))
                     {
+                        var stateName = stateNameObj.ToString();
                         var state = await _context.States.FirstOrDefaultAsync(s => s.StateName.Contains(stateName));
                         if (state != null) dto.StateID = state.StateID;
                     }
-                    if (response.Parameters.TryGetValue("CityID", out var cityName) && !string.IsNullOrEmpty(cityName))
+                    if (response.Parameters.TryGetValue("CityID", out var cityNameObj) && !string.IsNullOrEmpty(cityNameObj?.ToString()))
                     {
+                        var cityName = cityNameObj.ToString();
                         var city = await _context.Cities.FirstOrDefaultAsync(c => c.CityName.Contains(cityName));
                         if (city != null) 
                         {
@@ -253,13 +267,15 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                     }
 
                     // 2. Resolve Lead Source & Status
-                    if (response.Parameters.TryGetValue("LeadSourceID", out var sourceName) && !string.IsNullOrEmpty(sourceName))
+                    if (response.Parameters.TryGetValue("LeadSourceID", out var sourceNameObj) && !string.IsNullOrEmpty(sourceNameObj?.ToString()))
                     {
+                        var sourceName = sourceNameObj.ToString();
                         var source = await _context.leadSourceMasters.FirstOrDefaultAsync(s => s.SourceName.Contains(sourceName) && s.IsActive);
                         if (source != null) dto.LeadSourceID = source.LeadSourceID;
                     }
-                    if (response.Parameters.TryGetValue("LeadStatusID", out var statusName) && !string.IsNullOrEmpty(statusName))
+                    if (response.Parameters.TryGetValue("LeadStatusID", out var statusNameObj) && !string.IsNullOrEmpty(statusNameObj?.ToString()))
                     {
+                        var statusName = statusNameObj.ToString();
                         var status = await _context.leadStatusMasters.FirstOrDefaultAsync(s => s.StatusName.Contains(statusName) && s.IsActive);
                         if (status != null) dto.LeadStatusID = status.LeadStatusID;
                     }
@@ -272,15 +288,16 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                     }
 
                     // 3. Resolve AssignedTo (User)
-                    if (response.Parameters.TryGetValue("AssignedTo", out var userName) && !string.IsNullOrEmpty(userName))
+                    if (response.Parameters.TryGetValue("AssignedTo", out var userNameObj) && !string.IsNullOrEmpty(userNameObj?.ToString()))
                     {
+                        var userName = userNameObj.ToString();
                         var user = await _context.Users.FirstOrDefaultAsync(u => u.FullName.Contains(userName) && u.TenantId == tenantId);
                         if (user != null) dto.AssignedTo = user.Id;
                         else dto.AssignedTo = userName; // Fallback to raw value if not found
                     }
 
                     // 4. Handle Dates
-                    if (response.Parameters.TryGetValue("NextFollowupDate", out var dateStr) && DateTime.TryParse(dateStr, out var followDate)) 
+                    if (response.Parameters.TryGetValue("NextFollowupDate", out var fDateObj) && DateTime.TryParse(fDateObj?.ToString(), out var followDate)) 
                         dto.NextFollowupDate = followDate;
 
 
@@ -369,8 +386,9 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                     if (DateTime.TryParse(dueDateStr, out var dueDate)) dto.DueDateTime = dueDate;
 
                     // 4. Resolve List
-                    if (response.Parameters.TryGetValue("ListName", out var listName) && !string.IsNullOrEmpty(listName))
+                    if (response.Parameters.TryGetValue("ListName", out var listNameObj) && !string.IsNullOrEmpty(listNameObj?.ToString()))
                     {
+                        var listName = listNameObj.ToString();
                         var list = await _context.TaskLists.FirstOrDefaultAsync(l => l.Name.Contains(listName) && (l.OwnerId == Guid.Parse(userId) || l.TeamId != null));
                         if (list != null) dto.ListId = list.Id;
                     }
@@ -387,28 +405,30 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                     }
 
                     // 6. Resolve Assigned User
-                    if (response.Parameters.TryGetValue("AssignToName", out var userName) && !string.IsNullOrEmpty(userName))
+                    if (response.Parameters.TryGetValue("AssignToName", out var assignNameObj) && !string.IsNullOrEmpty(assignNameObj?.ToString()))
                     {
-                        var user = await _context.Users.FirstOrDefaultAsync(u => u.FullName.Contains(userName) && u.TenantId == tenantId);
+                        var assignName = assignNameObj.ToString();
+                        var user = await _context.Users.FirstOrDefaultAsync(u => u.FullName.Contains(assignName) && u.TenantId == tenantId);
                         if (user != null) dto.AssignToId = user.Id;
                     }
 
                     // 7. Resolve Project
-                    if (response.Parameters.TryGetValue("ProjectName", out var projectName) && !string.IsNullOrEmpty(projectName))
+                    if (response.Parameters.TryGetValue("ProjectName", out var projNameObj) && !string.IsNullOrEmpty(projNameObj?.ToString()))
                     {
-                        var project = await _context.Projects.FirstOrDefaultAsync(p => p.ProjectName.Contains(projectName) && p.TenantId == tenantId);
+                        var projName = projNameObj.ToString();
+                        var project = await _context.Projects.FirstOrDefaultAsync(p => p.ProjectName.Contains(projName) && p.TenantId == tenantId);
                         if (project != null) dto.ProjectId = project.ProjectID.ToString();
                     }
 
                     // 8. Handle Reminders and Recurrence
-                    if (response.Parameters.TryGetValue("ReminderAt", out var reminderStr) && DateTime.TryParse(reminderStr, out var reminderDate)) 
+                    if (response.Parameters.TryGetValue("ReminderAt", out var remObj) && DateTime.TryParse(remObj?.ToString(), out var reminderDate)) 
                         dto.ReminderAt = reminderDate;
                     
-                    if (response.Parameters.TryGetValue("IsRecurring", out var recurStr) && bool.TryParse(recurStr, out var isRecur)) 
+                    if (response.Parameters.TryGetValue("IsRecurring", out var recObj) && bool.TryParse(recObj?.ToString(), out var isRecur)) 
                         dto.IsRecurring = isRecur;
                     
-                    if (response.Parameters.TryGetValue("RecurrenceRule", out var rRule)) 
-                        dto.RecurrenceRule = rRule;
+                    if (response.Parameters.TryGetValue("RecurrenceRule", out var rRuleObj)) 
+                        dto.RecurrenceRule = rRuleObj?.ToString();
 
                     // 9. Create Task
                     var result = await _taskService.CreateTaskAsync(dto, userId);
@@ -446,6 +466,86 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                 catch (Exception ex)
                 {
                     response.ErrorMessage = "Task creation failed: " + ex.Message;
+                    response.Message = response.ErrorMessage;
+                }
+            }
+            else if (response.Action == "create_expense")
+            {
+                try
+                {
+                    // 1. Validate required parameters
+                    var amountStr = response.Parameters?.ContainsKey("Amount") == true ? response.Parameters["Amount"]?.ToString() : null;
+                    var categoryName = response.Parameters?.ContainsKey("CategoryName") == true ? response.Parameters["CategoryName"]?.ToString() : null;
+
+                    if (string.IsNullOrEmpty(amountStr) || string.IsNullOrEmpty(categoryName))
+                    {
+                        response.Message = response.ErrorMessage ?? "I need an amount and a category (e.g., Travel, Office) to record an expense.";
+                        return response;
+                    }
+
+                    if (!decimal.TryParse(amountStr, out var amount))
+                    {
+                        response.Message = "The amount provided is not a valid number.";
+                        return response;
+                    }
+
+                    // 2. Resolve Category
+                    var category = await _context.ExpenseCategories.FirstOrDefaultAsync(c => c.CategoryName.Contains(categoryName));
+                    if (category == null)
+                    {
+                        category = await _context.ExpenseCategories.FirstOrDefaultAsync(c => c.CategoryName.Contains("Other"))
+                                ?? await _context.ExpenseCategories.FirstOrDefaultAsync();
+                    }
+                    var categoryId = category?.CategoryId ?? 1; 
+
+                    // 3. Create DTO
+                    var dto = new CreateExpenseDto
+                    {
+                        Amount = amount,
+                        CategoryId = categoryId,
+                        ExpenseDate = DateTime.Now,
+                        Description = response.Parameters.ContainsKey("Description") ? response.Parameters["Description"]?.ToString() : response.Parameters.ContainsKey("Notes") ? response.Parameters["Notes"]?.ToString() : "Created via AI Chat",
+                        PaymentMode = !string.IsNullOrEmpty(response.Parameters.ContainsKey("PaymentMode") ? response.Parameters["PaymentMode"]?.ToString() : null) 
+                                      ? response.Parameters["PaymentMode"].ToString() 
+                                      : "Cash",
+                        Status = "Unpaid",
+                        ReceiptFile = request.ReceiptFile // Attach the file from the chat request
+                    };
+
+                    if (response.Parameters.TryGetValue("ExpenseDate", out var dateObj) && dateObj != null && DateTime.TryParse(dateObj.ToString(), out var expDate))
+                        dto.ExpenseDate = expDate;
+
+                    // 4. Create Expense
+                    var result = await _expenseService.CreateAsync(dto, tenantId.ToString(), Guid.Parse(userId));
+                    if (result.StatusCode == 200)
+                    {
+                        var template = !string.IsNullOrWhiteSpace(response.SuccessMessage)
+                            ? response.SuccessMessage
+                            : $"I've recorded the expense of ₹{amount} for {categoryName}.";
+
+                        response.Message = FormatMessage(template, response);
+                        response.Data = null;
+                        response.Count = 0;
+
+                        // 5. Deduct Credits
+                        if (response.TotalTokens > 0)
+                        {
+                            response.CreditsUsed = await _credits.DeductCreditsForTokenUsageAsync(
+                                userId,
+                                response.TotalTokens,
+                                "CREATE_EXPENSE");
+                            response.RemainingCredits = await _credits.GetRemainingCreditsAsync(userId);
+                        }
+                    }
+                    else
+                    {
+                        response.ErrorMessage = result.StatusMessage;
+                        response.Message = "I tried to record the expense but failed: " + result.StatusMessage;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    response.ErrorMessage = "Expense creation failed: " + ex.Message;
                     response.Message = response.ErrorMessage;
                 }
             }

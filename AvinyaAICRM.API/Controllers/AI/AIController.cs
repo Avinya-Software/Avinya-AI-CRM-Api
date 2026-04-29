@@ -93,7 +93,7 @@ namespace AvinyaAICRM.API.Controllers
         }
 
         [HttpPost("chat")]
-        public async Task<IActionResult> Chat([FromBody] AIRequest request)
+        public async Task<IActionResult> Chat([FromForm] AIRequest request)
         {
             if (!string.IsNullOrEmpty(request.Message) && request.Message.Length > 800)
             {

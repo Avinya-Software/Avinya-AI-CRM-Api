@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,6 +14,7 @@ namespace AvinyaAICRM.Application.DTOs.Expense
         public decimal Amount { get; set; }
         public string? PaymentMode { get; set; }
         public string? Description { get; set; }
+        public string? Status { get; set; }
         public IFormFile? ReceiptFile { get; set; }
     }
 }

@@ -72,15 +72,23 @@ namespace AvinyaAICRM.Application.Services.Expense
                 PaymentMode = dto.PaymentMode,
                 Description = dto.Description,
                 ReceiptPath = receiptPath,
+                Status = dto.Status ?? "Unpaid",
                 CreatedBy = userId,
                 CreatedDate = DateTime.Now
             };
 
-            var success = await _repository.CreateAsync(expense);
-            if (!success)
-                return CommonHelper.BadRequestResponseMessage("Failed to create expense");
+            try
+            {
+                var success = await _repository.CreateAsync(expense);
+                if (!success)
+                    return CommonHelper.BadRequestResponseMessage("Failed to create expense");
 
-            return CommonHelper.GetResponseMessage(expense);
+                return CommonHelper.GetResponseMessage(expense);
+            }
+            catch (Exception ex)
+            {
+                return CommonHelper.BadRequestResponseMessage("Failed to create expense: " + ex.Message + (ex.InnerException != null ? " -> " + ex.InnerException.Message : ""));
+            }
         }
 
         public async Task<ResponseModel> UpdateAsync(UpdateExpenseDto dto, Guid userId)

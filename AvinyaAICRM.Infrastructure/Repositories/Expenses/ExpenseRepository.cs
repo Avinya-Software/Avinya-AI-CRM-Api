@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Expenses;
+using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Expenses;
 using AvinyaAICRM.Domain.Entities.Expenses;
 using AvinyaAICRM.Infrastructure.Persistence;
 using AvinyaAICRM.Shared.Model;
@@ -95,9 +95,9 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Expenses
             }
             catch (Exception ex)
             {
-                return false;
+                // In a real app, use a logger. For now, we'll rethrow or handle it in the service.
+                throw; 
             }
-           
         }
 
         public async Task<bool> UpdateAsync(Expense expense)

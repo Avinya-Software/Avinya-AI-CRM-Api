@@ -61,7 +61,12 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 intents.Add("query_invoices");
 
             // ── EXPENSES ──────────
-            if (msg.Contains("expense") || msg.Contains("spending") ||
+            if (msg.Contains("add expense") || msg.Contains("create expense") ||
+                msg.Contains("record expense") || msg.Contains("save expense") ||
+                msg.Contains("spent") || msg.Contains("spending") || 
+                msg.Contains("payment of") || msg.Contains("bill for"))
+                intents.Add("create_expense");
+            else if (msg.Contains("expense") || msg.Contains("spending") ||
                 msg.Contains("travel expense") || msg.Contains("office expense") ||
                 msg.Contains("food expense") || msg.Contains("utility") ||
                 msg.Contains("total expense") || msg.Contains("highest expense") ||
@@ -204,11 +209,15 @@ namespace AvinyaAICRM.Infrastructure.Repositories
 
                 DATABASE CONTEXT (JSON):
                 {targetedSchema}
+                
+                CRITICAL NEGATIVE RULES:
+                - If action is 'create_lead', 'create_task', or 'create_expense', you MUST set ""sql"": """" (empty string).
+                - NEVER generate INSERT, UPDATE, or DELETE SQL statements. The system only allows SELECT.
 
                 OUTPUT FORMAT (STRICT JSON — no extra text outside this object):
                 {{
-                ""action"": ""[get_summary | create_lead | create_task | message]"",
-                ""intent"": ""[query_leads | create_lead | create_task | general_chat | ...]"",
+                ""action"": ""[get_summary | create_lead | create_task | create_expense | message]"",
+                ""intent"": ""[query_leads | create_lead | create_task | create_expense | general_chat | ...]"",
                 ""sql"": ""[YOUR_SINGLE_LINE_SQL_HERE (only if action is get_summary)]"",
                 ""parameters"": {{ 
                     // --- LEAD CREATION FIELDS (Use only for create_lead) ---
@@ -240,6 +249,12 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                     ""ReminderAt"": ""DateTime for a reminder notification"",
                     ""IsRecurring"": ""[true | false] If the task repeats"",
                     ""RecurrenceRule"": ""RRULE string if recurring (e.g. 'FREQ=DAILY')"",
+
+                    // --- EXPENSE CREATION FIELDS (Use only for create_expense) ---
+                    ""Amount"": ""(Required) The numeric amount spent"",
+                    ""ExpenseDate"": ""(Required) Date of the expense (default to today)"",
+                    ""CategoryName"": ""(Required) Category like Office, Travel, Food, etc."",
+                    ""PaymentMode"": ""Mode like Cash, UPI, Card, etc."",
                     
                     // --- SHARED / MISC FIELDS ---
                     ""Notes"": ""Additional internal notes"",
@@ -260,8 +275,17 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 2. If the user wants to ADD, CREATE, or SCHEDULE a task/todo:
                    - IF Title, DueDateTime, and TaskType are provided → action: ""create_task"".
                    - IF any are missing → action: ""message"" and ask the user for the missing info.
-                3. If the user asks a question that requires data from the database → action: ""get_summary"".
-                4. If the user is just saying hello or asking a general question → action: ""message"".
+                3. If the user wants to ADD, RECORD, or SAVE an expense:
+                   - IF Amount and CategoryName are provided → action: ""create_expense"".
+                   - IF either is missing → action: ""message"" and ask for missing info.
+                4. If the user asks a question that requires data from the database → action: ""get_summary"".
+                5. If the user is just saying hello or asking a general question → action: ""message"".
+
+                ACTION 'create_expense' RULES:
+                - ALWAYS extract Amount and CategoryName.
+                - Extract ExpenseDate if mentioned, otherwise use today.
+                - If the user mentions a payment method (Cash, Bank, GPay, etc.), extract into PaymentMode.
+                - If the user provides a receipt or file, AI should assume this is an expense intent.
 
                 ACTION 'create_lead' RULES:
                 - ALWAYS extract CompanyName and RequirementDetails.
@@ -288,15 +312,28 @@ namespace AvinyaAICRM.Infrastructure.Repositories
 
             try
             {
-                var clean    = CleanJsonResponse(groqResult.Text);
-                var response = JsonSerializer.Deserialize<AIResponse>(clean, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new AIResponse();
-
-                response.Parameters ??= new(StringComparer.OrdinalIgnoreCase);
-                response.PromptTokens    = groqResult.Prompt;
-                response.ResponseTokens  = groqResult.Response;
-                response.TotalTokens     = groqResult.Total;
-
-                return response;
+                var clean = CleanJsonResponse(groqResult.Text);
+                try 
+                {
+                    var response = JsonSerializer.Deserialize<AIResponse>(clean, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new AIResponse();
+                    response.Parameters ??= new(StringComparer.OrdinalIgnoreCase);
+                    response.PromptTokens    = groqResult.Prompt;
+                    response.ResponseTokens  = groqResult.Response;
+                    response.TotalTokens     = groqResult.Total;
+                    return response;
+                }
+                catch
+                {
+                    // Fallback: If standard clean failed, try finding the LAST JSON block in the text
+                    // This is useful if the AI rambles before or after the JSON.
+                    var lastJson = ExtractLastJsonObject(groqResult.Text);
+                    var response = JsonSerializer.Deserialize<AIResponse>(lastJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new AIResponse();
+                    response.Parameters ??= new(StringComparer.OrdinalIgnoreCase);
+                    response.PromptTokens    = groqResult.Prompt;
+                    response.ResponseTokens  = groqResult.Response;
+                    response.TotalTokens     = groqResult.Total;
+                    return response;
+                }
             }
             catch
             {
@@ -449,7 +486,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 RULES:
                 1. SECURITY MANDATE: You MUST include 'TenantId = @TenantId' in the WHERE clause if the table supports it. NEVER remove this filter even if the user correction doesn't mention it.
                 2. INTEGRITY: Include 'IsDeleted = 0' ONLY if that column exists in the provided SCHEMA for the table.
-                3. JOIN SECURITY: If a table lacks security columns (like TaskSeries), JOIN it with a related table that has them (like Projects).
+                3. JOIN SECURITY: If a table lacks security columns (like TaskSeries), JOIN it with a related table that has it (like Projects).
                 4. SCHEMA ADHERENCE: ONLY use tables and columns from the SCHEMA CONTEXT provided.
                 5. Return ONLY the corrected SQL string. No markdown, no explanation.
             ";
@@ -553,13 +590,52 @@ namespace AvinyaAICRM.Infrastructure.Repositories
 
         private static string CleanJsonResponse(string text)
         {
+            if (string.IsNullOrEmpty(text)) return "{}";
+
+            // Remove markdown code blocks if they exist
+            if (text.Contains("```json"))
+            {
+                text = text.Replace("```json", "").Replace("```", "");
+            }
+            else if (text.Contains("```"))
+            {
+                text = text.Replace("```", "");
+            }
+
             var start = text.IndexOf("{");
             var end   = text.LastIndexOf("}") + 1;
             if (start == -1 || end <= 0) return "{}";
 
             var json = text.Substring(start, end - start);
-            json = json.Replace("\r\n", " ").Replace("\n", " ");
-            return json;
+            
+            // Clean up problematic characters but preserve valid structure
+            // Instead of replacing ALL newlines, we only replace them if they aren't inside quotes (roughly)
+            // But for simple cleaning, we'll just trim and ensure it's one line if possible for easier parsing.
+            // Actually, JsonSerializer handles newlines fine, the issue is often extra text.
+            return json.Trim();
+        }
+
+        private static string ExtractLastJsonObject(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return "{}";
+
+            var lastEnd = text.LastIndexOf("}");
+            if (lastEnd == -1) return "{}";
+
+            // Look backwards from the last '}' for the matching '{'
+            int balance = 0;
+            for (int i = lastEnd; i >= 0; i--)
+            {
+                if (text[i] == '}') balance++;
+                if (text[i] == '{') balance--;
+
+                if (balance == 0)
+                {
+                    return text.Substring(i, lastEnd - i + 1);
+                }
+            }
+
+            return "{}";
         }
     }
 }

@@ -11,7 +11,7 @@ namespace AvinyaAICRM.Application.AI.Models
         public string Intent { get; set; } = "";
         public string? Sql { get; set; }
         public string? Action { get; set; }
-        public Dictionary<string, string>? Parameters { get; set; }
+        public Dictionary<string, object>? Parameters { get; set; }
         public string? ClarificationMessage { get; set; }
         public bool IsClarificationRequired { get; set; }
         public string Source { get; set; } = ""; // local/template/cache/ai

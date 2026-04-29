@@ -1001,6 +1001,21 @@ namespace AvinyaAICRM.Domain.Constant
                 }
             }},
 
+            { "create_expense", new IntentConfig {
+                Tables = new[] { "Expenses", "ExpenseCategories" },
+                Rules = new() {
+                    new() { Rule = "This is an ACTION intent. DO NOT generate SQL.", Type = "action" },
+                    new() { Rule = "Extract Amount, ExpenseDate, CategoryName, and Notes as parameters.", Type = "parameters" }
+                },
+                Examples = new() {
+                    new() {
+                        Question = "Add expense of 500 for travel on 28 April",
+                        Analysis = "Action: create_expense, Params: { Amount: '500', ExpenseDate: '2026-04-28', CategoryName: 'Travel' }",
+                        Sql = ""
+                    }
+                }
+            }},
+
             { "query_projects", new IntentConfig {
                 Tables = new[] { "Projects", "Clients", "ProjectStatusMaster", "ProjectPriorityMaster", "Teams" },
                 Rules = new() {
