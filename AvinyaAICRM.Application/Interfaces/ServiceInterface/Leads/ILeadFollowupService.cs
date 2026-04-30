@@ -14,6 +14,6 @@ namespace AvinyaAICRM.Application.Interfaces.ServiceInterface.Leads
         Task<ResponseModel> GetFilteredAsync(string? search, string? status, Guid? LeadId, int page, int pageSize);
 
         Task<ResponseModel> GetFollowupHistoryAsync(Guid leadId);
-        Task<ResponseModel> GetFollowupHistoryListAsync(string tenantId, string? role, bool isToday, bool isOverDue);
+        Task<ResponseModel> GetFollowupHistoryListAsync(string tenantId, bool isToday, bool isOverDue);
     }
 }

@@ -416,7 +416,18 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                     };
 
                     // 3. Resolve Due Date
-                    if (DateTime.TryParse(dueDateStr, out var dueDate)) dto.DueDateTime = dueDate;
+                    if (DateTime.TryParse(dueDateStr, out var dueDate))
+                    {
+                        if (dueDate.Kind == DateTimeKind.Unspecified || dueDate.Kind == DateTimeKind.Local)
+                        {
+                            var istZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
+                            dto.DueDateTime = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(dueDate, DateTimeKind.Unspecified), istZone);
+                        }
+                        else
+                        {
+                            dto.DueDateTime = dueDate;
+                        }
+                    }
 
                     // 4. Resolve List
                     if (response.Parameters.TryGetValue("ListName", out var listNameObj) && !string.IsNullOrEmpty(listNameObj?.ToString()))
@@ -541,7 +552,9 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                         PaymentMode = !string.IsNullOrEmpty(response.Parameters.ContainsKey("PaymentMode") ? response.Parameters["PaymentMode"]?.ToString() : null) 
                                       ? response.Parameters["PaymentMode"].ToString() 
                                       : "Cash",
-                        Status = "Unpaid",
+                        Status = response.Parameters.ContainsKey("Status") 
+                                  ? response.Parameters["Status"].ToString() 
+                                  : "Unpaid",
                         ReceiptFile = request.ReceiptFile // Attach the file from the chat request
                     };
 

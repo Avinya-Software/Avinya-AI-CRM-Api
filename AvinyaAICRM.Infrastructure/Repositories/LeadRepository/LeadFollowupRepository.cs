@@ -369,10 +369,9 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                 return (true, followups);
         }
 
-        public async Task<List<LeadFollowupDto>> GetFollowupHistoryListAsync(string tenantId, string? role,bool isToday, bool isOverDue)
+        public async Task<List<LeadFollowupDto>> GetFollowupHistoryListAsync(string tenantId, bool isToday, bool isOverDue)
         {
             var today = DateTime.Today;
-            bool isSuperAdmin = role == "SuperAdmin";
 
             var followups = await (from f in _context.LeadFollowups
                                    join l in _context.Leads on f.LeadID equals l.LeadID
@@ -380,8 +379,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                                    join s in _context.LeadFollowupStatuses on f.Status equals s.LeadFollowupStatusID
                                    join u in _context.Users on f.FollowUpBy equals u.Id into users
                                    from cu in users.DefaultIfEmpty()
-                                   where (isToday && f.NextFollowupDate == today) || (isOverDue && f.NextFollowupDate < today)
-                                     && (isSuperAdmin || l.TenantId.ToString() == tenantId)
+                                   where ((isToday && f.NextFollowupDate == today) || (isOverDue && f.NextFollowupDate < today))
+                                     && l.TenantId.ToString() == tenantId
                                    orderby f.CreatedDate descending
                                    select new LeadFollowupDto
                                    {

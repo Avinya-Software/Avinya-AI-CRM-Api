@@ -89,8 +89,7 @@ namespace AvinyaAICRM.API.Controllers
         public async Task<IActionResult> GetFollowupHistoryList(bool isToday, bool isOverDue)
         {
             var tenantId = User.FindFirst("tenantId")?.Value!;
-            var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
-            var result = await _service.GetFollowupHistoryListAsync(tenantId, role, isToday, isOverDue);
+            var result = await _service.GetFollowupHistoryListAsync(tenantId, isToday, isOverDue);
 
             if (result.StatusCode == 404)
                 return NotFound(result);

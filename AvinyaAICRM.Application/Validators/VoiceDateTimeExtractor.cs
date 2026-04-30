@@ -15,7 +15,7 @@ namespace AvinyaAICRM.Application.Validators
 
             text = text.ToLowerInvariant().Trim();
 
-            var nowUtc = DateTime.Now;
+            var nowUtc = DateTime.UtcNow;
             var nowIst = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, IstTimeZone);
 
             // =======================

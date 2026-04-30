@@ -266,6 +266,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                     ""ExpenseDate"": ""(Required) Date of the expense (default to today)"",
                     ""CategoryName"": ""(Required) Category like Office, Travel, Food, etc."",
                     ""PaymentMode"": ""Mode like Cash, UPI, Card, etc."",
+                    ""Status"": ""[Paid | Unpaid | Partial] (Default to Paid if user says 'paid', else Unpaid)"",
                     
                     // --- SHARED / MISC FIELDS ---
                     ""Notes"": ""Additional internal notes"",
@@ -298,6 +299,9 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 ACTION 'create_expense' RULES:
                 - ALWAYS extract Amount and CategoryName.
                 - Extract ExpenseDate if mentioned, otherwise use today.
+                - SET Status to 'Paid' if the user uses past tense or confirmation words like ""paid"", ""spent"", ""kharch kiya"", ""dediya"". 
+                - SET Status to 'Unpaid' if they say ""pending"", ""bill received"", ""to pay"".
+                - DEFAULT Status to 'Unpaid' if intent is ambiguous.
                 - If the user mentions a payment method (Cash, Bank, GPay, etc.), extract into PaymentMode.
                 - If the user provides a receipt or file, AI should assume this is an expense intent.
 

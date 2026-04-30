@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Lead;
+using AvinyaAICRM.Application.DTOs.Lead;
 using AvinyaAICRM.Domain.Entities.Leads;
 using AvinyaAICRM.Shared.Model;
 
@@ -19,6 +19,6 @@ namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.Leads
      int pageNumber,
      int pageSize);
         Task<(bool leadExists, List<LeadFollowupDto>? followups)> GetFollowupHistoryAsync(Guid leadId);
-        Task<List<LeadFollowupDto>> GetFollowupHistoryListAsync(string tenantId, string? role, bool isToday, bool isOverDue);
+        Task<List<LeadFollowupDto>> GetFollowupHistoryListAsync(string tenantId, bool isToday, bool isOverDue);
     }
 }

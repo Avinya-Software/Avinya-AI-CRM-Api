@@ -124,6 +124,7 @@ namespace AvinyaAICRM.Application.Services.Expense
             expense.Amount = dto.Amount;
             expense.PaymentMode = dto.PaymentMode;
             expense.Description = dto.Description;
+            expense.Status = dto.Status ?? expense.Status;
             expense.ModifiedBy = userId;
             expense.ModifiedDate = DateTime.Now;
 

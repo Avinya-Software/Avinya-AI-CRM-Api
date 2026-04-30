@@ -10,7 +10,7 @@ namespace AvinyaAICRM.Application.Validators
     /// </summary>
     public static class VoiceReminderResolver
     {
-        public static DateTime? ResolveReminder(string text, DateTime? dueDateLocal)
+        public static DateTime? ResolveReminder(string text, DateTime? dueDateUtc)
         {
             if (string.IsNullOrWhiteSpace(text))
                 return null;
@@ -34,10 +34,10 @@ namespace AvinyaAICRM.Application.Validators
                 @"\b(\d+|ek|do|teen|chaar|paanch|das|bees|tees|pachas)\s*(minute|min|minutes?)\s*(pehle|pahle|pehle se|before)\b",
                 RegexOptions.IgnoreCase);
 
-            if (minBeforeMatch.Success && dueDateLocal.HasValue)
+            if (minBeforeMatch.Success && dueDateUtc.HasValue)
             {
                 int mins = ParseNumber(minBeforeMatch.Groups[1].Value);
-                return dueDateLocal.Value.AddMinutes(-mins);
+                return dueDateUtc.Value.AddMinutes(-mins);
             }
 
             // ── "N ghante pehle" / "N hour before" ────────────────────────────
@@ -45,10 +45,10 @@ namespace AvinyaAICRM.Application.Validators
                 @"\b(ek|1|do|2|teen|3|chaar|4|paanch|5)\s*(ghante?|ghanta|hour|hours?)\s*(pehle|pahle|before)\b",
                 RegexOptions.IgnoreCase);
 
-            if (hrBeforeMatch.Success && dueDateLocal.HasValue)
+            if (hrBeforeMatch.Success && dueDateUtc.HasValue)
             {
                 int hrs = WordToNumber(hrBeforeMatch.Groups[1].Value);
-                return dueDateLocal.Value.AddHours(-hrs);
+                return dueDateUtc.Value.AddHours(-hrs);
             }
 
             // ── "N minute baad remind" / "remind after N minutes" ──────────────
@@ -59,7 +59,9 @@ namespace AvinyaAICRM.Application.Validators
 
             if (minAfterMatch.Success)
             {
-                return DateTime.Now.AddMinutes(int.Parse(minAfterMatch.Groups[1].Value));
+                var istZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
+                var nowIst  = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, istZone);
+                return TimeZoneInfo.ConvertTimeToUtc(nowIst.AddMinutes(int.Parse(minAfterMatch.Groups[1].Value)), istZone);
             }
 
             // ── "1 din pehle" / "night before" / "ek din pehle" ───────────────
@@ -67,18 +69,18 @@ namespace AvinyaAICRM.Application.Validators
                 @"\b(ek|1|do|2)\s*(din|day|days?)\s*(pehle|pahle|before)\b",
                 RegexOptions.IgnoreCase);
 
-            if (dayBeforeMatch.Success && dueDateLocal.HasValue)
+            if (dayBeforeMatch.Success && dueDateUtc.HasValue)
             {
                 int days = WordToNumber(dayBeforeMatch.Groups[1].Value);
-                return dueDateLocal.Value.AddDays(-days);
+                return dueDateUtc.Value.AddDays(-days);
             }
-
-            if ((text.Contains("night before") || text.Contains("ek raat pehle") || text.Contains("agle din subah")) && dueDateLocal.HasValue)
-                return dueDateLocal.Value.AddHours(-12);
+            if ((text.Contains("night before") || text.Contains("ek raat pehle") || text.Contains("agle din subah")) && dueDateUtc.HasValue)
+                return dueDateUtc.Value.AddHours(-12);
 
             // ── Default: 30 minutes before due date ───────────────────────────
-            if (dueDateLocal.HasValue)
-                return dueDateLocal.Value.AddMinutes(-30);
+            if (dueDateUtc.HasValue)
+                return dueDateUtc.Value.AddMinutes(-30);
+           
 
             return null;
         }
