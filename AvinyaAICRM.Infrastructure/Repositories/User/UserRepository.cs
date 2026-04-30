@@ -190,6 +190,11 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
             ).OrderBy(u => u.FullName).Distinct().ToListAsync();
         }
 
+        public async Task<AppUser?> GetByFullNameAsync(string fullName)
+        {
+            return await _userManager.Users.FirstOrDefaultAsync(u => u.FullName == fullName);
+        }
+
         public async Task<AppUser> GetUserName(string name)
         {
             var user = await _userManager.Users.FirstOrDefaultAsync(u => u.UserName == name);

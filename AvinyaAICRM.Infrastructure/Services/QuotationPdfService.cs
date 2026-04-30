@@ -105,12 +105,13 @@ namespace AvinyaAICRM.Infrastructure.Services
                 layers.Layer().Row(row =>
                 {
                     row.ConstantItem(30).BorderRight(1);  // S.N.
-                    row.RelativeItem().BorderRight(1);    // Description
-                    row.ConstantItem(80).BorderRight(1);  // HSN
-                    row.ConstantItem(50).BorderRight(1);  // Qty
-                    row.ConstantItem(50).BorderRight(1);  // Unit
-                    row.ConstantItem(70).BorderRight(1);  // Rate
-                    row.ConstantItem(80);                  // Amount (Last column has no border-right)
+                    row.RelativeItem().BorderRight(1);    // Description (Relative will take most space)
+                    row.ConstantItem(60).BorderRight(1);  // HSN/SAC (Reduced)
+                    row.ConstantItem(40).BorderRight(1);  // Qty (Reduced)
+                    row.ConstantItem(40).BorderRight(1);  // Unit (Reduced)
+                    row.ConstantItem(40).BorderRight(1);  // Tax (Reduced)
+                    row.ConstantItem(70).BorderRight(1);  // Rate (Reduced)
+                    row.ConstantItem(80);                 // Amount (Reduced)
                 });
 
                 // Foreground layer for actual content
@@ -118,14 +119,14 @@ namespace AvinyaAICRM.Infrastructure.Services
                 {
                     table.ColumnsDefinition(columns =>
                     {
-                        columns.ConstantColumn(30);
-                        columns.RelativeColumn();
-                        columns.ConstantColumn(80);
-                        columns.ConstantColumn(50);
-                        columns.ConstantColumn(50);
-                        columns.ConstantColumn(50);
-                        columns.ConstantColumn(70);
-                        columns.ConstantColumn(80);
+                        columns.ConstantColumn(30);  // S.N.
+                        columns.RelativeColumn();    // Description
+                        columns.ConstantColumn(60);  // HSN/SAC
+                        columns.ConstantColumn(40);  // Qty
+                        columns.ConstantColumn(40);  // Unit
+                        columns.ConstantColumn(40);  // Tax
+                        columns.ConstantColumn(70);  // Rate
+                        columns.ConstantColumn(80);  // Amount
                     });
 
                     // Header
@@ -149,23 +150,24 @@ namespace AvinyaAICRM.Infrastructure.Services
                     // Items
                     foreach (var item in Model.Items.Select((value, index) => new { value, index }))
                     {
-                        table.Cell().Element(ItemCellStyle).Text((item.index + 1).ToString() + ".");
-                        table.Cell().Element(ItemCellStyle).AlignLeft().Column(c => {
+                        table.Cell().Element(SNCellStyle).Text((item.index + 1).ToString() + ".");
+                        table.Cell().Element(DescCellStyle).Column(c => {
                             c.Item().Text(item.value.ProductName).Bold();
                             if (!string.IsNullOrEmpty(item.value.Description))
                                 c.Item().Text(item.value.Description).FontSize(8);
                         });
-                        table.Cell().Element(ItemCellStyle).Text(item.value.HsnCode ?? "-");
-                        table.Cell().Element(ItemCellStyle).Text(item.value.Quantity.ToString("F2"));
-                        table.Cell().Element(ItemCellStyle).Text(item.value.UnitName ?? "Pcs");
-                        table.Cell().Element(ItemCellStyle).Text(item.value.TaxCategoryName ?? "-");
-                        table.Cell().Element(ItemCellStyle).Text(item.value.UnitPrice.ToString("F2"));
-                        table.Cell().Element(ItemCellStyle).Text(item.value.LineTotal.ToString("F2"));
+                        table.Cell().Element(LeftCellStyle).Text(item.value.HsnCode ?? "-");
+                        table.Cell().Element(CenterCellStyle).Text(item.value.Quantity.ToString("F2"));
+                        table.Cell().Element(CenterCellStyle).Text(item.value.UnitName ?? "Pcs");
+                        table.Cell().Element(CenterCellStyle).Text(item.value.TaxCategoryName ?? "N/A");
+                        table.Cell().Element(RightCellStyle).Text(item.value.UnitPrice.ToString("F2"));
+                        table.Cell().Element(RightCellStyle).Text(item.value.LineTotal.ToString("F2"));
 
-                        static IContainer ItemCellStyle(IContainer container)
-                        {
-                            return container.PaddingHorizontal(5).PaddingVertical(3).AlignCenter();
-                        }
+                        static IContainer SNCellStyle(IContainer container) => container.PaddingVertical(3).AlignCenter();
+                        static IContainer DescCellStyle(IContainer container) => container.PaddingHorizontal(5).PaddingVertical(3).AlignLeft();
+                        static IContainer LeftCellStyle(IContainer container) => container.PaddingHorizontal(5).PaddingVertical(3).AlignLeft();
+                        static IContainer CenterCellStyle(IContainer container) => container.PaddingVertical(3).AlignCenter();
+                        static IContainer RightCellStyle(IContainer container) => container.PaddingHorizontal(5).PaddingVertical(3).AlignRight();
                     }
                 });
             });

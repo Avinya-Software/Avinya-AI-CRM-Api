@@ -60,8 +60,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ProductRepository
                               Description = p.Description,
                               //Category = p.Category,
                               //UnitTypeId = p.UnitType,          
-                              UnitName = u?.UnitName
-                              //DefaultRate = p.DefaultRate,
+                              UnitName = u?.UnitName,
+                              DefaultRate = p.DefaultRate,
                               //PurchasePrice = p.PurchasePrice,
                               //HSNCode = p.HSNCode,
                               //IsDesignByUs = p.IsDesignByUs,

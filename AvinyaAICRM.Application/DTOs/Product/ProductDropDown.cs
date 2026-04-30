@@ -7,7 +7,7 @@ namespace AvinyaAICRM.Application.DTOs.Product
         public Guid ProductID { get; set; }
         public string ProductName { get; set; }
         public string? Description { get; set; }
-
+        public decimal? DefaultRate { get; set; }
         public string? UnitName { get; set; }
     }
 }

@@ -38,6 +38,7 @@ namespace AvinyaAICRM.Application.Services.Auth
             {
                 UserName = request.Email,
                 Email = request.Email,
+                PhoneNumber = request.CompanyPhone,
                 FullName = request.FullName,
                 IsActive = false
             };
@@ -56,6 +57,7 @@ namespace AvinyaAICRM.Application.Services.Auth
             {
                 CompanyName = request.CompanyName,
                 CompanyEmail = request.Email,
+                CompanyPhone =request.CompanyPhone,
                 IsActive = false,
                 IsApproved = false
             });

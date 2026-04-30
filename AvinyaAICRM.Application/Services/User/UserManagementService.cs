@@ -41,11 +41,15 @@ namespace AvinyaAICRM.Application.Services.User
             if (creatorRoles.Contains("Staff"))
                 return CommonHelper.UnauthorizedResponseMessage(string.Empty, "Not allowed to create users ");
 
+            var existingEmail = await _userRepo.GetByEmailAsync(request.Email);
+            if (existingEmail != null)
+                return CommonHelper.BadRequestResponseMessage("Email already exists");
+
             var user = new AppUser
             {
                 FullName = request.FullName,
                 Email = request.Email,
-                UserName = request.Email,
+                UserName = request.Email, // Reverting UserName back to Email
                 TenantId = Guid.Parse(request.TenantId),
                 IsActive = true,
                 CreatedAt = DateTime.Now,
@@ -86,7 +90,15 @@ namespace AvinyaAICRM.Application.Services.User
             if (user == null)
                 return CommonHelper.BadRequestResponseMessage("User not found");
 
+            if (user.Email != request.Email)
+            {
+                var existingEmail = await _userRepo.GetByEmailAsync(request.Email);
+                if (existingEmail != null)
+                    return CommonHelper.BadRequestResponseMessage("Email already exists");
+            }
+
             user.FullName = request.FullName;
+            user.UserName = request.Email; // Syncing UserName with Email
             user.IsActive = request.IsActive;
             user.Email = request.Email;
 

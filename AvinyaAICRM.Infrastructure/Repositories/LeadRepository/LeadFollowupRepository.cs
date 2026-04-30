@@ -142,13 +142,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
             if (lead == null)
                 return (null, "Lead not found");
 
-            // CHECK: Is there any incomplete follow-up for this lead?
-            // Status 3 is 'Completed'.
-            var incompleteFollowup = await _context.LeadFollowups
-                .AnyAsync(f => f.LeadID == dto.LeadID && f.Status != 3);
+            // Removed check for incomplete follow-ups as per user request to allow multiple follow-ups.
 
-            if (incompleteFollowup)
-                return (null, "Cannot add a new follow-up. The previous follow-up is not completed yet.");
 
             var newFollowup = new LeadFollowups
             {
@@ -380,7 +375,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                                    join u in _context.Users on f.FollowUpBy equals u.Id into users
                                    from cu in users.DefaultIfEmpty()
                                    where ((isToday && f.NextFollowupDate == today) || (isOverDue && f.NextFollowupDate < today))
-                                     && l.TenantId.ToString() == tenantId
+                                     && l.TenantId.ToString() == tenantId && f.Status != 3
                                    orderby f.CreatedDate descending
                                    select new LeadFollowupDto
                                    {
