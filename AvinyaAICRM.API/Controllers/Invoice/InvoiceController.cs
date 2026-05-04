@@ -1,5 +1,6 @@
 using AvinyaAICRM.Application.DTOs.Invoice;
 using AvinyaAICRM.Application.DTOs.Order;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.EmailService;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Invoice;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Orders;
 using Microsoft.AspNetCore.Authorization;
@@ -17,12 +18,14 @@ namespace AvinyaAICRM.API.Controllers.Invoice
         private readonly IInvoiceService _invoiceService;
         private readonly IOrderService _orderService;
         private readonly IInvoicePdfService _pdfService;
+        private readonly IDocumentEmailService _documentEmailService;
 
-        public InvoiceController(IInvoiceService invoiceService, IOrderService orderService, IInvoicePdfService pdfService)
+        public InvoiceController(IInvoiceService invoiceService, IOrderService orderService, IInvoicePdfService pdfService, IDocumentEmailService documentEmailService)
         {
             _invoiceService = invoiceService;
             _orderService = orderService;
             _pdfService = pdfService;
+            _documentEmailService = documentEmailService;
         }
 
         private string GetTenantId()
@@ -131,6 +134,43 @@ namespace AvinyaAICRM.API.Controllers.Invoice
             }
 
             return File(pdfBytes, "application/pdf", $"Invoice_{invoice.InvoiceNo}.pdf");
+        }
+
+        [HttpPost("send-email/{id}")]
+        public async Task<IActionResult> SendEmail(Guid id)
+        {
+            var tenantId = GetTenantId();
+            var invoice = await _invoiceService.GetInvoiceByIdAsync(id, tenantId);
+            if (invoice == null) return NotFound("Invoice not found.");
+
+            if (!Guid.TryParse(invoice.OrderID, out Guid orderId))
+            {
+                return BadRequest("Invalid Order ID associated with this invoice.");
+            }
+
+            var result = await _orderService.GetByIdAsync(orderId, tenantId);
+            if (result.StatusCode != 200 || result.Data == null)
+            {
+                return NotFound("Associated order details not found.");
+            }
+
+            var order = (OrderResponseDto)result.Data;
+
+            if (string.IsNullOrEmpty(order.Email))
+            {
+                return BadRequest("Client email is missing.");
+            }
+
+            var pdfBytes = _pdfService.GenerateInvoicePdf(invoice, order);
+
+            if (pdfBytes == null)
+            {
+                return BadRequest("Failed to generate PDF.");
+            }
+
+            await _documentEmailService.SendInvoiceEmailAsync(order.Email, order.ClientName ?? "", invoice.InvoiceNo ?? "", pdfBytes);
+
+            return Ok(new { message = "Email sent successfully" });
         }
     }
 }

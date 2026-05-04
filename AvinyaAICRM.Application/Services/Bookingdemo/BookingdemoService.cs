@@ -18,11 +18,6 @@ namespace AvinyaAICRM.Application.Services.Bookingdemo
         private readonly IBookingRepository _bookingRepository;
         private readonly IEmailService _emailService;
         private readonly EmailSettings _emailSettings;
-        public BookingdemoService(IBookingRepository bookingRepository)
-        {
-            _bookingRepository = bookingRepository;
-            // email service and settings will be injected via another constructor overload when available
-        }
 
         // Added constructor to support email sending via DI
         public BookingdemoService(IBookingRepository bookingRepository, IEmailService emailService, IOptions<EmailSettings> emailSettings)

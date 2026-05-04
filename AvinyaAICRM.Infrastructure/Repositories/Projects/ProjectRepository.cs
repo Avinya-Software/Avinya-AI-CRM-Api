@@ -49,7 +49,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Projects
             }
             catch(Exception ex)
             {
-
+                throw new Exception(ex.Message);
             }
            
         }
@@ -80,6 +80,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Projects
     string userId)
         {
             var user = await _context.Users.FindAsync(userId);
+
+            if (user == null) {
+                throw new Exception("user not found");
+            }
 
             var query = _context.Projects
                 .Where(p =>

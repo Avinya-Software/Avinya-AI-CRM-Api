@@ -154,7 +154,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Dashboard
                 select new HotLeadDto
                 {
                     LeadId = l.LeadID,
-                    LeadName = c.ContactPerson,
+                    LeadName = c.ContactPerson ?? "",
                     LastActivity = l.CreatedDate
                 }
             ).Take(5).ToListAsync();
@@ -169,7 +169,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Dashboard
                       (q.TenantId == tenantGuid && (isManagerOrAdmin || q.CreatedBy == userId))
                 select new AttentionDto
                 {
-                    ClientName = c.ContactPerson,
+                    ClientName = c.ContactPerson ?? "",
                     Issue = "Quotation sent but no follow-up"
                 }
             ).Take(5).ToListAsync();
@@ -200,7 +200,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Dashboard
                 {
                     OrderID = o.OrderID,
                     OrderNo = o.OrderNo,
-                    ClientName = c.ContactPerson,
+                    ClientName = c.ContactPerson ?? "",
                     GrandTotal = o.GrandTotal,
                     OrderDate = o.OrderDate
                 }
@@ -219,7 +219,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Dashboard
                 {
                     QuotationID = q.QuotationID,
                     QuotationNo = q.QuotationNo,
-                    ClientName = c.ContactPerson,
+                    ClientName = c.ContactPerson ?? "",
                     GrandTotal = q.GrandTotal
                 }
             ).Take(5).ToListAsync();
@@ -236,7 +236,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Dashboard
                 select new UpcomingFollowupDto
                 {
                     LeadID = lf.LeadID,
-                    LeadNo = l.LeadNo,
+                    LeadNo = l.LeadNo ?? "",
                     NextFollowupDate = lf.NextFollowupDate
                 }
             ).Take(5).ToListAsync();

@@ -55,10 +55,10 @@ namespace AvinyaAICRM.Application.DTOs.Order
         public bool IsAssign { get; set; }
 
         public int FirmID { get; set; }
-        public string FirmName { get; set; }
+        public string? FirmName { get; set; }
         public string? FirmGSTNo { get; set; }
         public string? FirmAddress { get; set; }
-        public string FirmMobile { get; set; }
+        public string? FirmMobile { get; set; }
 
         public Guid? BillID { get; set; }
       
@@ -66,7 +66,7 @@ namespace AvinyaAICRM.Application.DTOs.Order
         public List<OrderItemReponceDto>? OrderItems { get; set; }
         public List<WorkOrderData>? WorkOrder { get; set; }
 
-        public List<BillData?> Bill { get; set; }
+        public List<BillData?>? Bill { get; set; }
 
         public bool ShowPaymentQR { get; set; }
         public string? PaymentUPIId { get; set; }
@@ -77,25 +77,25 @@ namespace AvinyaAICRM.Application.DTOs.Order
     {
         public Guid WorkOrderID { get; set; }
 
-        public string WorkOrderNo { get; set; }
+        public string? WorkOrderNo { get; set; }
 
         public Guid VendorID { get; set; }
 
-        public List<VendordataDTO> Vendors { get; set; }
+        public List<VendordataDTO>? Vendors { get; set; }
         public DateTime DueDate { get; set; }
 
         public int? Status { get; set; }
-        public string WorkOrderStatus { get; set; }
+        public string? WorkOrderStatus { get; set; }
         public string? Remarks { get; set; }
         public DateTime? CreatedDate { get; set; }
         public decimal TotalAmount { get; set; }
 
-        public List<WorkOrderItemData> WorkOrderItems { get; set; }
+        public List<WorkOrderItemData>? WorkOrderItems { get; set; }
     }
     public class VendordataDTO
     {
         public Guid VendorID { get; set; }
-        public string VendorName { get; set; }
+        public string? VendorName { get; set; }
         public string? ContactPerson { get; set; }
         public string? GSTNo { get; set; }
         public string? Address { get; set; }
@@ -113,22 +113,22 @@ namespace AvinyaAICRM.Application.DTOs.Order
     {
         public Guid WorkOrderItemID { get; set; }
         public Guid WorkOrderID { get; set; }
-        public string ProductDescription { get; set; }
+        public string? ProductDescription { get; set; }
         public string? Description { get; set; }
         public decimal Quantity { get; set; }
         public decimal UnitPrice { get; set; }
 
         public int WorkTypeID { get; set; }
-        public string WorkTypeName { get; set; }
+        public string? WorkTypeName { get; set; }
 
         public int ProcessStage { get; set; }
-        public string ProcessStageName { get; set; }
+        public string? ProcessStageName { get; set; }
     }
 
     public class BillData
     {
         public Guid BillID { get; set; }
-        public string BillNo { get; set; }
+        public string? BillNo { get; set; }
         public Guid? OrderID { get; set; }
         public Guid? ClientID { get; set; }
         public DateTime BillDate { get; set; }

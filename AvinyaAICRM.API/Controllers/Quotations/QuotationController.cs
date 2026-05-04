@@ -1,4 +1,5 @@
 using AvinyaAICRM.Application.DTOs.Quotation;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.EmailService;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Quotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -13,11 +14,13 @@ namespace AvinyaAICRM.Api.Controllers.Quotations
     {
         private readonly IQuotationService _quotationService;
         private readonly IQuotationPdfService _pdfService;
+        private readonly IDocumentEmailService _documentEmailService;
 
-        public QuotationController(IQuotationService quotationService, IQuotationPdfService pdfService)
+        public QuotationController(IQuotationService quotationService, IQuotationPdfService pdfService, IDocumentEmailService documentEmailService)
         {
             _quotationService = quotationService;
             _pdfService = pdfService;
+            _documentEmailService = documentEmailService;
         }
 
         [HttpGet("download-pdf/{id}")]
@@ -33,6 +36,27 @@ namespace AvinyaAICRM.Api.Controllers.Quotations
             var pdfBytes = _pdfService.GenerateQuotationPdf(quotation);
 
             return File(pdfBytes, "application/pdf", $"Quotation_{quotation.QuotationNo}.pdf");
+        }
+
+        [HttpPost("send-email/{id}")]
+        public async Task<IActionResult> SendEmail(Guid id)
+        {
+            var result = await _quotationService.GetByIdAsync(id);
+            if (result.StatusCode != 200 || result.Data == null)
+            {
+                return NotFound("Quotation not found.");
+            }
+
+            var quotation = (QuotationResponseDto)result.Data;
+            if (string.IsNullOrEmpty(quotation.Email))
+            {
+                return BadRequest("Client email is missing.");
+            }
+
+            var pdfBytes = _pdfService.GenerateQuotationPdf(quotation);
+            await _documentEmailService.SendQuotationEmailAsync(quotation.Email, quotation.ClientName ?? "", quotation.QuotationNo ?? "", pdfBytes);
+
+            return Ok(new { message = "Email sent successfully" });
         }
 
         [HttpGet("get-quotation-dropdown-list")]
