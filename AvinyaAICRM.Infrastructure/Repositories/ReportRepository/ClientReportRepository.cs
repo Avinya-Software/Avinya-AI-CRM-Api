@@ -33,7 +33,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ReportRepository
 
             // ── Clients base query ────────────────────────────────────────────────
             var clientsQuery = _context.Clients
-                .Where(c => c.TenantId == filter.TenantId);
+                .Where(c => c.TenantId == filter.TenantId && c.IsCustomer);
 
             if (filter.ClientId.HasValue)
                 clientsQuery = clientsQuery.Where(c => c.ClientID == filter.ClientId.Value);

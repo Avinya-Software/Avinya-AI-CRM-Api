@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using AvinyaAICRM.Domain.Enums.Clients;
 
 namespace AvinyaAICRM.Domain.Entities.Client
@@ -19,6 +19,7 @@ namespace AvinyaAICRM.Domain.Entities.Client
         public int ClientType { get; set; } = (int)ClientTypeEnum.Company;
 
         public bool Status { get; set; }
+        public bool IsCustomer { get; set; } = false;
 
         public int? StateID { get; set; }
         public int? CityID { get; set; }

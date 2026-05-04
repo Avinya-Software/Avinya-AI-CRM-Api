@@ -43,7 +43,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Dashboard
             var counts = new DashboardCounts
             {
                 Clients = await _context.Clients.CountAsync(x =>
-                    !x.IsDeleted &&
+                    !x.IsDeleted && x.IsCustomer &&
                     (x.TenantId == tenantGuid && (isManagerOrAdmin || x.CreatedBy == userId))),
 
                 Leads = await _context.Leads.CountAsync(x =>
@@ -81,11 +81,11 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Dashboard
                 TotalClients = counts.Clients,
 
                 ActiveClients = await _context.Clients.CountAsync(x =>
-                    !x.IsDeleted && x.Status &&
+                    !x.IsDeleted && x.Status && x.IsCustomer &&
                     x.TenantId == tenantGuid && (isManagerOrAdmin || x.CreatedBy == userId)),
 
                 InactiveClients = await _context.Clients.CountAsync(x =>
-                    !x.IsDeleted && !x.Status &&
+                    !x.IsDeleted && !x.Status && x.IsCustomer &&
                     (x.TenantId == tenantGuid && (isManagerOrAdmin || x.CreatedBy == userId)))
             };
 

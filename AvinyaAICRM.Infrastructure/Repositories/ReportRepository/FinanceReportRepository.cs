@@ -28,7 +28,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ReportRepository
                 .ToDictionaryAsync(s => s.InvoiceStatusID, s => s.InvoiceStatusName);
 
             var clientMap = await _context.Clients
-                .Where(c => !c.IsDeleted && c.TenantId == filter.TenantId)
+                .Where(c => !c.IsDeleted && c.TenantId == filter.TenantId && c.IsCustomer)
                 .ToDictionaryAsync(c => c.ClientID.ToString(), c => c.CompanyName);
 
             var expenseCategoryMap = await _context.ExpenseCategories

@@ -1,4 +1,4 @@
-﻿namespace AvinyaAICRM.Application.DTOs.Quotation
+namespace AvinyaAICRM.Application.DTOs.Quotation
 {
 
     public class QuotationRequestDto
@@ -14,7 +14,20 @@
         public string? RejectedNotes { get; set; }
         public string? TermsAndConditions { get; set; }
         public string? CreatedBy { get; set; }
+        
+        // Client Fields
+        public string? CompanyName { get; set; }
+        public string? ContactPerson { get; set; }
+        public string? Mobile { get; set; }
+        public string? Email { get; set; }
+        public string? GSTNo { get; set; }
+        public string? BillingAddress { get; set; }
+        public int? ClientType { get; set; }
+        public int? StateID { get; set; }
+        public int? CityID { get; set; }
+
         public List<QuotationItemDto> Items { get; set; } = new();
+
     }
 
 

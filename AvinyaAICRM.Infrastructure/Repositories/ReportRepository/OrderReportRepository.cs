@@ -30,7 +30,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ReportRepository
 
 
             var clientMap = await _context.Clients
-                .Where(c => !c.IsDeleted && c.TenantId == filter.TenantId)
+                .Where(c => !c.IsDeleted && c.TenantId == filter.TenantId && c.IsCustomer)
                 .ToDictionaryAsync(c => c.ClientID, c => c.CompanyName);
 
             var productMap = await _context.Products
@@ -327,7 +327,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ReportRepository
             // Masters
             var orderStatusMap = await _context.OrderStatusMasters.ToDictionaryAsync(s => s.StatusID, s => s.StatusName);
             var invoiceStatusMap = await _context.InvoiceStatuses.ToDictionaryAsync(s => s.InvoiceStatusID, s => s.InvoiceStatusName);
-            var clientMap = await _context.Clients.Where(c => !c.IsDeleted).ToDictionaryAsync(c => c.ClientID, c => c.CompanyName);
+            var clientMap = await _context.Clients.Where(c => !c.IsDeleted && c.IsCustomer).ToDictionaryAsync(c => c.ClientID, c => c.CompanyName);
 
             var reportData = orders.Select(o => new OrderLifecycleReportDto
             {

@@ -426,7 +426,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
                 }
 
 
-                Order order;
+                Order? order;
 
                 // ---------- CREATE ----------
                 if (isNew)
@@ -436,7 +436,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
                     order = new Order
                     {
                         OrderID = orderId,
-                        OrderNo = await _numberGeneratorService.GenerateNumberAsync("OrderNo", userData.TenantId.ToString()),
+                        OrderNo = await _numberGeneratorService.GenerateNumberAsync("OrderNo", userData.TenantId?.ToString() ?? ""),
                         ClientID = dto.ClientID ?? Guid.Empty,
                         QuotationID = dto.QuotationID,
                         OrderDate = dto.OrderDate ?? DateTime.Now,
@@ -460,6 +460,16 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
                     };
 
                     await _context.Orders.AddAsync(order);
+
+                    // ===== MARK CLIENT AS CUSTOMER =====
+                    var clientToUpdate = await _context.Clients
+                        .FirstOrDefaultAsync(c => c.ClientID == order.ClientID);
+                    if (clientToUpdate != null && !clientToUpdate.IsCustomer)
+                    {
+                        clientToUpdate.IsCustomer = true;
+                        _context.Clients.Update(clientToUpdate);
+                    }
+
                     // ===== UPDATE LEAD STATUS TO CONVERTED =====
                     if (dto.QuotationID != null && dto.QuotationID != Guid.Empty)
                     {
@@ -652,8 +662,13 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
                 await _context.SaveChangesAsync();
                 await tx.CommitAsync();
 
+                if (userData == null)
+                {
+                    throw new Exception("User not found or session expired.");
+                }
+
                 // ---------- RETURN SAVED RESPONSE ----------
-                return await GetByIdAsync(orderId, userData.TenantId.ToString())
+                return await GetByIdAsync(orderId, userData.TenantId?.ToString() ?? "")
                     ?? throw new Exception("Saved but response fetch failed");
             }
             catch (Exception ex)

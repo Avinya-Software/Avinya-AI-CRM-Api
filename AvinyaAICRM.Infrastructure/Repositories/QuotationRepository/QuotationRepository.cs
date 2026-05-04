@@ -1,6 +1,7 @@
 using AvinyaAICRM.Application.DTOs.Quotation;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Quotations;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface;
+using AvinyaAICRM.Domain.Entities.Client;
 using AvinyaAICRM.Domain.Entities.Quotations;
 using AvinyaAICRM.Infrastructure.Persistence;
 using AvinyaAICRM.Infrastructure.Service;
@@ -42,7 +43,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
                 {
                     throw new Exception("Session expired. Please login again.");
                 }
-                Quotation quotation;
+                Quotation? quotation;
 
                 var sentStatusId = await _context.QuotationStatusMaster
                     .Where(x => x.StatusName == "Sent")
@@ -51,14 +52,78 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
 
                 bool enableTax = dto.EnableTax ?? false;
 
+                Guid? finalClientId = dto.ClientID;
+
+                // Handle client creation/update from quotation DTO
+                bool clientDataProvided =
+                   !string.IsNullOrWhiteSpace(dto.CompanyName) ||
+                   !string.IsNullOrWhiteSpace(dto.ContactPerson) ||
+                   !string.IsNullOrWhiteSpace(dto.Email) ||
+                   !string.IsNullOrWhiteSpace(dto.Mobile) ||
+                   !string.IsNullOrWhiteSpace(dto.GSTNo) ||
+                   !string.IsNullOrWhiteSpace(dto.BillingAddress) ||
+                   dto.ClientType.HasValue;
+
+                if (clientDataProvided)
+                {
+                    if (dto.ClientID == null || dto.ClientID == Guid.Empty)
+                    {
+                        var newClient = new Client
+                        {
+                            ClientID = Guid.NewGuid(),
+                            CompanyName = dto.CompanyName ?? "",
+                            ContactPerson = dto.ContactPerson ?? "",
+                            Mobile = dto.Mobile,
+                            Email = dto.Email ?? "",
+                            GSTNo = dto.GSTNo ?? "",
+                            BillingAddress = dto.BillingAddress ?? "",
+                            StateID = dto.StateID,
+                            CityID = dto.CityID,
+                            ClientType = dto.ClientType ?? 0,
+                            Status = true,
+                            IsCustomer = false,
+                            CreatedBy = userId,
+                            CreatedDate = DateTime.Now,
+                            IsDeleted = false,
+                            TenantId = userData.TenantId
+                        };
+                        await _context.Clients.AddAsync(newClient);
+                        await _context.SaveChangesAsync();
+                        finalClientId = newClient.ClientID;
+                    }
+                    else
+                    {
+                        var client = await _context.Clients.FindAsync(dto.ClientID);
+                        if (client != null)
+                        {
+                            if (!string.IsNullOrWhiteSpace(dto.ContactPerson)) client.ContactPerson = dto.ContactPerson;
+                            if (!string.IsNullOrWhiteSpace(dto.Mobile)) client.Mobile = dto.Mobile;
+                            if (!string.IsNullOrWhiteSpace(dto.Email)) client.Email = dto.Email;
+                            if (dto.ClientType.HasValue) client.ClientType = dto.ClientType.Value;
+                            if (!string.IsNullOrWhiteSpace(dto.CompanyName)) client.CompanyName = dto.CompanyName;
+                            if (!string.IsNullOrWhiteSpace(dto.GSTNo)) client.GSTNo = dto.GSTNo;
+                            if (!string.IsNullOrWhiteSpace(dto.BillingAddress)) client.BillingAddress = dto.BillingAddress;
+                            if (dto.StateID != null) client.StateID = dto.StateID;
+                            if (dto.CityID != null) client.CityID = dto.CityID;
+
+                            _context.Clients.Update(client);
+                        }
+                    }
+                }
+
+                if (userData == null)
+                {
+                    throw new Exception("User not found or session expired.");
+                }
+
                 if (dto.QuotationID == null || dto.QuotationID == Guid.Empty)
                 {
                     isNew = true;
                     quotation = new Quotation
                     {
                         QuotationID = Guid.NewGuid(),
-                        QuotationNo = await _numberGeneratorService.GenerateNumberAsync("QuotationNo", userData.TenantId.ToString()),
-                        ClientID = dto.ClientID,
+                        QuotationNo = await _numberGeneratorService.GenerateNumberAsync("QuotationNo", userData.TenantId?.ToString() ?? ""),
+                        ClientID = finalClientId,
                         LeadID = dto.LeadID,
                         FirmID= dto.FirmID,
                         QuotationDate = dto.QuotationDate,
@@ -85,13 +150,33 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
                     if (lead != null)
                     {
                         lead.LeadStatusID = quotationSentStatusId;
+                    }
 
+                    // Check if initial status is Accepted
+                    var statusName = await _context.QuotationStatusMaster
+                        .Where(x => x.QuotationStatusID == quotation.QuotationStatusID)
+                        .Select(x => x.StatusName)
+                        .FirstOrDefaultAsync();
+
+                    if (statusName == "Accepted" && quotation.ClientID.HasValue)
+                    {
+                        var client = await _context.Clients.FindAsync(quotation.ClientID.Value);
+                        if (client != null && !client.IsCustomer)
+                        {
+                            client.IsCustomer = true;
+                            _context.Clients.Update(client);
+                        }
                     }
                 }
                 else
                 {
                     quotation = await _context.Quotations
                         .FirstOrDefaultAsync(q => q.QuotationID == dto.QuotationID && !q.IsDeleted);
+
+                    if (quotation == null)
+                    {
+                        throw new Exception("Quotation not found.");
+                    }
 
                     if (dto.QuotationDate != default(DateTime))
                         quotation.QuotationDate = dto.QuotationDate;
@@ -124,6 +209,15 @@ namespace AvinyaAICRM.Infrastructure.Repositories.QuotationRepository
                                     .FirstOrDefaultAsync();
 
                                 lead.LeadStatusID = lostStatusId;
+                            }
+                        }
+                        else if (statusName == "Accepted" && quotation.ClientID.HasValue)
+                        {
+                            var client = await _context.Clients.FindAsync(quotation.ClientID.Value);
+                            if (client != null)
+                            {
+                                client.IsCustomer = true;
+                                _context.Clients.Update(client);
                             }
                         }
                     }

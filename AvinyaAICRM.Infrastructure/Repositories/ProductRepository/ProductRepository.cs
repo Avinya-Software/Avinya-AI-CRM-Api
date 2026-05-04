@@ -130,6 +130,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ProductRepository
                 dto.ProductID = Guid.NewGuid();
 
             var userData = await _context.Users.FindAsync(dto.CreatedBy);
+            if (userData == null)
+            {
+                throw new Exception("User not found or session expired.");
+            }
 
             Guid? unitTypeId =dto.UnitTypeId ?? null;
             // Map DTO → Entity

@@ -26,8 +26,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ClientRepository
             if (role != "SuperAdmin")
             {
                 query = query.Where(c => c.TenantId.ToString() == tenantId);
-
             }
+
+            // Only show clients who are marked as customers
+            query = query.Where(c => c.IsCustomer);
 
             if (!getAll)
             {
@@ -221,7 +223,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ClientRepository
                 var userData = await _context.Users.FindAsync(userId);
                 
                 var query = _context.Clients
-                    .Where(c => !c.IsDeleted && c.TenantId == userData.TenantId)
+                    .Where(c => !c.IsDeleted && c.TenantId == userData.TenantId && c.IsCustomer)
                     .AsQueryable();
 
                 if (!string.Equals(role, "SuperAdmin", StringComparison.OrdinalIgnoreCase) && 
