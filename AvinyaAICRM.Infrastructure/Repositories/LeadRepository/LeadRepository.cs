@@ -46,7 +46,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                 .Select(c => new LeadDropdown
                 {
                     LeadID = c.LeadID,
-                    LeadNo = c.LeadNo
+                    LeadNo = c.LeadNo ?? ""
                 })
                 .ToListAsync();
         }
@@ -130,8 +130,19 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                 Email = client?.Email ?? "",
                 StateID = client?.StateID,
                 CityID = client?.CityID,
-                StateName = _context.States.Where(s=>s.StateID == client.StateID).Select(s=> s.StateName).FirstOrDefault() ?? "",
-                CityName = _context.Cities.Where(s=>s.CityID == client.CityID).Select(c=> c.CityName).FirstOrDefault()??"",
+                StateName = client?.StateID != null
+                ? _context.States
+                    .Where(s => s.StateID == client.StateID)
+                    .Select(s => s.StateName)
+                    .FirstOrDefault() ?? ""
+                : "",
+
+                CityName = client?.CityID != null
+                ? _context.Cities
+                    .Where(c => c.CityID == client.CityID)
+                    .Select(c => c.CityName)
+                    .FirstOrDefault() ?? ""
+                : "",
 
                 Notes = lead.Notes,
                 Links = lead.Links,
@@ -142,14 +153,14 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                 LeadStatusID = lead.LeadStatusID,
                 StatusName = statusName,
                 CreatedBy = lead.CreatedBy,
-                CreatedbyName = createdByName,
+                CreatedbyName = createdByName ?? "",
                 AssignedTo = lead.AssignedTo,
                 AssignToName = assignedToName,
                 CreatedDate = lead.CreatedDate,
 
                 ClientType = client?.ClientType ?? 0,
                 clientTypeName = client != null
-                ? Enum.GetName(typeof(ClientTypeEnum), client.ClientType)
+                ? Enum.GetName(typeof(ClientTypeEnum), client.ClientType) ?? ""
                 : "",
 
                 CompanyName = client?.CompanyName ?? "",
@@ -246,7 +257,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                         CreatedBy = userId,
                         UpdatedAt = null,
                         IsDeleted = false,
-                        TenantId = userData.TenantId
+                        TenantId = userData?.TenantId 
                     };
 
                     await _context.Clients.AddAsync(newClient);
@@ -283,7 +294,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                     LeadStatusID = leadStatusId,
                     CreatedBy = userId,
                     AssignedTo = dto.AssignedTo,
-                    TenantId = userData.TenantId
+                    TenantId = userData?.TenantId
                 };
 
                 // Generate LeadNo
@@ -303,7 +314,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                 //    }
                 //}
 
-                lead.LeadNo = await _numberGeneratorService.GenerateNumberAsync("LeadNo", userData.TenantId.ToString());
+                lead.LeadNo = await _numberGeneratorService.GenerateNumberAsync("LeadNo", userData?.TenantId.ToString() ?? "00000000-0000-0000-0000-000000000000");
 
                 await _context.Leads.AddAsync(lead);
                 await _context.SaveChangesAsync();
@@ -421,7 +432,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                             CreatedDate = DateTime.Now,
                             UpdatedAt = null,
                             IsDeleted = false,
-                            TenantId = Guid.Parse(tenantId)
+                            TenantId = Guid.Parse(tenantId ?? "00000000-0000-0000-0000-000000000000")
                         };
 
                         await _context.Clients.AddAsync(newClient);
@@ -465,7 +476,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                                 client.CityID = dto.CityID;
 
                         }
-                        existing.ClientID = client.ClientID;
+                        existing.ClientID = client?.ClientID;
                     }
                 }
                 // Update Followup
@@ -510,7 +521,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
             catch (Exception ex)
             {
 
-                throw;
+                throw new Exception(ex.Message);
             }
             
         }
@@ -568,6 +579,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
             try
             {
                 var userData = await _context.Users.FindAsync(userId);
+
+                if (userData == null)
+                    throw new Exception("User not found");
+
                 var query = _context.Leads
                     .Where(l => !l.IsDeleted && l.TenantId == userData.TenantId)
                     .AsQueryable();
@@ -625,7 +640,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                             .Select(s => s.LeadStatusID.ToString())
                             .ToList();
 
-                        query = query.Where(l => matchedStatusIds.Contains(l.LeadStatusID.ToString()));
+                        query = query.Where(l =>matchedStatusIds.Contains(l.LeadStatusID!.Value.ToString()));
                     }
                 }
 
@@ -737,21 +752,21 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                         CompanyName = client?.CompanyName ?? "",
                         BillingAddress = client?.BillingAddress ?? "",
                         GSTNo = client?.GSTNo ?? "",
-                        ClientType = client.ClientType,
+                        ClientType = client?.ClientType,
                         LeadStatusID = l.LeadStatusID,
                         StatusName = statusName,
 
                         LeadSourceID = l.LeadSourceID,
                         LeadSourceName = leadSourceName,
 
-                        StateID = client.StateID ?? null,
-                        CityID=client.CityID ?? null,
+                        StateID = client?.StateID ?? null,
+                        CityID=client?.CityID ?? null,
 
                         AssignedTo = l.AssignedTo,
                         AssignToName = assignedToName,
 
                         CreatedBy = l.CreatedBy,
-                        CreatedbyName = createdByName,
+                        CreatedbyName = createdByName ?? "",
 
                         CreatedDate = l.CreatedDate,
 
@@ -827,10 +842,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                     EntityType = "Lead",
                     Action = "Lead Created",
                     Createddate = lead.CreatedDate,
-                    ClientName = client?.ContactPerson,
-                    CompanyName = client?.CompanyName,
+                    ClientName = client?.ContactPerson ?? "",
+                    CompanyName = client?.CompanyName ?? "",
                     Status = lead.LeadStatusID.ToString(),
-                    StatusName = status?.StatusName
+                    StatusName = status?.StatusName ?? ""
                 });
 
                 var followups = await _context.LeadFollowups
@@ -845,10 +860,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                         EntityType = "Follow-Up",
                         Action = "Follow-Up Created",
                         Createddate = f.CreatedDate,
-                        ClientName = client?.ContactPerson,
-                        CompanyName = client?.CompanyName,
+                        ClientName = client?.ContactPerson ?? "",
+                        CompanyName = client?.CompanyName ?? "",
                         Status = f.Status.ToString(),
-                        StatusName = status?.StatusName
+                        StatusName = status?.StatusName ?? ""
                     });
                 }
 
@@ -864,17 +879,17 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                         EntityType = "Quotation",
                         Action = "Quotation Created",
                         Createddate = q.CreatedDate,
-                        ClientName = client?.ContactPerson,
-                        CompanyName = client?.CompanyName,
+                        ClientName = client?.ContactPerson ?? "",
+                        CompanyName = client?.CompanyName ?? "",
                         Status = q.QuotationStatusID.ToString(),
-                        StatusName = status?.StatusName
+                        StatusName = status?.StatusName ?? ""
                     });
                 }
 
                 var orders = await _context.Orders
-                    .Where(x => x.Quotation.LeadID == leadId)
-                    .OrderBy(x => x.CreatedDate)
-                    .ToListAsync();
+                     .Where(x => x.Quotation != null && x.Quotation.LeadID == leadId)
+                     .OrderBy(x => x.CreatedDate)
+                     .ToListAsync();
 
                 foreach (var o in orders)
                 {
@@ -883,10 +898,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                         EntityType = "Order",
                         Action = "Order Created",
                         Createddate = o.CreatedDate,
-                        ClientName = client?.ContactPerson,
-                        CompanyName = client?.CompanyName,
+                        ClientName = client?.ContactPerson ?? "",
+                        CompanyName = client?.CompanyName ?? "",
                         Status = o.Status.ToString(),
-                        StatusName = status?.StatusName
+                        StatusName = status?.StatusName ?? ""
                     });
                 }
 
@@ -1014,12 +1029,11 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                     AssignToName = assignedToName,
 
                     CreatedBy = l.CreatedBy,
-                    CreatedbyName = createdByName,
+                    CreatedbyName = createdByName ?? "",
 
                     CreatedDate = l.CreatedDate,
                     ClientType = client?.ClientType ?? 0,
-                    clientTypeName = client != null ? Enum.GetName(typeof(ClientTypeEnum), client.ClientType) : "Unknown",
-
+                    clientTypeName = client != null ? ((ClientTypeEnum)client.ClientType).ToString(): "Unknown",
                     CompanyName = client?.CompanyName,
                     GSTNo = client?.GSTNo,
                     BillingAddress = client?.BillingAddress,

@@ -89,9 +89,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ClientRepository
                     CityName = city != null ? city.CityName : null,
                     Status = c.Status,
                     ClientType = c.ClientType,
-                    ClientTypeName = c.ClientType != null
-                        ? ((ClientTypeEnum)c.ClientType).ToString()
-                        : null,
+                    ClientTypeName = ((ClientTypeEnum)c.ClientType).ToString(),
                     Notes = c.Notes,
                     CreatedBy = c.CreatedBy,
                     CreatedByName = user != null ? user.UserName : "Unknown",
@@ -104,7 +102,9 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ClientRepository
 
         public async Task<Client> AddAsync(Client client)
         {
-            var userData = await _context.Users.FindAsync(client.CreatedBy);
+            var userData = await _context.Users.FindAsync(client.CreatedBy!);
+            if (userData == null)
+                throw new KeyNotFoundException("CreatedBy user not found");
             client.TenantId = userData.TenantId;
             client.CreatedDate = DateTime.Now;
 
@@ -221,7 +221,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ClientRepository
             try
             {
                 var userData = await _context.Users.FindAsync(userId);
-                
+
+                if (userData == null)
+                    throw new KeyNotFoundException("CreatedBy user not found");
+
                 var query = _context.Clients
                     .Where(c => !c.IsDeleted && c.TenantId == userData.TenantId && c.IsCustomer)
                     .AsQueryable();
@@ -292,9 +295,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ClientRepository
                         CityName = city != null ? city.CityName : null,
 
                         ClientType = c.ClientType,
-                        ClientTypeName = c.ClientType != null
-                            ? ((ClientTypeEnum)c.ClientType).ToString()
-                            : null,
+                        ClientTypeName = ((ClientTypeEnum)c.ClientType).ToString(),
 
                         Status = c.Status,
                         Notes = c.Notes,
@@ -350,14 +351,21 @@ namespace AvinyaAICRM.Infrastructure.Repositories.ClientRepository
         public async Task<IEnumerable<Client>> FindByNameAsync(string name, Guid tenantId)
         {
             return await _context.Clients
-                .Where(c => c.CompanyName.Contains(name) && c.TenantId == tenantId && !c.IsDeleted)
+                .Where(c => (c.CompanyName ?? "").Contains(name) && c.TenantId == tenantId && !c.IsDeleted)
+                .ToListAsync();
+        }
+
+        public async Task<IEnumerable<Client>> FindByContactPersonAsync(string name, Guid tenantId)
+        {
+            return await _context.Clients
+                .Where(c => (c.ContactPerson ?? "").Contains(name) && c.TenantId == tenantId && !c.IsDeleted)
                 .ToListAsync();
         }
 
         public async Task<Client?> FindByNameAndMobileAsync(string name, string mobile, Guid tenantId)
         {
             return await _context.Clients
-                .FirstOrDefaultAsync(c => c.CompanyName.Contains(name) && c.Mobile == mobile && c.TenantId == tenantId && !c.IsDeleted);
+                .FirstOrDefaultAsync(c => (c.CompanyName ?? "").Contains(name) && c.Mobile == mobile && c.TenantId == tenantId && !c.IsDeleted);
         }
     }
 }

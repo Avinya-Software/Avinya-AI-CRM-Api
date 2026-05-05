@@ -1,4 +1,5 @@
 using AvinyaAICRM.Application.DTOs.Order;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.EmailService;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Orders;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -12,12 +13,14 @@ namespace AvinyaAICRM.API.Controllers
         private readonly IOrderService _service;
         private readonly IStatusDropDownServices _statusDropDownServices;
         private readonly IOrderPdfService _pdfService;
+        private readonly IDocumentEmailService _documentEmailService;
 
-        public OrderController(IOrderService service, IStatusDropDownServices statusDropDownServices, IOrderPdfService pdfService)
+        public OrderController(IOrderService service, IStatusDropDownServices statusDropDownServices, IOrderPdfService pdfService, IDocumentEmailService documentEmailService)
         {
             _service = service;
             _statusDropDownServices = statusDropDownServices;
             _pdfService = pdfService;
+            _documentEmailService = documentEmailService;
         }
 
         [HttpGet("{id:guid}")]
@@ -85,6 +88,33 @@ namespace AvinyaAICRM.API.Controllers
             }
 
             return File(pdfBytes, "application/pdf", $"Order_{order.OrderNo ?? "Order"}.pdf");
+        }
+
+        [HttpPost("send-email/{id}")]
+        public async Task<IActionResult> SendEmail(Guid id)
+        {
+            var tenantId = User.FindFirst("tenantId")?.Value!;
+            var result = await _service.GetByIdAsync(id, tenantId);
+            if (result.StatusCode != 200 || result.Data == null)
+            {
+                return NotFound("Order not found.");
+            }
+
+            var order = (OrderResponseDto)result.Data;
+            if (string.IsNullOrEmpty(order.Email))
+            {
+                return BadRequest("Client email is missing.");
+            }
+
+            var pdfBytes = _pdfService.GenerateOrderPdf(order);
+            if (pdfBytes == null)
+            {
+                return BadRequest("Failed to generate PDF.");
+            }
+
+            await _documentEmailService.SendOrderEmailAsync(order.Email, order.ClientName ?? "", order.OrderNo ?? "", pdfBytes);
+
+            return Ok(new { message = "Email sent successfully" });
         }
     }
 }

@@ -16,6 +16,7 @@ using AvinyaAICRM.Application.Interfaces.ServiceInterface.AI;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Expense;
 using AvinyaAICRM.Domain.Constant;
 using System.Text.RegularExpressions;
+using AvinyaAICRM.Domain.Enums.Clients;
 
 namespace AvinyaAICRM.Application.Services.AICHATS
 {
@@ -173,6 +174,16 @@ namespace AvinyaAICRM.Application.Services.AICHATS
             // 1. Process Command (Intent + SQL Generation)
             var response = await ProcessCommandAsync(request.Message, tenantId, userId, isSuperAdmin, permissionClaims, request.History);
 
+            // 1.5. Deduct Credits immediately for the initial AI call
+            if (response.TotalTokens > 0)
+            {
+                response.CreditsUsed = await _credits.DeductCreditsForTokenUsageAsync(
+                    userId,
+                    response.TotalTokens,
+                    response.Source.ToUpper());
+                response.RemainingCredits = await _credits.GetRemainingCreditsAsync(userId);
+            }
+
             // 2. Validate File Upload Usage (Only for Expenses)
             if (request.ReceiptFile != null && response.Action != "create_expense")
             {
@@ -195,14 +206,6 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                     response.Count = data.Count;
                     response.Query = response.Sql;
 
-                    if (response.TotalTokens > 0)
-                    {
-                        response.CreditsUsed = await _credits.DeductCreditsForTokenUsageAsync(
-                            userId,
-                            response.TotalTokens,
-                            response.Source.ToUpper());
-                        response.RemainingCredits = await _credits.GetRemainingCreditsAsync(userId);
-                    }
 
                     // 3b. Automatic Knowledge Recording (First time queries)
                     if (response.Source == "ai_sql")
@@ -221,7 +224,7 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                     {
                         finalMessage = FormatMessage(finalMessage, response);
                     }
-                    response.Message = finalMessage;
+                    ConsolidateMessage(response);
                 }
                 catch (UnauthorizedAccessException ex)
                 {
@@ -233,7 +236,8 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                     response.ErrorMessage = "Query execution failed: " + ex.Message;
                     response.Message = response.ErrorMessage;
                 }
-                
+
+                ConsolidateMessage(response);
                 return response; // Exit after query handling
             }
 
@@ -251,20 +255,30 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                 {
                     // 1. Validate required parameters (AI should have filled these)
                     var companyName = response.Parameters?.ContainsKey("CompanyName") == true ? response.Parameters["CompanyName"]?.ToString() : null;
+                    var contactPerson = response.Parameters?.ContainsKey("ContactPerson") == true ? response.Parameters["ContactPerson"]?.ToString() : null;
                     var requirements = response.Parameters?.ContainsKey("RequirementDetails") == true ? response.Parameters["RequirementDetails"]?.ToString() : null;
+                    var clientType = response.Parameters?.ContainsKey("ClientType") == true ? response.Parameters["ClientType"]?.ToString() : null;
 
-                    if (string.IsNullOrEmpty(companyName) || string.IsNullOrEmpty(requirements))
+                    if (string.IsNullOrEmpty(requirements))
                     {
-                        response.Message = "I need a company name and requirement details to create a lead. " + (response.ErrorMessage ?? "");
+                        response.Action = "message";
+                        response.Message = "I need the requirement details to create a lead.";
+                        return response;
+                    }
+
+                    if (string.IsNullOrEmpty(contactPerson))
+                    {
+                        response.Action = "message";
+                        response.Message = "Please provide the name of the contact person for this lead.";
                         return response;
                     }
 
                     // 2. Extract and fill LeadRequestDto
                     var dto = new LeadRequestDto
                     {
-                        CompanyName = companyName,
+                        CompanyName = companyName, // Fallback to contact name if company is not provided
                         RequirementDetails = requirements,
-                        ContactPerson = response.Parameters.ContainsKey("ContactPerson") ? response.Parameters["ContactPerson"]?.ToString() : null,
+                        ContactPerson = contactPerson,
                         Mobile = response.Parameters.ContainsKey("Mobile") ? response.Parameters["Mobile"]?.ToString() : null,
                         Email = response.Parameters.ContainsKey("Email") ? response.Parameters["Email"]?.ToString() : null,
                         GSTNo = response.Parameters.ContainsKey("GSTNo") ? response.Parameters["GSTNo"]?.ToString() : null,
@@ -276,7 +290,15 @@ namespace AvinyaAICRM.Application.Services.AICHATS
 
                     if (response.Parameters.TryGetValue("ClientType", out var cType) && cType != null)
                     {
-                        dto.ClientType = cType.ToString().Equals("Individual", StringComparison.OrdinalIgnoreCase) ? 1 : 2;
+                        var typeStr = cType.ToString();
+                        if (typeStr.Equals("Individual", StringComparison.OrdinalIgnoreCase))
+                        {
+                            dto.ClientType = (int)ClientTypeEnum.Individual;
+                        }
+                        else if (typeStr.Equals("Company", StringComparison.OrdinalIgnoreCase))     
+                        {
+                            dto.ClientType = (int)ClientTypeEnum.Company;
+                        }
                     }
 
                     // --- RESOLVE NAMES TO IDs ---
@@ -335,8 +357,33 @@ namespace AvinyaAICRM.Application.Services.AICHATS
 
 
 
-                    // 3. Search for existing client
-                    var existingClients = await _clientRepo.FindByNameAsync(companyName, tenantId);
+                    // 3. Search for existing client (Prioritize ContactPerson)
+                    var existingClients = await _clientRepo.FindByContactPersonAsync(contactPerson, tenantId);
+                    
+                    if (existingClients.Count() > 1)
+                    {
+                        // Try to narrow down by email or company name if we have them
+                        if (!string.IsNullOrEmpty(dto.Email))
+                        {
+                            existingClients = existingClients.Where(c => c.Email == dto.Email).ToList();
+                        }
+                        else if (!string.IsNullOrEmpty(dto.Mobile))
+                        {
+                            existingClients = existingClients.Where(c => c.Mobile == dto.Mobile).ToList();
+                        }
+                        else if (!string.IsNullOrEmpty(companyName))
+                        {
+                            existingClients = existingClients.Where(c => c.CompanyName.Contains(companyName)).ToList();
+                        }
+
+                        if (existingClients.Count() > 1)
+                        {
+                            response.Action = "message";
+                            response.Message = $"I found {existingClients.Count()} clients named '{contactPerson}'. Could you please provide their email or mobile number to help me identify the correct one?";
+                            return response;
+                        }
+                    }
+
                     var client = existingClients.FirstOrDefault();
                     if (client != null)
                     {
@@ -348,6 +395,24 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                         dto.BillingAddress ??= client.BillingAddress;
                         dto.StateID ??= client.StateID;
                         dto.CityID ??= client.CityID;
+                        dto.CompanyName = client.CompanyName;
+                    }
+                    else if (!string.IsNullOrEmpty(companyName))
+                    {
+                        // If no contact person match, try searching by company name as a fallback
+                        var clientsByCompany = await _clientRepo.FindByNameAsync(companyName, tenantId);
+                        var companyClient = clientsByCompany.FirstOrDefault();
+                        if (companyClient != null)
+                        {
+                            dto.ClientID = companyClient.ClientID;
+                            dto.ContactPerson ??= companyClient.ContactPerson;
+                            dto.Mobile ??= companyClient.Mobile;
+                            dto.Email ??= companyClient.Email;
+                            dto.BillingAddress ??= companyClient.BillingAddress;
+                            dto.StateID ??= companyClient.StateID;
+                            dto.CityID ??= companyClient.CityID;
+                            dto.CompanyName = companyClient.CompanyName;
+                        }
                     }
 
                     // 4. Create Lead
@@ -356,7 +421,7 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                     {
                         var template = !string.IsNullOrWhiteSpace(response.SuccessMessage) 
                             ? response.SuccessMessage 
-                            : $"I've successfully created the lead for {companyName}.";
+                            : $"I've successfully created the lead for {dto.CompanyName}.";
                             
                         response.Message = FormatMessage(template, response);
 
@@ -368,15 +433,6 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                             response.Count = 0;
                         }
 
-                        // 5. Deduct Credits
-                        if (response.TotalTokens > 0)
-                        {
-                            response.CreditsUsed = await _credits.DeductCreditsForTokenUsageAsync(
-                                userId,
-                                response.TotalTokens,
-                                "CREATE_LEAD");
-                            response.RemainingCredits = await _credits.GetRemainingCreditsAsync(userId);
-                        }
                     }
                     else
                     {
@@ -491,15 +547,6 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                             response.Count = 0;
                         }
 
-                        // 10. Deduct Credits
-                        if (response.TotalTokens > 0)
-                        {
-                            response.CreditsUsed = await _credits.DeductCreditsForTokenUsageAsync(
-                                userId,
-                                response.TotalTokens,
-                                "CREATE_TASK");
-                            response.RemainingCredits = await _credits.GetRemainingCreditsAsync(userId);
-                        }
                     }
                     else
                     {
@@ -573,15 +620,6 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                         response.Data = null;
                         response.Count = 0;
 
-                        // 5. Deduct Credits
-                        if (response.TotalTokens > 0)
-                        {
-                            response.CreditsUsed = await _credits.DeductCreditsForTokenUsageAsync(
-                                userId,
-                                response.TotalTokens,
-                                "CREATE_EXPENSE");
-                            response.RemainingCredits = await _credits.GetRemainingCreditsAsync(userId);
-                        }
                     }
                     else
                     {
@@ -595,16 +633,24 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                     response.Message = response.ErrorMessage;
                 }
             }
-            else if (response.Action == "message")
+            else
             {
-                SetEmptyResponse(response, response.ErrorMessage ?? response.SuccessMessage ?? response.Message ?? "I'm here to help! What can I do for you?");
-            }
-            else 
-            {
-                SetEmptyResponse(response, response.SuccessMessage ?? response.ClarificationMessage ?? response.ErrorMessage ?? "I'm not sure how to help with that. Could you please rephrase?");
+                ConsolidateMessage(response);
             }
 
             return response;
+        }
+
+        private static void ConsolidateMessage(AIResponse response)
+        {
+            // If message is already set by high-level logic, keep it unless it's empty
+            var finalMessage = !string.IsNullOrWhiteSpace(response.ErrorMessage) ? response.ErrorMessage
+                             : !string.IsNullOrWhiteSpace(response.ClarificationMessage) ? response.ClarificationMessage
+                             : !string.IsNullOrWhiteSpace(response.SuccessMessage) ? response.SuccessMessage
+                             : !string.IsNullOrWhiteSpace(response.Message) ? response.Message
+                             : "I'm here to help! What can I do for you?";
+
+            response.Message = finalMessage;
         }
 
         private static void SetEmptyResponse(AIResponse response, string message)

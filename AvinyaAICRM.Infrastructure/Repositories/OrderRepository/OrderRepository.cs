@@ -75,7 +75,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
                     StatusName = os.StatusName,
                     DesignStatus = o.DesignStatusID,
                     DesignStatusName = ds.DesignStatusName,
-                    CreatedBy = created != null ? created.Id : o.CreatedBy.ToString(),
+                    CreatedBy =  o.CreatedBy,
                     CreatedByName = created != null ? created.UserName : null,
                     AssignedDesignTo = assigned != null ? assigned.Id : o.AssignedDesignTo,
                     AssignedDesignToName = assigned != null ? assigned.UserName : null,
@@ -88,7 +88,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
                     // Map Firm details from Tenant
                     FirmName = t != null ? t.CompanyName : "AVINYA AI",
                     FirmAddress = t != null ? t.Address : "-",
-                    FirmMobile = t != null ? t.CompanyPhone : "-",
+                    FirmMobile =  t.CompanyPhone ?? "-" ,
                     FirmGSTNo = "-" // Tenant entity might not have GSTNo yet
                 }
             ).FirstOrDefaultAsync();
@@ -183,7 +183,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
             try
             {
                 var userData = await _context.Users.FindAsync(userId);
-
+                if (userData == null)
+                    throw new Exception("User not found");
                 var query = _context.Orders
                     .AsNoTracking()
                     .Where(o => !o.IsDeleted && o.TenantId == userData.TenantId);
@@ -436,7 +437,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
                     order = new Order
                     {
                         OrderID = orderId,
-                        OrderNo = await _numberGeneratorService.GenerateNumberAsync("OrderNo", userData.TenantId?.ToString() ?? ""),
+                        OrderNo = await _numberGeneratorService.GenerateNumberAsync("OrderNo", userData?.TenantId?.ToString() ?? "00000000-0000-0000-0000-000000000000"),
                         ClientID = dto.ClientID ?? Guid.Empty,
                         QuotationID = dto.QuotationID,
                         OrderDate = dto.OrderDate ?? DateTime.Now,
@@ -456,7 +457,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
                         StateID = stateID,
                         CityID = cityID,
                         IsDeleted = false,
-                        TenantId = userData.TenantId
+                        TenantId = userData?.TenantId
                     };
 
                     await _context.Orders.AddAsync(order);
@@ -674,7 +675,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.OrderRepository
             catch (Exception ex)
             {
                 await tx.RollbackAsync();
-                throw;
+                throw new Exception(ex.Message);
             }
         }
 

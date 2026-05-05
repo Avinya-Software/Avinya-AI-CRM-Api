@@ -152,8 +152,18 @@ namespace AvinyaAICRM.Infrastructure.Repositories
             var apiKey = _config["Groq:ApiKey"];
             var baseUrl = GetBaseUrl();
 
-            var lowerMsg       = userMessage.ToLower();
-            var intents        = DetectIntents(lowerMsg);
+            var lowerMsg = userMessage.ToLower();
+            
+            // --- CONTEXT-AWARE INTENT DETECTION ---
+            // Combine current message with last 3 messages of history for better intent detection
+            var detectionString = lowerMsg;
+            if (history != null && history.Any())
+            {
+                var recentHistory = string.Join(" ", history.TakeLast(3).Select(h => h.Content.ToLower()));
+                detectionString = recentHistory + " " + lowerMsg;
+            }
+
+            var intents = DetectIntents(detectionString);
             var targetedSchema = AISchema.GetContextForIntent(intents, allowedModules, isSuperAdmin);
             var allowedChatActions = ResolveAllowedChatActions(allowedModules, isSuperAdmin);
             var allowedActionText = allowedChatActions.Count == 0
@@ -184,7 +194,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 - USER FRIENDLY : NEVER SELECT raw internal IDs (like ClientID, StatusID) in the final output. ALWAYS JOIN the reference tables and SELECT the human-readable names (e.g. CompanyName, StatusName, SourceName).
                 - PERMISSIONS   : The JSON context contains ONLY the tables this user can access. If the requested module/table is missing, return action ""message"", empty sql, and explain that the user does not have permission for that data.
                 - ACTION ACCESS : Allowed write actions for this user: {allowedActionText}. Never choose a create_* action that is not listed here.
-                {historyContext}
+                - PARAMETER ACCUMULATION: The ""parameters"" object MUST include data from the RECENT CONVERSATION HISTORY. If the user provided a value in a previous turn (e.g., ContactPerson or RequirementDetails), you MUST include it in the current response. NEVER clear out a parameter that was already established.
                 - DURATION vs COUNT: 
                     - IF question contains 'days', 'weeks', 'months', or 'years' → Use DATEADD filter.
                     - IF question contains ONLY a number (e.g., 'last 5', 'top 10') → Use SELECT TOP and ORDER BY Date DESC.
@@ -232,12 +242,12 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 ""sql"": ""[YOUR_SINGLE_LINE_SQL_HERE (only if action is get_summary)]"",
                 ""parameters"": {{ 
                     // --- LEAD CREATION FIELDS (Use only for create_lead) ---
-                    ""CompanyName"": ""(Required) The name of the company/client"",
+                    ""CompanyName"": ""The name of the company/client"",
                     ""RequirementDetails"": ""(Required) What the lead needs/requires"",
-                    ""ContactPerson"": ""Name of the contact person"",
+                    ""ContactPerson"": ""(Required) Name of the contact person"",
                     ""Mobile"": ""Contact mobile number"",
                     ""Email"": ""Contact email address"",
-                    ""ClientType"": ""[Individual | Company] (Individual if personal lead)"",
+                    ""ClientType"": ""[Individual | Company] (Individual if personal, Company if it's a company/organization)"",
                     ""GSTNo"": ""GST number of the company"",
                     ""BillingAddress"": ""Full billing address"",
                     ""StateID"": ""State name (resolved by backend)"",
@@ -283,8 +293,8 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 ACTION SELECTION RULES:
                 1. If the user wants to ADD, CREATE, or REGISTER a lead:
                    - Only choose ""create_lead"" when it is listed in Allowed write actions.
-                   - IF CompanyName and RequirementDetails are provided → action: ""create_lead"".
-                   - IF either is missing → action: ""message"" and ask the user for the missing info.
+                   - IF ContactPerson, ClientType, and RequirementDetails are provided → action: ""create_lead"".
+                   - IF any are missing → action: ""message"" and ask the user for the missing info.
                 2. If the user wants to ADD, CREATE, or SCHEDULE a task/todo:
                    - Only choose ""create_task"" when it is listed in Allowed write actions.
                    - IF Title, DueDateTime, and TaskType are provided → action: ""create_task"".
@@ -306,10 +316,12 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 - If the user provides a receipt or file, AI should assume this is an expense intent.
 
                 ACTION 'create_lead' RULES:
-                - ALWAYS extract CompanyName and RequirementDetails.
+                - ALWAYS extract ContactPerson and RequirementDetails.
+                - If the user provides a name like John Doe, extract it as `ContactPerson`.
+                - If the user says Individual or Company, extract it as `ClientType`.
                 - IF the user mentions a source like 'Referral', 'Facebook', 'Other', etc., extract it into `OtherSources`.
-                - IF the user has NOT provided CompanyName and RequirementDetails yet, YOU MUST set `action: ""message""` and ask for them.
-                - NEVER use ""Required"" or ""Missing"" as a value in parameters. Use actual user data only.
+                - IF the user has NOT provided ContactPerson and RequirementDetails yet (check both current message and history), YOU MUST set `action: message` and ask for them.
+                - NEVER use Required or Missing as a value in parameters. Use actual user data only.
 
                 ACTION 'create_task' RULES:
                 - Extract Title, DueDateTime, and TaskType.
@@ -318,7 +330,10 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 - IF TaskType is Team and TeamName is missing, set `errorMessage` to ask: ""Which team should I assign this to?"".
                 - IF DueDateTime is missing, set `errorMessage` to ask: ""When is this task due?"".
 
-                USER QUESTION: {userMessage}
+                CONVERSATION CONTEXT:
+                {historyContext}
+                
+                LATEST USER MESSAGE: {userMessage}
 
                 Generate ONLY the JSON object. No explanation, no markdown.
                 ";

@@ -29,7 +29,7 @@ namespace AvinyaAICRM.Application.Services.Invoice
             return invoice != null ? MapToDto(invoice) : null;
         }
 
-        public async Task<InvoiceDto> GetInvoiceWithIteamByIdAsync(Guid invoiceId, string tenantId)
+        public async Task<InvoiceDto?> GetInvoiceWithIteamByIdAsync(Guid invoiceId, string tenantId)
         {
             var invoice = await _invoiceRepository.GetInvoiceWithIteamByIdAsync(invoiceId, tenantId);
             return invoice;

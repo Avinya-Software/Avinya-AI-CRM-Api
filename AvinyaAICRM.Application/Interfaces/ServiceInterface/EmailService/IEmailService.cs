@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -9,5 +9,6 @@ namespace AvinyaAICRM.Application.Interfaces.ServiceInterface.EmailService
     public interface IEmailService
     {
         Task SendEmailAsync(string toEmail, string subject, string body);
+        Task SendEmailWithAttachmentAsync(string toEmail, string subject, string body, byte[] attachment, string fileName);
     }
 }

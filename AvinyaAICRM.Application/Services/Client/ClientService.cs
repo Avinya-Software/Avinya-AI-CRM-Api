@@ -102,7 +102,8 @@ namespace AvinyaAICRM.Application.Services.Client
                     Notes = dto.Notes,
                     CreatedBy = userId,
                     CreatedDate = DateTime.Now,
-                    UpdatedAt = DateTime.Now
+                    UpdatedAt = DateTime.Now,
+                    IsCustomer=true,
                 };
 
                 var created = await _repository.AddAsync(client);

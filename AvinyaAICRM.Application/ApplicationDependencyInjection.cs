@@ -102,6 +102,7 @@ namespace AvinyaAICRM.Application
             services.AddScoped<ITaskProjectReportService, TaskProjectReportService>();
             services.AddScoped<IBookingdemoService, BookingdemoService>();
             services.AddScoped<IEmailService, EmailService>();
+            services.AddScoped<IDocumentEmailService, DocumentEmailService>();
             return services;
         }
     }
