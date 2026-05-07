@@ -8,6 +8,9 @@ using AvinyaAICRM.Shared.Helper;
 using AvinyaAICRM.Shared.Model;
 using System.Linq;
 using Microsoft.AspNetCore.Identity;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.EmailService;
+using AvinyaAICRM.Application.DTOs.EmailSetting;
+using Microsoft.Extensions.Options;
 
 namespace AvinyaAICRM.Application.Services.User
 {
@@ -16,15 +19,21 @@ namespace AvinyaAICRM.Application.Services.User
         private readonly IUserRepository _userRepo;
         private readonly IUserPermissionRepository _permissionRepo;
         private readonly RoleManager<IdentityRole> _roleManager;
+        private readonly IEmailService _emailService;
+        private readonly EmailSettings _emailSettings;
 
         public UserManagementService(
             IUserRepository userRepo,
             IUserPermissionRepository permissionRepo,
-            RoleManager<IdentityRole> roleManager)
+            RoleManager<IdentityRole> roleManager,
+            IEmailService emailService,
+            IOptions<EmailSettings> emailSettings)
         {
             _userRepo = userRepo;
             _permissionRepo = permissionRepo;
             _roleManager = roleManager;
+            _emailService = emailService;
+            _emailSettings = emailSettings.Value;
         }
 
         public async Task<ResponseModel> CreateUserAsync(
@@ -56,7 +65,20 @@ namespace AvinyaAICRM.Application.Services.User
                 CreatedByUserId = createdByUserId
             };
 
-            var created = await _userRepo.CreateUserAsync(user, request.Password);
+            var password = request.Password;
+            // Treat null, empty, or "Default@123" as missing password
+            bool isPasswordMissing = string.IsNullOrWhiteSpace(password) || password == "Default@123";
+            
+            IdentityResult created;
+            if (isPasswordMissing)
+            {
+                created = await _userRepo.CreateUserAsync(user);
+            }
+            else
+            {
+                created = await _userRepo.CreateUserAsync(user, password);
+            }
+
             if (!created.Succeeded)
             {
                 var errors = string.Join(", ", created.Errors.Select(e => e.Description));
@@ -81,6 +103,21 @@ namespace AvinyaAICRM.Application.Services.User
                 }
                 await _permissionRepo.InvalidateCacheAsync(user.Id);
             }
+            // Send Welcome Email with Password Reset (Set Password) link ONLY if password was missing/defaulted
+            if (isPasswordMissing)
+            {
+                try
+                {
+                    var token = await _userRepo.GeneratePasswordResetTokenAsync(user);
+                    await SendInvitationEmailAsync(user, token);
+                }
+                catch (Exception ex)
+                {
+                    // For debugging: rethrow or return error
+                    throw new Exception($"Email sending failed to {user.Email}. Error: {ex.Message}. Check your EmailSettings in appsettings.json.");
+                }
+            }
+
             return CommonHelper.CreatedResponseMessage("User",null);
         }
 
@@ -210,6 +247,56 @@ namespace AvinyaAICRM.Application.Services.User
             return CommonHelper.GetResponseMessage(roles);
         }
 
-    }
+        public async Task<ResponseModel> ResendInvitationAsync(string userId, string createdByUserId)
+        {
+            var user = await _userRepo.GetByIdAsync(userId);
+            if (user == null)
+                return CommonHelper.BadRequestResponseMessage("User not found");
 
+            var creator = await _userRepo.GetByIdAsync(createdByUserId);
+            if (creator == null)
+                return CommonHelper.UnauthorizedResponseMessage(string.Empty, "Unauthorized");
+
+            var token = await _userRepo.GeneratePasswordResetTokenAsync(user);
+            await SendInvitationEmailAsync(user, token);
+
+            return CommonHelper.SuccessResponseMessage("Invitation email resent successfully", null);
+        }
+
+        private async Task SendInvitationEmailAsync(AppUser user, string token)
+        {
+            var hasPassword = await _userRepo.HasPasswordAsync(user);
+            var frontendUrl = _emailSettings?.FrontendUrl ?? "https://aicrm.avinyasoftware.com";
+            var baseUrl = frontendUrl.TrimEnd('/');
+            
+            var userEmail = user.Email ?? "";
+            var userFullName = user.FullName ?? "User";
+
+            var setPasswordUrl = $"{baseUrl}/reset-password?token={Uri.EscapeDataString(token)}&email={Uri.EscapeDataString(userEmail)}&hasPassword={hasPassword}";
+            
+            var subject = hasPassword ? "Reset Your Password - Avinya AI CRM" : "Welcome to Avinya AI CRM - Set Up Your Account";
+            var actionText = hasPassword ? "Reset My Password" : "Set My Password";
+            var heading = hasPassword ? "Password Reset Request" : "Welcome to Avinya AI CRM!";
+            var message = hasPassword 
+                ? "We received a request to reset your password. Click the button below to set a new password:" 
+                : "Your account has been created by your administrator. To get started, please set your password by clicking the button below:";
+
+            var body = $@"
+                <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;'>
+                    <h2 style='color: #10b981;'>{heading}</h2>
+                    <p>Hi {userFullName},</p>
+                    <p>{message}</p>
+                    <div style='text-align: center; margin: 30px 0;'>
+                        <a href='{setPasswordUrl}' style='background-color: #10b981; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;'>{actionText}</a>
+                    </div>
+                    <p>This link will expire in 24 hours for security reasons.</p>
+                    <p>After setting your password, you can log in with your email: <strong>{userEmail}</strong></p>
+                    <p style='margin-top: 30px; font-size: 12px; color: #6b7280;'>If you did not request this or have any questions, please contact your administrator.</p>
+                    <p style='font-size: 12px; color: #6b7280;'>Best regards,<br/>Avinya AI CRM Team</p>
+                </div>";
+
+            await _emailService.SendEmailAsync(userEmail, subject, body);
+        }
+
+    }
 }

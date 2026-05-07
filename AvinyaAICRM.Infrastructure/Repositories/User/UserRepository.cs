@@ -41,6 +41,12 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
             var res = await _userManager.CreateAsync(user, password);
             return res;
         }
+
+        public async Task<IdentityResult> CreateUserAsync(AppUser user)
+        {
+            var res = await _userManager.CreateAsync(user);
+            return res;
+        }
         
 
         public async Task AddToRoleAsync(AppUser user, string role)
@@ -200,6 +206,20 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
             var user = await _userManager.Users.FirstOrDefaultAsync(u => u.UserName == name);
             return user;
         }
-    }
 
+        public async Task<string> GeneratePasswordResetTokenAsync(AppUser user)
+        {
+            return await _userManager.GeneratePasswordResetTokenAsync(user);
+        }
+
+        public async Task<IdentityResult> ResetPasswordAsync(AppUser user, string token, string newPassword)
+        {
+            return await _userManager.ResetPasswordAsync(user, token, newPassword);
+        }
+
+        public async Task<bool> HasPasswordAsync(AppUser user)
+        {
+            return await _userManager.HasPasswordAsync(user);
+        }
+    }
 }

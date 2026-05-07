@@ -1,3 +1,4 @@
+using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Permission;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Settings;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.Tenant;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.User;
@@ -9,6 +10,7 @@ using AvinyaAICRM.Shared.Model;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 public class SuperAdminService : ISuperAdminService
@@ -17,6 +19,8 @@ public class SuperAdminService : ISuperAdminService
     private readonly IUserRepository _userRepository;
     private readonly ISettingsRepository _settingsRepository;
     private readonly IUserCreditRepository _userCreditRepository;
+    private readonly IPermissionRepository _permissionRepository;
+    private readonly IUserPermissionRepository _userPermissionRepository;
     private readonly IConfiguration _configuration;
 
     public SuperAdminService(
@@ -24,12 +28,16 @@ public class SuperAdminService : ISuperAdminService
         IUserRepository userRepository,
         ISettingsRepository settingsRepository,
         IUserCreditRepository userCreditRepository,
+        IPermissionRepository permissionRepository,
+        IUserPermissionRepository userPermissionRepository,
         IConfiguration configuration)
     {
         _tenantRepository = tenantRepository;
         _userRepository = userRepository;
         _settingsRepository = settingsRepository;
         _userCreditRepository = userCreditRepository;
+        _permissionRepository = permissionRepository;
+        _userPermissionRepository = userPermissionRepository;
         _configuration = configuration;
     }
 
@@ -135,6 +143,23 @@ public class SuperAdminService : ISuperAdminService
                     Timestamp = DateTime.Now
                 });
             }
+        }
+
+        // Grant all permissions to the admin user
+        var allPermissions = await _permissionRepository.GetAllPermissionsAsync();
+        if (allPermissions != null && allPermissions.Any())
+        {
+            var userPermissions = allPermissions
+                .SelectMany(m => m.Permissions)
+                .Select(p => new UserPermission
+                {
+                    UserId = adminUser.Id.ToString(),
+                    PermissionId = p.PermissionId,
+                    GrantedByUserId = adminUser.Id.ToString(), // Or SuperAdmin Id if available
+                    GrantedAt = DateTime.Now
+                }).ToList();
+
+            await _userPermissionRepository.AddRangeAsync(userPermissions);
         }
 
         return CommonHelper.SuccessResponseMessage("Admin approved successfully", null);

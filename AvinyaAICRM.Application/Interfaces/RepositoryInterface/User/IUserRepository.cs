@@ -15,6 +15,7 @@ namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.User
         Task<AppUser?> GetByIdAsync(string userId);
         Task<AppUser?> GetByEmailAsync(string email);
         Task<IdentityResult> CreateUserAsync(AppUser user, string password);
+        Task<IdentityResult> CreateUserAsync(AppUser user);
         Task AddToRoleAsync(AppUser user, string role);
         Task RemoveFromRolesAsync(AppUser user, IEnumerable<string> roles);
         Task<bool> CheckPasswordAsync(AppUser user, string password);
@@ -27,6 +28,8 @@ namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.User
         Task<List<UserDropdownDto>> GetUsersDropdown(string userId);
         Task<AppUser?> GetByFullNameAsync(string fullName);
         Task<AppUser> GetUserName(string name);
-
+        Task<string> GeneratePasswordResetTokenAsync(AppUser user);
+        Task<IdentityResult> ResetPasswordAsync(AppUser user, string token, string newPassword);
+        Task<bool> HasPasswordAsync(AppUser user);
     }
 }

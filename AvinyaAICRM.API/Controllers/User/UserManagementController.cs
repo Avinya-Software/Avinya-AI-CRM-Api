@@ -87,5 +87,14 @@ namespace AvinyaAICRM.API.Controllers.User
             var result = await _service.GetRolesAsync();
             return new JsonResult(result) { StatusCode = result.StatusCode };
         }
+
+        [HttpPost("resend-invitation/{userId}")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        public async Task<IActionResult> ResendInvitation(string userId)
+        {
+            var creatorId = User.FindFirst("userId")?.Value;
+            var result = await _service.ResendInvitationAsync(userId, creatorId!);
+            return new JsonResult(result) { StatusCode = result.StatusCode };
+        }
     }
 }

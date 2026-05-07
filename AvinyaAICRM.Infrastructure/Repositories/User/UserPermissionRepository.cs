@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.MenuItem;
+using AvinyaAICRM.Application.DTOs.MenuItem;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.User;
 using AvinyaAICRM.Domain.Entities.User;
 using AvinyaAICRM.Infrastructure.Persistence;
@@ -43,6 +43,19 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
 
             }
           
+        }
+
+        public async Task AddRangeAsync(IEnumerable<UserPermission> permissions)
+        {
+            try
+            {
+                _context.UserPermissions.AddRange(permissions);
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+
+            }
         }
 
         public async Task<bool> HasPermissionAsync(string userId, string moduleKey, string actionKey)

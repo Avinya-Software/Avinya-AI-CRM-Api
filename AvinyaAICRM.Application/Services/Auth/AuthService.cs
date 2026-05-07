@@ -8,6 +8,9 @@ using AvinyaAICRM.Domain.Enums;
 using AvinyaAICRM.Infrastructure.Identity;
 using AvinyaAICRM.Shared.Helper;
 using AvinyaAICRM.Shared.Model;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.EmailService;
+using AvinyaAICRM.Application.DTOs.EmailSetting;
+using Microsoft.Extensions.Options;
 
 
 namespace AvinyaAICRM.Application.Services.Auth
@@ -17,15 +20,21 @@ namespace AvinyaAICRM.Application.Services.Auth
         private readonly IUserRepository _userRepo;
         private readonly ITenantRepository _tenantRepo;
         private readonly IJwtTokenGenerator _jwtTokenGenerator;
+        private readonly IEmailService _emailService;
+        private readonly EmailSettings _emailSettings;
 
         public AuthService(
             IUserRepository userRepo,
             ITenantRepository tenantRepo,
-            IJwtTokenGenerator jwtTokenGenerator)
+            IJwtTokenGenerator jwtTokenGenerator,
+            IEmailService emailService,
+            IOptions<EmailSettings> emailSettings)
         {
             _userRepo = userRepo;
             _tenantRepo = tenantRepo;
             _jwtTokenGenerator = jwtTokenGenerator;
+            _emailService = emailService;
+            _emailSettings = emailSettings.Value;
         }
 
         public async Task<ResponseModel> RegisterUser(UserRegisterRequestModel request)
@@ -65,6 +74,26 @@ namespace AvinyaAICRM.Application.Services.Auth
             user.TenantId = tenant.TenantId;
 
             await _userRepo.UpdateAsync(user);
+
+            // Send Welcome Email
+            try
+            {
+                var subject = "Welcome to Avinya AI CRM - Signup Successful";
+                var body = $@"
+                    <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;'>
+                        <h2 style='color: #10b981;'>Welcome to Avinya AI CRM!</h2>
+                        <p>Hi {user.FullName},</p>
+                        <p>Thank you for signing up. Your account is currently pending approval by our administrators.</p>
+                        <p>Once approved, you will receive another email with instructions on how to log in.</p>
+                        <p style='font-size: 12px; color: #6b7280;'>Best regards,<br/>Avinya AI CRM Team</p>
+                    </div>";
+
+                await _emailService.SendEmailAsync(user.Email, subject, body);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DEBUG] Signup Email Failed: {ex.Message}");
+            }
 
             return CommonHelper.SuccessResponseMessage("Signup successful. Waiting for approval.", null);
         }
@@ -131,6 +160,59 @@ namespace AvinyaAICRM.Application.Services.Auth
 
             return CommonHelper.SuccessResponseMessage("", data);
         }
-    }
 
+        public async Task<ResponseModel> ForgotPassword(string email)
+        {
+            var user = await _userRepo.GetByEmailAsync(email);
+            if (user == null)
+                return CommonHelper.BadRequestResponseMessage("User not found");
+
+            var token = await _userRepo.GeneratePasswordResetTokenAsync(user);
+            
+            // Send Email
+            var frontendUrl = _emailSettings?.FrontendUrl ?? "https://aicrm.avinyasoftware.com";
+            var baseUrl = frontendUrl.TrimEnd('/');
+            
+            var userEmail = user.Email ?? email;
+            var userFullName = user.FullName ?? "User";
+
+            var resetUrl = $"{baseUrl}/reset-password?token={Uri.EscapeDataString(token)}&email={Uri.EscapeDataString(userEmail)}&hasPassword=true";
+            var subject = "Reset Your Password - Avinya AI CRM";
+            var body = $@"
+                <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;'>
+                    <h2 style='color: #10b981;'>Password Reset Request</h2>
+                    <p>Hi {userFullName},</p>
+                    <p>We received a request to reset your password. Click the button below to set a new password:</p>
+                    <div style='text-align: center; margin: 30px 0;'>
+                        <a href='{resetUrl}' style='background-color: #10b981; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;'>Reset Password</a>
+                    </div>
+                    <p>This link will expire in 24 hours for security reasons.</p>
+                    <p>If you didn't request this, you can safely ignore this email.</p>
+                    <p style='font-size: 12px; color: #6b7280;'>Best regards,<br/>Avinya AI CRM Team</p>
+                </div>";
+
+            await _emailService.SendEmailAsync(userEmail, subject, body);
+
+            return CommonHelper.SuccessResponseMessage("Password reset link sent to your email", null);
+        }
+
+        public async Task<ResponseModel> ResetPassword(ResetPasswordRequestModel model)
+        {
+            var user = await _userRepo.GetByEmailAsync(model.Email);
+            if (user == null)
+                return CommonHelper.BadRequestResponseMessage("User not found");
+
+            // Robustness: handle potential + being turned into space by some URI parsers
+            var token = model.Token.Replace(" ", "+");
+
+            var result = await _userRepo.ResetPasswordAsync(user, token, model.NewPassword);
+            if (!result.Succeeded)
+            {
+                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                return CommonHelper.BadRequestResponseMessage(errors);
+            }
+
+            return CommonHelper.SuccessResponseMessage("Password reset successfully", null);
+        }
+    }
 }

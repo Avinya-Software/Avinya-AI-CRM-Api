@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Auth;
+using AvinyaAICRM.Application.DTOs.Auth;
 using AvinyaAICRM.Shared.Model;
 using System;
 using System.Collections.Generic;
@@ -13,5 +13,7 @@ namespace AvinyaAICRM.Application.Interfaces.ServiceInterface.Auth
         Task<ResponseModel> RegisterUser(UserRegisterRequestModel request);
         Task<ResponseModel> Login(UserLoginRequestModel model);
         Task<ResponseModel> AdminLogin(UserLoginRequestModel model);
+        Task<ResponseModel> ForgotPassword(string email);
+        Task<ResponseModel> ResetPassword(ResetPasswordRequestModel model);
     }
 }

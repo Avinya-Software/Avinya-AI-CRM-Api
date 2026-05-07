@@ -20,6 +20,6 @@ namespace AvinyaAICRM.Application.Interfaces.ServiceInterface.User
         Task<ResponseModel> GetMyCompaniesAsync(Guid? currentUserTenant);
         Task<ResponseModel> GetUsersDropdown(string userId);
         Task<ResponseModel> GetRolesAsync();
+        Task<ResponseModel> ResendInvitationAsync(string userId, string createdByUserId);
     }
-
 }

@@ -1,3 +1,5 @@
+using System.IO;
+using Microsoft.AspNetCore.DataProtection;
 using AvinyaAICRM.Application.Interfaces.Clients;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface;
 using AvinyaAICRM.Application.Interfaces.RepositoryInterface.AIChat;
@@ -87,6 +89,14 @@ namespace AvinyaAICRM.Infrastructure
             // ---------------- DB ----------------
             services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
+
+            // ---------------- Data Protection ----------------
+            var keysFolder = Path.Combine(Directory.GetCurrentDirectory(), "dp_keys");
+            if (!Directory.Exists(keysFolder)) Directory.CreateDirectory(keysFolder);
+            
+            services.AddDataProtection()
+                .PersistKeysToFileSystem(new DirectoryInfo(keysFolder))
+                .SetApplicationName("AvinyaAICRM");
 
             // ---------------- Identity ----------------
             services.AddIdentity<AppUser, IdentityRole>()

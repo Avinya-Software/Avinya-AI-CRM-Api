@@ -27,7 +27,36 @@ namespace AvinyaAICRM.Application.Services.EmailService
         #region Public Methods
         public async Task SendEmailAsync(string toEmail, string subject, string body)
         {
-            await SendEmailWithAttachmentAsync(toEmail, subject, body, null, null);
+            try
+            {
+                if (string.IsNullOrWhiteSpace(_emailSettings?.Email) || string.IsNullOrWhiteSpace(_emailSettings?.Password) || string.IsNullOrWhiteSpace(_emailSettings?.Host) || _emailSettings.Port == 0)
+                    throw new InvalidOperationException("Email settings are not configured correctly.");
+
+                var mail = new MailMessage
+                {
+                    From = new MailAddress(_emailSettings.Email.Trim(), "Avinya AI CRM"),
+                    Subject = subject,
+                    Body = body,
+                    IsBodyHtml = true
+                };
+
+                mail.To.Add(toEmail);
+
+                using var smtp = new SmtpClient(_emailSettings.Host.Trim(), _emailSettings.Port)
+                {
+                    UseDefaultCredentials = false,
+                    Credentials = new NetworkCredential(_emailSettings.Email.Trim(), _emailSettings.Password.Trim()),
+                    EnableSsl = _emailSettings.Ssl,
+                    DeliveryMethod = SmtpDeliveryMethod.Network,
+                    Timeout = 100000
+                };
+
+                await smtp.SendMailAsync(mail);
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
         }
 
         public async Task SendEmailWithAttachmentAsync(string toEmail, string subject, string body, byte[] attachment, string fileName)

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -14,5 +14,6 @@ namespace AvinyaAICRM.Application.DTOs.EmailSetting
         public int Port { get; set; }
 
         public bool Ssl { get; set; } = true;
+        public string FrontendUrl { get; set; }
     }
 }
