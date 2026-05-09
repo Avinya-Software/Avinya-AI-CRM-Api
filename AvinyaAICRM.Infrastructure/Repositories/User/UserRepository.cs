@@ -192,7 +192,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
                 from u in _context.Users
                 join ur in _context.UserRoles on u.Id equals ur.UserId
                 join r in _context.Roles on ur.RoleId equals r.Id
-                where u.TenantId == tenantId && u.IsActive && r.Name != "Admin" && r.Name != "SuperAdmin"
+                where u.TenantId == tenantId && u.IsActive && r.Name != "SuperAdmin"
                 select new UserDropdownDto
                 {
                     Id = u.Id,
