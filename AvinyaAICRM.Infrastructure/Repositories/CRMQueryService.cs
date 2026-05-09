@@ -276,7 +276,7 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                     // 2. Extract and fill LeadRequestDto
                     var dto = new LeadRequestDto
                     {
-                        CompanyName = companyName, // Fallback to contact name if company is not provided
+                        CompanyName = string.IsNullOrEmpty(companyName) ? contactPerson : companyName,
                         RequirementDetails = requirements,
                         ContactPerson = contactPerson,
                         Mobile = response.Parameters.ContainsKey("Mobile") ? response.Parameters["Mobile"]?.ToString() : null,
@@ -288,14 +288,16 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                         Links = response.Parameters.ContainsKey("Links") ? response.Parameters["Links"]?.ToString() : null,
                     };
 
+                    dto.ClientType = (int)ClientTypeEnum.Company; // Default to 1 (Company)
+
                     if (response.Parameters.TryGetValue("ClientType", out var cType) && cType != null)
                     {
                         var typeStr = cType.ToString();
-                        if (typeStr.Equals("Individual", StringComparison.OrdinalIgnoreCase))
+                        if (typeStr.Equals("Individual", StringComparison.OrdinalIgnoreCase) || typeStr == "2")
                         {
                             dto.ClientType = (int)ClientTypeEnum.Individual;
                         }
-                        else if (typeStr.Equals("Company", StringComparison.OrdinalIgnoreCase))     
+                        else if (typeStr.Equals("Company", StringComparison.OrdinalIgnoreCase) || typeStr == "1")     
                         {
                             dto.ClientType = (int)ClientTypeEnum.Company;
                         }
@@ -360,28 +362,26 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                     // 3. Search for existing client (Prioritize ContactPerson)
                     var existingClients = await _clientRepo.FindByContactPersonAsync(contactPerson, tenantId);
                     
-                    if (existingClients.Count() > 1)
+                    if (existingClients.Any())
                     {
-                        // Try to narrow down by email or company name if we have them
+                        bool hasDisambiguationInfo = !string.IsNullOrEmpty(dto.Email) || !string.IsNullOrEmpty(dto.Mobile) || !string.IsNullOrEmpty(companyName);
+                        
+                        var matchedClients = existingClients.ToList();
                         if (!string.IsNullOrEmpty(dto.Email))
-                        {
-                            existingClients = existingClients.Where(c => c.Email == dto.Email).ToList();
-                        }
-                        else if (!string.IsNullOrEmpty(dto.Mobile))
-                        {
-                            existingClients = existingClients.Where(c => c.Mobile == dto.Mobile).ToList();
-                        }
-                        else if (!string.IsNullOrEmpty(companyName))
-                        {
-                            existingClients = existingClients.Where(c => c.CompanyName.Contains(companyName)).ToList();
-                        }
+                            matchedClients = matchedClients.Where(c => c.Email == dto.Email).ToList();
+                        if (!string.IsNullOrEmpty(dto.Mobile))
+                            matchedClients = matchedClients.Where(c => c.Mobile == dto.Mobile).ToList();
+                        if (!string.IsNullOrEmpty(companyName))
+                            matchedClients = matchedClients.Where(c => c.CompanyName.ToLower().Contains(companyName.ToLower())).ToList();
 
-                        if (existingClients.Count() > 1)
+                        if (matchedClients.Count != 1 || !hasDisambiguationInfo)
                         {
                             response.Action = "message";
-                            response.Message = $"I found {existingClients.Count()} clients named '{contactPerson}'. Could you please provide their email or mobile number to help me identify the correct one?";
+                            response.Message = $"A contact person named '{contactPerson}' already exists. Can you please share his mobile number or email to know which contact person?";
                             return response;
                         }
+
+                        existingClients = matchedClients;
                     }
 
                     var client = existingClients.FirstOrDefault();
@@ -438,6 +438,7 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                     {
                         response.ErrorMessage = result.StatusMessage;
                         response.Message = "I tried to create the lead but failed: " + result.StatusMessage;
+                        response.Suggestions = new List<string> { "Can I help you with any other leads?" };
                     }
                 }
                 catch (Exception ex)
@@ -552,6 +553,7 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                     {
                         response.ErrorMessage = result.StatusMessage;
                         response.Message = "I tried to create the task but failed: " + result.StatusMessage;
+                        response.Suggestions = new List<string> { "Can I help you with any other tasks?" };
                     }
                 }
                 catch (Exception ex)
@@ -625,6 +627,7 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                     {
                         response.ErrorMessage = result.StatusMessage;
                         response.Message = "I tried to record the expense but failed: " + result.StatusMessage;
+                        response.Suggestions = new List<string> { "Can I help you with any other expenses?" };
                     }
                 }
                 catch (Exception ex)

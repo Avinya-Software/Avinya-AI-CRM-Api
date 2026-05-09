@@ -254,7 +254,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                     ""CityID"": ""City name (resolved by backend)"",
                     ""LeadSourceID"": ""Source name, e.g. 'WhatsApp'"",
                     ""LeadStatusID"": ""Status name, e.g. 'Hot'"",
-                    ""NextFollowupDate"": ""Date and time for the next followup"",
+                    ""NextFollowupDate"": ""Date and time for the next followup (ALWAYS use ISO format: YYYY-MM-DD HH:mm:ss or YYYY-MM-DD)"",
                     ""OtherSources"": ""Any other source info"",
                     ""Links"": ""Relevant social/web links"",
 
@@ -317,10 +317,13 @@ namespace AvinyaAICRM.Infrastructure.Repositories
 
                 ACTION 'create_lead' RULES:
                 - ALWAYS extract ContactPerson and RequirementDetails.
+                - NEVER require CompanyName. It is optional. Do not ask for it if it is missing.
+                - If the user has not provided a mobile number or email, do NOT include them in the parameters. Do not hallucinate or use default values for them.
+                - If the user specifies a follow-up date like 'next week' or 'tomorrow', YOU MUST calculate the actual date based on the current date provided in the prompt and output it in ISO format (YYYY-MM-DD HH:mm:ss or YYYY-MM-DD). If the user mentions a specific time, include it.
                 - If the user provides a name like John Doe, extract it as `ContactPerson`.
                 - If the user says Individual or Company, extract it as `ClientType`.
                 - IF the user mentions a source like 'Referral', 'Facebook', 'Other', etc., extract it into `OtherSources`.
-                - IF the user has NOT provided ContactPerson and RequirementDetails yet (check both current message and history), YOU MUST set `action: message` and ask for them.
+                - IF the user has NOT provided ContactPerson and RequirementDetails yet (check both current message and history), YOU MUST set `action: message` and ask for them (do not ask for CompanyName).
                 - NEVER use Required or Missing as a value in parameters. Use actual user data only.
 
                 ACTION 'create_task' RULES:

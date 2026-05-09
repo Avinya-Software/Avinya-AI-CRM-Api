@@ -1,4 +1,4 @@
-﻿
+
 namespace AvinyaAICRM.Application.DTOs.User
 {
     public class UserListFilterRequest
@@ -10,6 +10,8 @@ namespace AvinyaAICRM.Application.DTOs.User
         public Guid? TenantId { get; set; }        // Optional
         public bool? IsActive { get; set; }        // true / false
         public string? Search { get; set; }        // Name or Email
+        public string? FullName { get; set; }      // Filter by Full Name
+        public string? Email { get; set; }         // Filter by Email
     }
 
 }

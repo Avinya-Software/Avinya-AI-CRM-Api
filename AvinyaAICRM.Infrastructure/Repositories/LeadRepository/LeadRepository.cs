@@ -250,7 +250,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories.LeadRepository
                         BillingAddress = dto.BillingAddress ?? "",
                         StateID = dto.StateID,
                         CityID = dto.CityID,
-                        ClientType = dto.ClientType ?? 0,
+                        ClientType = dto.ClientType ?? 1, // Default to 1 (Company) if not specified
                         Status = true,
                         IsCustomer = false,
                         Notes = "",

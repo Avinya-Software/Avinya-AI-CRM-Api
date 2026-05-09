@@ -125,6 +125,12 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
                     x.User.FullName.Contains(request.Search) ||
                     x.User.Email.Contains(request.Search));
 
+            if (!string.IsNullOrEmpty(request.FullName))
+                query = query.Where(x => x.User.FullName.Contains(request.FullName));
+
+            if (!string.IsNullOrEmpty(request.Email))
+                query = query.Where(x => x.User.Email.Contains(request.Email));
+
             var totalRecords = await query.CountAsync();
 
             var users = await query

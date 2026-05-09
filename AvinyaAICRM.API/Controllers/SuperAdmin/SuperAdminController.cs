@@ -50,7 +50,7 @@ namespace AvinyaAICRM.API.Controllers.SuperAdmin
         [Authorize(Roles = "SuperAdmin,Admin")]
         [HttpGet("users-list")]
         public async Task<IActionResult> GetUsersList([FromQuery] int pageNumber, [FromQuery] int pageSize, [FromQuery] string? role, [FromQuery] Guid? tenantId,
-            [FromQuery] bool? isActive, [FromQuery] string? search)
+            [FromQuery] bool? isActive, [FromQuery] string? search, [FromQuery] string? fullName, [FromQuery] string? email)
         {
             var isSuperAdmin = User.IsInRole("SuperAdmin");
             Guid? currentUserTenant = null;
@@ -69,6 +69,8 @@ namespace AvinyaAICRM.API.Controllers.SuperAdmin
                 PageNumber = pageNumber,
                 PageSize = pageSize,
                 Search = search,
+                FullName = fullName,
+                Email = email,
                 Role = role,
                 TenantId = tenantId, // This comes from query, but repository should handle priority
                 IsActive = isActive,

@@ -49,7 +49,8 @@ namespace AvinyaAICRM.Application.Services.Auth
                 Email = request.Email,
                 PhoneNumber = request.CompanyPhone,
                 FullName = request.FullName,
-                IsActive = false
+                IsActive = false,
+                CreatedAt = DateTime.Now
             };
 
             var result = await _userRepo.CreateUserAsync(user, request.Password);
@@ -93,6 +94,31 @@ namespace AvinyaAICRM.Application.Services.Auth
             catch (Exception ex)
             {
                 Console.WriteLine($"[DEBUG] Signup Email Failed: {ex.Message}");
+            }
+
+            // Send Notification Email to Admin
+            try
+            {
+                var adminEmail = _emailSettings.Email;
+                var adminSubject = "New Company Registration - Action Required";
+                var adminBody = $@"
+                    <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;'>
+                        <h2 style='color: #10b981;'>New Registration!</h2>
+                        <p>A new company has registered on Avinya AI CRM and is awaiting approval.</p>
+                        <p><strong>Company:</strong> {request.CompanyName}</p>
+                        <p><strong>Admin Name:</strong> {request.FullName}</p>
+                        <p><strong>Admin Email:</strong> {request.Email}</p>
+                        <p><strong>Phone:</strong> {request.CompanyPhone}</p>
+                        <div style='margin-top: 20px;'>
+                            <a href='{_emailSettings.FrontendUrl}/login/superadmin' style='background-color: #10b981; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;'>Review in Dashboard</a>
+                        </div>
+                    </div>";
+
+                await _emailService.SendEmailAsync(adminEmail, adminSubject, adminBody);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DEBUG] Admin Notification Email Failed: {ex.Message}");
             }
 
             return CommonHelper.SuccessResponseMessage("Signup successful. Waiting for approval.", null);

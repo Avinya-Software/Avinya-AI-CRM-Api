@@ -12,6 +12,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
+using AvinyaAICRM.Application.Interfaces.ServiceInterface.EmailService;
+using AvinyaAICRM.Application.DTOs.EmailSetting;
 
 public class SuperAdminService : ISuperAdminService
 {
@@ -22,6 +25,8 @@ public class SuperAdminService : ISuperAdminService
     private readonly IPermissionRepository _permissionRepository;
     private readonly IUserPermissionRepository _userPermissionRepository;
     private readonly IConfiguration _configuration;
+    private readonly IEmailService _emailService;
+    private readonly EmailSettings _emailSettings;
 
     public SuperAdminService(
         ITenantRepository tenantRepository,
@@ -30,7 +35,9 @@ public class SuperAdminService : ISuperAdminService
         IUserCreditRepository userCreditRepository,
         IPermissionRepository permissionRepository,
         IUserPermissionRepository userPermissionRepository,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IEmailService emailService,
+        IOptions<EmailSettings> emailSettings)
     {
         _tenantRepository = tenantRepository;
         _userRepository = userRepository;
@@ -39,6 +46,8 @@ public class SuperAdminService : ISuperAdminService
         _permissionRepository = permissionRepository;
         _userPermissionRepository = userPermissionRepository;
         _configuration = configuration;
+        _emailService = emailService;
+        _emailSettings = emailSettings.Value;
     }
 
     private string GetFinancialYear()
@@ -160,6 +169,30 @@ public class SuperAdminService : ISuperAdminService
                 }).ToList();
 
             await _userPermissionRepository.AddRangeAsync(userPermissions);
+        }
+
+        // Send Approval Email to Admin
+        try
+        {
+            var subject = "Your Avinya AI CRM Account has been Approved!";
+            var body = $@"
+                <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;'>
+                    <h2 style='color: #10b981;'>Congratulations!</h2>
+                    <p>Hi {adminUser.FullName},</p>
+                    <p>We are pleased to inform you that your company, <strong>{tenant.CompanyName}</strong>, has been approved on Avinya AI CRM.</p>
+                    <p>You can now log in to your account and start managing your business.</p>
+                    <div style='text-align: center; margin: 30px 0;'>
+                        <a href='{_emailSettings.FrontendUrl}/login' style='background-color: #10b981; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;'>Log In Now</a>
+                    </div>
+                    <p>If you have any questions, feel free to reply to this email.</p>
+                    <p style='font-size: 12px; color: #6b7280;'>Best regards,<br/>Avinya AI CRM Team</p>
+                </div>";
+
+            await _emailService.SendEmailAsync(adminUser.Email, subject, body);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DEBUG] Approval Email Failed: {ex.Message}");
         }
 
         return CommonHelper.SuccessResponseMessage("Admin approved successfully", null);
