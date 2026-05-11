@@ -1,4 +1,3 @@
-using AvinyaAICRM.Application.Interfaces.RepositoryInterface.AIChat;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.AICHAT;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.AI;
 using AvinyaAICRM.Shared.AI;
@@ -13,113 +12,50 @@ namespace AvinyaAICRM.API.Controllers
     [Route("api/ai")]
     public class AIController : ControllerBase
     {
-        private readonly IAIService _aiService;
         private readonly ICRMQueryService _crmService;
-        private readonly IAIKnowledgeService _knowledge;
         private readonly ICreditService _credits;
 
-        public AIController(
-            IAIService aiService, 
-            ICRMQueryService crmService,
-            IAIKnowledgeService knowledge,
-            ICreditService credits)
+        public AIController(ICRMQueryService crmService, ICreditService credits)
         {
-            _aiService = aiService;
             _crmService = crmService;
-            _knowledge = knowledge;
             _credits = credits;
-        }
-
-        [HttpPost("feedback")]
-        public async Task<IActionResult> Feedback([FromBody] AvinyaAICRM.Application.DTOs.AI.AIFeedbackDto feedback)
-        {
-            try
-            {
-                var userId = User.FindFirst("userId")?.Value;
-                var tenantIdClaim = User.FindFirst("tenantId")?.Value;
-                Guid tenantId = Guid.TryParse(tenantIdClaim, out var parsed) ? parsed : Guid.Empty;
-
-                if (!string.IsNullOrEmpty(feedback.UserCorrection) && feedback.UserCorrection.Length > 800)
-                {
-                    return BadRequest("Feedback correction is too long. Please restrict to 800 characters.");
-                }
-
-                string finalSql = feedback.GeneratedSql;
-
-                List<Dictionary<string, object>> data = null;
-                string successMessage = "I've corrected the query based on your feedback.";
-
-                int usedTokens = 0;
-                int usedCredits = 0;
-                var isSuperAdmin = User.IsInRole("SuperAdmin");
-                var allowedModules = await _crmService.GetUserAllowedModulesAsync(userId ?? "");
-
-                // If it's a correction, we "Heal" the query first
-                if (!feedback.IsGood && !string.IsNullOrWhiteSpace(feedback.UserCorrection))
-                {
-                    var aiResult = await _aiService.RefineQueryAsync(feedback.OriginalMessage, feedback.GeneratedSql, feedback.UserCorrection, tenantId, userId ?? "", isSuperAdmin, allowedModules);
-                    finalSql = aiResult.Sql ?? feedback.GeneratedSql;
-                    usedTokens = aiResult.TotalTokens;
-
-                    // Re-run the query
-                    try {
-                        data = await _crmService.ExecuteRawSqlAsync(finalSql, tenantId, isSuperAdmin, userId ?? "", feedback.OriginalMessage, allowedModules);
-
-                        if (usedTokens > 0)
-                        {
-                            usedCredits = await _credits.DeductCreditsForTokenUsageAsync(userId ?? "", usedTokens, "AI_FEEDBACK_CORRECTION");
-                        }
-                    } catch (Exception ex) {
-                        successMessage = "I refined the query, but encountered an error running it: " + ex.Message;
-                    }
-                }
-
-                await _knowledge.SaveFeedbackAsync(feedback.OriginalMessage, finalSql, feedback.IsGood, userId, feedback.UserCorrection);
-                
-                var balance = await _credits.GetRemainingCreditsAsync(userId ?? "");
-                
-                return Ok(new { 
-                    success = true, 
-                    sql = finalSql, 
-                    data = data,
-                    message = successMessage,
-                    count = data?.Count ?? 0,
-                    remainingCredits = balance,
-                    creditsUsed = usedCredits
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Error saving feedback: {ex.Message}");
-            }
         }
 
         [HttpPost("chat")]
         public async Task<IActionResult> Chat([FromForm] AIRequest request)
         {
             if (!string.IsNullOrEmpty(request.Message) && request.Message.Length > 800)
-            {
                 return BadRequest("Message is too long. Please restrict your question to 800 characters.");
-            }
+
             try
             {
-                // Extract TenantId from claims
                 var userId = User.FindFirst("userId")?.Value;
                 var tenantIdClaim = User.FindFirst("tenantId")?.Value;
                 var isSuperAdmin = User.IsInRole("SuperAdmin");
 
                 if (string.IsNullOrEmpty(tenantIdClaim) && !isSuperAdmin)
-                {
                     return Unauthorized("User is not assigned to a valid tenant.");
-                }
 
                 Guid tenantId = Guid.TryParse(tenantIdClaim, out var parsed) ? parsed : Guid.Empty;
                 var allowedModules = await _crmService.GetUserAllowedModulesAsync(userId ?? "");
 
-                // Unified processing logic in service
                 var response = await _crmService.ProcessChatRequestAsync(request, tenantId, userId ?? "", isSuperAdmin, allowedModules);
 
-                return Ok(response);
+                var mappedAction = MapAction(response.Action);
+                var chatResponse = new ChatResponse
+                {
+                    Message          = response.Message,
+                    Data             = response.Data ?? new List<Dictionary<string, object>>(),
+                    Count            = response.Count,
+                    Action           = mappedAction,
+                    Parameters       = IsCreateAction(response.Action) ? response.Parameters : null,
+                    Suggestions      = response.Suggestions,
+                    CreditsUsed      = response.CreditsUsed,
+                    RemainingCredits = response.RemainingCredits,
+                    ErrorMessage     = string.IsNullOrEmpty(response.ErrorMessage) ? null : response.ErrorMessage
+                };
+
+                return Ok(chatResponse);
             }
             catch (UnauthorizedAccessException ex)
             {
@@ -130,5 +66,17 @@ namespace AvinyaAICRM.API.Controllers
                 return StatusCode(500, $"An error occurred: {ex.Message}");
             }
         }
+
+        private static string MapAction(string action) => action switch
+        {
+            "get_summary"    => "query",
+            "create_lead"    => "create_lead",
+            "create_task"    => "create_task",
+            "create_expense" => "create_expense",
+            _                => "message"
+        };
+
+        private static bool IsCreateAction(string action) =>
+            action is "create_lead" or "create_task" or "create_expense";
     }
 }

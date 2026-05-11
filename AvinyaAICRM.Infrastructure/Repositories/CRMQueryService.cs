@@ -61,11 +61,24 @@ namespace AvinyaAICRM.Application.Services.AICHATS
         }
 
 
+        /// Injects SELECT TOP 200 if the SQL has no TOP clause — hard cap to prevent runaway queries.
+        private static string InjectTopIfMissing(string sql, int maxRows = 200)
+        {
+            if (string.IsNullOrWhiteSpace(sql)) return sql;
+            // Skip FOR JSON PATH queries — they aggregate, no row cap needed
+            if (sql.Contains("FOR JSON", StringComparison.OrdinalIgnoreCase)) return sql;
+            // Already has TOP — leave it alone
+            if (Regex.IsMatch(sql, @"\bSELECT\s+TOP\s*\(?\d+\)?", RegexOptions.IgnoreCase)) return sql;
+            // Inject TOP after SELECT
+            return Regex.Replace(sql, @"\bSELECT\b", $"SELECT TOP {maxRows}", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
+        }
+
         private async Task<List<Dictionary<string, object>>> ExecuteRawSqlWithHealingAsync(
             string sql, Guid tenantId, bool isSuperAdmin, string originalMessage, string userId = "",
             List<AIChatHistoryDto> history = null, List<string> allowedModules = null)
         {
             if (string.IsNullOrWhiteSpace(sql)) return new List<Dictionary<string, object>>();
+            sql = InjectTopIfMissing(sql);
             allowedModules ??= await GetUserAiPermissionClaimsAsync(userId, isSuperAdmin);
 
             // ── PHASE 1: Validate + Execute the original SQL ─────────────────────────
@@ -184,12 +197,15 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                 response.RemainingCredits = await _credits.GetRemainingCreditsAsync(userId);
             }
 
-            // 2. Validate File Upload Usage (Only for Expenses)
+            // 2. If a receipt file is uploaded but intent wasn't expense, re-route to expense creation
             if (request.ReceiptFile != null && response.Action != "create_expense")
             {
-                SetEmptyResponse(response, "This upload feature is currently only available for expense receipts. Please provide expense details (like amount and category) along with the image.");
-                response.Action = "message";
-                return response;
+                // File uploads are always expense receipts — override and reprocess as expense
+                var expenseResponse = await _aiService.AnalyzeMessageAsync(
+                    request.Message, tenantId, isSuperAdmin, permissionClaims, request.History, forceIntent: "create_expense");
+                expenseResponse.CreditsUsed = response.CreditsUsed;
+                expenseResponse.RemainingCredits = response.RemainingCredits;
+                response = expenseResponse;
             }
 
             var writeActions = new[] { "create_lead", "create_task", "create_expense" };
@@ -213,17 +229,9 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                         await _knowledge.RecordFirstTimeQueryAsync(request.Message, response.Sql, userId);
                     }
 
-                    // 4. Use Success Message from AI or Knowledge base
-                    var finalMessage = response.SuccessMessage ?? "I've found {count} results for you based on the database records.";
-                    
-                    if (data.Count == 0)
-                    {
-                        finalMessage = "I couldn't find any records matching your request.";
-                    }
-                    else
-                    {
-                        finalMessage = FormatMessage(finalMessage, response);
-                    }
+                    // 4. AI writes a human-like response using actual data values
+                    response.Message = await _aiService.FormatHumanResponseAsync(request.Message, data, data.Count);
+                    response.SuccessMessage = null; // prevent static successMessage from overriding the AI-formatted message
                     ConsolidateMessage(response);
                 }
                 catch (UnauthorizedAccessException ex)
@@ -233,8 +241,10 @@ namespace AvinyaAICRM.Application.Services.AICHATS
                 }
                 catch (Exception ex)
                 {
-                    response.ErrorMessage = "Query execution failed: " + ex.Message;
-                    response.Message = response.ErrorMessage;
+                    // Log internally but never expose raw SQL errors to the user
+                    _ = ex.Message; // available for logging if needed
+                    response.ErrorMessage = null;
+                    response.Message = "Sorry, I wasn't able to retrieve that data right now. Please try rephrasing your question or ask something else.";
                 }
 
                 ConsolidateMessage(response);
@@ -934,8 +944,7 @@ namespace AvinyaAICRM.Application.Services.AICHATS
         private static string GetFriendlyAccessArea(string table)
             => table switch
             {
-                "Leads" or "LeadStatusMaster" or "LeadSourceMaster" => "leads",
-                "LeadFollowups" or "LeadFollowupStatus" => "lead followups",
+                "Leads" or "LeadStatusMaster" or "LeadSourceMaster" or "LeadFollowups" or "LeadFollowupStatus" => "leads",
                 "Clients" or "States" or "Cities" => "clients",
                 "Quotations" or "QuotationItems" or "QuotationStatusMaster" => "quotations",
                 "Orders" or "OrderItems" or "OrderStatusMaster" or "DesignStatusMaster" => "orders",

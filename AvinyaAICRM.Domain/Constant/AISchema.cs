@@ -227,7 +227,7 @@ namespace AvinyaAICRM.Domain.Constant
         private static readonly List<ModuleTableAccess> ModuleTableAccessMap = new()
         {
             new(new[] { "lead", "leads", "lead_management", "leadmanagement", "lead_manage", "leadmanage" },
-                new[] { "Leads", "Clients", "LeadStatusMaster", "LeadSourceMaster", "States", "Cities" }),
+                new[] { "Leads", "Clients", "LeadStatusMaster", "LeadSourceMaster", "LeadFollowups", "LeadFollowupStatus", "States", "Cities" }),
             new(new[] { "lead_followup", "leadfollowup", "lead_followups", "leadfollowups", "followup", "followups" },
                 new[] { "LeadFollowups", "LeadFollowupStatus", "Leads", "Clients", "LeadStatusMaster" }),
             new(new[] { "client", "clients", "customer", "customers", "client_management", "clientmanagement" },

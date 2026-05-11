@@ -61,10 +61,15 @@ namespace AvinyaAICRM.Infrastructure.Repositories
                 intents.Add("query_invoices");
 
             // ── EXPENSES ──────────
-            if (msg.Contains("add expense") || msg.Contains("create expense") ||
-                msg.Contains("record expense") || msg.Contains("save expense") ||
-                msg.Contains("spent") || msg.Contains("spending") || 
-                msg.Contains("payment of") || msg.Contains("bill for"))
+            var expenseCreateKeywords = new[] { "add expense", "create expense", "add expanse", "create expanse",
+                "add exspense", "create exspense", "add expence", "create expence",
+                "record expense", "save expense", "spent", "spending", "payment of", "bill for" };
+            var expenseCategories = new[] { "travel", "food", "office", "utilities", "software", "miscellaneous" };
+            var hasAmount = System.Text.RegularExpressions.Regex.IsMatch(msg, @"\d+");
+            var hasCategory = expenseCategories.Any(c => msg.Contains(c));
+
+            if (expenseCreateKeywords.Any(k => msg.Contains(k)) ||
+                (hasAmount && hasCategory && (msg.Contains("expens") || msg.Contains("exspens") || msg.Contains("amount") || msg.Contains("paid") || msg.Contains("spend"))))
                 intents.Add("create_expense");
             else if (msg.Contains("expense") || msg.Contains("spending") ||
                 msg.Contains("travel expense") || msg.Contains("office expense") ||
@@ -147,199 +152,59 @@ namespace AvinyaAICRM.Infrastructure.Repositories
             return intents;
         }
 
-        public async Task<AIResponse> AnalyzeMessageAsync(string userMessage, Guid tenantId, bool isSuperAdmin, List<string> allowedModules, List<AIChatHistoryDto> history = null)
+        public async Task<AIResponse> AnalyzeMessageAsync(string userMessage, Guid tenantId, bool isSuperAdmin, List<string> allowedModules, List<AIChatHistoryDto> history = null, string forceIntent = null)
         {
             var apiKey = _config["Groq:ApiKey"];
             var baseUrl = GetBaseUrl();
 
             var lowerMsg = userMessage.ToLower();
-            
-            // --- CONTEXT-AWARE INTENT DETECTION ---
-            // Combine current message with last 3 messages of history for better intent detection
+
+            // Context-aware intent detection — combine current message + last 3 USER messages only
+            // (AI responses are excluded to prevent keywords in AI text from polluting intent detection)
             var detectionString = lowerMsg;
             if (history != null && history.Any())
             {
-                var recentHistory = string.Join(" ", history.TakeLast(3).Select(h => h.Content.ToLower()));
-                detectionString = recentHistory + " " + lowerMsg;
+                var recentUserHistory = string.Join(" ", history.TakeLast(6)
+                    .Where(h => h.Role.Equals("user", StringComparison.OrdinalIgnoreCase))
+                    .TakeLast(3)
+                    .Select(h => h.Content.ToLower()));
+                if (!string.IsNullOrEmpty(recentUserHistory))
+                    detectionString = recentUserHistory + " " + lowerMsg;
             }
 
-            var intents = DetectIntents(detectionString);
-            var targetedSchema = AISchema.GetContextForIntent(intents, allowedModules, isSuperAdmin);
+            var intents = string.IsNullOrEmpty(forceIntent)
+                ? DetectIntents(detectionString)
+                : new List<string> { forceIntent };
+
             var allowedChatActions = ResolveAllowedChatActions(allowedModules, isSuperAdmin);
-            var allowedActionText = allowedChatActions.Count == 0
-                ? "none"
-                : string.Join(", ", allowedChatActions);
+            var allowedActionText = allowedChatActions.Count == 0 ? "none" : string.Join(", ", allowedChatActions);
             var historyContext = BuildHistoryContext(history);
 
-            // ─── DYNAMIC MODEL SELECTION (SPEED VS BRAIN) ────────────────────
-            var isComplex = intents.Count > 1 || 
-                            lowerMsg.Contains("revenue") || lowerMsg.Contains("trend") || 
-                            lowerMsg.Contains("compare") || lowerMsg.Contains("profit") || 
-                            lowerMsg.Contains("report") || lowerMsg.Contains("summary") || 
-                            lowerMsg.Contains("how many") || lowerMsg.Contains("top ");
-                            
-            var model = isComplex ? SmartModel : DefaultModel;
+            // Route to focused prompt: create or query
+            var isCreate = intents.Any(i => i.StartsWith("create_"));
 
-         var prompt = $@"
-                You are a CRM Data Analyst and T-SQL Expert. Generate a SQL query based on the JSON context provided.
+            string prompt;
+            string model;
 
-                GLOBAL RULES:
-                - SECURITY      : Every single query MUST filter by 'TenantId = @TenantId'. This is MANDATORY.
-                - SECURITY HINT : Check the 'hint' property in the table schema. If it says 'NO TenantId', YOU MUST JOIN a parent table that has it (e.g., JOIN Leads, Projects, AspNetUsers, or Teams) and filter by that table's TenantId.
-                - INTEGRITY     : ONLY include 'IsDeleted = 0' IF the table explicitly has that column in the schema. (Note: TaskOccurrences and TaskSeries do NOT have IsDeleted, use IsActive for TaskSeries if relevant).
-                - HALLUCINATION : Only use tables and columns defined in the JSON context.
-                - LIMITS        : Use 'SELECT TOP 50' if the user doesn't specify a count.
-                - TIME          : Current Date/Time is {DateTime.Now:f} (Year {DateTime.Now.Year}).
-                - PARAMETERS    : You MUST use '@TenantId' parameter in every WHERE clause. NEVER hardcode a Guid or ID for TenantId.
-                - USER FRIENDLY : NEVER SELECT raw internal IDs (like ClientID, StatusID) in the final output. ALWAYS JOIN the reference tables and SELECT the human-readable names (e.g. CompanyName, StatusName, SourceName).
-                - PERMISSIONS   : The JSON context contains ONLY the tables this user can access. If the requested module/table is missing, return action ""message"", empty sql, and explain that the user does not have permission for that data.
-                - ACTION ACCESS : Allowed write actions for this user: {allowedActionText}. Never choose a create_* action that is not listed here.
-                - PARAMETER ACCUMULATION: The ""parameters"" object MUST include data from the RECENT CONVERSATION HISTORY. If the user provided a value in a previous turn (e.g., ContactPerson or RequirementDetails), you MUST include it in the current response. NEVER clear out a parameter that was already established.
-                - DURATION vs COUNT: 
-                    - IF question contains 'days', 'weeks', 'months', or 'years' → Use DATEADD filter.
-                    - IF question contains ONLY a number (e.g., 'last 5', 'top 10') → Use SELECT TOP and ORDER BY Date DESC.
-                    - CRITICAL: Never add DATEADD filters if the user did not say 'days/weeks/months'.
-
-                KEYWORD HINTS (apply when the user question matches):
-                - ""today""           → CAST(DateColumn AS DATE) = CAST(GETDATE() AS DATE)
-                - ""this week""       → DATEPART(WEEK, DateColumn) = DATEPART(WEEK, GETDATE()) AND YEAR(DateColumn) = YEAR(GETDATE())
-                - ""this month""      → MONTH(DateColumn) = MONTH(GETDATE()) AND YEAR(DateColumn) = YEAR(GETDATE())
-                - ""last month""      → MONTH(DateColumn) = MONTH(DATEADD(MONTH,-1,GETDATE())) AND YEAR(DateColumn) = YEAR(DATEADD(MONTH,-1,GETDATE()))
-                - ""this year""       → YEAR(DateColumn) = YEAR(GETDATE())
-                - ""last X days""     → DateColumn >= DATEADD(DAY, -X, GETDATE())
-                - ""last X [items]""  → SELECT TOP X ... ORDER BY DateColumn DESC
-                - ""overdue""         → DateColumn < GETDATE()
-                - ""upcoming""        → DateColumn >= GETDATE()
-                - ""revenue""         → SUM(Invoices.GrandTotal)
-                - ""outstanding""     → SUM(Invoices.AmountAfterDiscount)
-                - ""collected""       → SUM(Payments.Amount)
-                - ""top clients""     → GROUP BY + ORDER BY SUM DESC
-                - ""by category""     → GROUP BY CategoryName
-                - ""by status""       → GROUP BY StatusName
-                - ""by source""       → GROUP BY SourceName
-                - ""trend""           → GROUP BY MONTH(DateColumn), YEAR(DateColumn)
-                - ""summary""         → aggregate query (COUNT, SUM)
-
-                RULES:
-                1. Only use DATEADD filters if the user says 'days', 'months', or 'weeks'.
-                2. If they say 'last 5' or 'last 7' (WITHOUT the word 'days'), use 'SELECT TOP' with 'ORDER BY Date DESC'.
-                3. NEVER combine SELECT TOP with DATEADD unless the user specifically asked for both.
-                4. GLOBAL SEARCH: If the user provides a search term (name, ID, or reference) without specifying a column, you MUST search for that term across all relevant human-readable columns (CompanyName, ContactPerson, LeadNo, OrderNo, etc.) using LIKE and OR. Do NOT just check one specific ID column.
-                5. ANTI-HALLUCINATION: NEVER invent table names (like 'LeadNotes' or 'LeadItems'). ONLY use the tables provided in the JSON context. Notes for Leads are located in `Leads.Notes` or `Leads.RequirementDetails`.
-                6. DYNAMIC SUGGESTIONS: You MUST always provide 3-5 highly relevant, short follow-up questions or actions in the ""suggestions"" array.
-
-                DATABASE CONTEXT (JSON):
-                {targetedSchema}
-                
-                CRITICAL NEGATIVE RULES:
-                - If action is 'create_lead', 'create_task', or 'create_expense', you MUST set ""sql"": """" (empty string).
-                - NEVER generate INSERT, UPDATE, or DELETE SQL statements. The system only allows SELECT.
-
-                OUTPUT FORMAT (STRICT JSON — no extra text outside this object):
-                {{
-                ""action"": ""[get_summary | create_lead | create_task | create_expense | message]"",
-                ""intent"": ""[query_leads | create_lead | create_task | create_expense | general_chat | ...]"",
-                ""sql"": ""[YOUR_SINGLE_LINE_SQL_HERE (only if action is get_summary)]"",
-                ""parameters"": {{ 
-                    // --- LEAD CREATION FIELDS (Use only for create_lead) ---
-                    ""CompanyName"": ""The name of the company/client"",
-                    ""RequirementDetails"": ""(Required) What the lead needs/requires"",
-                    ""ContactPerson"": ""(Required) Name of the contact person"",
-                    ""Mobile"": ""Contact mobile number"",
-                    ""Email"": ""Contact email address"",
-                    ""ClientType"": ""[Individual | Company] (Individual if personal, Company if it's a company/organization)"",
-                    ""GSTNo"": ""GST number of the company"",
-                    ""BillingAddress"": ""Full billing address"",
-                    ""StateID"": ""State name (resolved by backend)"",
-                    ""CityID"": ""City name (resolved by backend)"",
-                    ""LeadSourceID"": ""Source name, e.g. 'WhatsApp'"",
-                    ""LeadStatusID"": ""Status name, e.g. 'Hot'"",
-                    ""NextFollowupDate"": ""Date and time for the next followup (ALWAYS use ISO format: YYYY-MM-DD HH:mm:ss or YYYY-MM-DD)"",
-                    ""OtherSources"": ""Any other source info"",
-                    ""Links"": ""Relevant social/web links"",
-
-                    // --- TASK CREATION FIELDS (Use only for create_task) ---
-                    ""Title"": ""(Required) Short summary of the task"",
-                    ""Description"": ""Detailed description of the task"",
-                    ""DueDateTime"": ""(Required) Date and time when task is due"",
-                    ""ListName"": ""Name of the task list to add to (e.g. 'Work', 'General')"",
-                    ""TaskType"": ""[Personal | Team] (Required) Who is this for?"",
-                    ""TeamName"": ""(Required if TaskType is Team) Name of the team"",
-                    ""AssignToName"": ""Full name of the person to assign to"",
-                    ""ProjectName"": ""Name of the project this task belongs to"",
-                    ""ReminderAt"": ""DateTime for a reminder notification"",
-                    ""IsRecurring"": ""[true | false] If the task repeats"",
-                    ""RecurrenceRule"": ""RRULE string if recurring (e.g. 'FREQ=DAILY')"",
-
-                    // --- EXPENSE CREATION FIELDS (Use only for create_expense) ---
-                    ""Amount"": ""(Required) The numeric amount spent"",
-                    ""ExpenseDate"": ""(Required) Date of the expense (default to today)"",
-                    ""CategoryName"": ""(Required) Category like Office, Travel, Food, etc."",
-                    ""PaymentMode"": ""Mode like Cash, UPI, Card, etc."",
-                    ""Status"": ""[Paid | Unpaid | Partial] (Default to Paid if user says 'paid', else Unpaid)"",
-                    
-                    // --- SHARED / MISC FIELDS ---
-                    ""Notes"": ""Additional internal notes"",
-                    ""AssignedTo"": ""Alias for AssignToName (Full Name)""
-                }},
-                ""successMessage"": ""Write a highly conversational, engaging business reply. 
-                    - For 'create_lead' or 'create_task', use {{FieldName}} syntax for parameters (e.g., 'I created a lead for {{CompanyName}}'). 
-                    - For 'get_summary', ALWAYS use {{count}} for the total record count (e.g., 'I found {{count}} leads.').
-                    - IMPORTANT: Do NOT mention counts for 'create_lead' or 'create_task' unless explicitly relevant."",
-                ""errorMessage"": ""Use this ONLY to ask for MISSING REQUIRED FIELDS or explain errors. Keep it brief."",
-                ""suggestions"": [""Next logical question 1"", ""Next logical question 2"", ""Next logical question 3""]
-                }}
- 
-                ACTION SELECTION RULES:
-                1. If the user wants to ADD, CREATE, or REGISTER a lead:
-                   - Only choose ""create_lead"" when it is listed in Allowed write actions.
-                   - IF ContactPerson, ClientType, and RequirementDetails are provided → action: ""create_lead"".
-                   - IF any are missing → action: ""message"" and ask the user for the missing info.
-                2. If the user wants to ADD, CREATE, or SCHEDULE a task/todo:
-                   - Only choose ""create_task"" when it is listed in Allowed write actions.
-                   - IF Title, DueDateTime, and TaskType are provided → action: ""create_task"".
-                   - IF any are missing → action: ""message"" and ask the user for the missing info.
-                3. If the user wants to ADD, RECORD, or SAVE an expense:
-                   - Only choose ""create_expense"" when it is listed in Allowed write actions.
-                   - IF Amount and CategoryName are provided → action: ""create_expense"".
-                   - IF either is missing → action: ""message"" and ask for missing info.
-                4. If the user asks a question that requires data from the database → action: ""get_summary"".
-                5. If the user is just saying hello or asking a general question → action: ""message"".
-
-                ACTION 'create_expense' RULES:
-                - ALWAYS extract Amount and CategoryName.
-                - Extract ExpenseDate if mentioned, otherwise use today.
-                - SET Status to 'Paid' if the user uses past tense or confirmation words like ""paid"", ""spent"", ""kharch kiya"", ""dediya"". 
-                - SET Status to 'Unpaid' if they say ""pending"", ""bill received"", ""to pay"".
-                - DEFAULT Status to 'Unpaid' if intent is ambiguous.
-                - If the user mentions a payment method (Cash, Bank, GPay, etc.), extract into PaymentMode.
-                - If the user provides a receipt or file, AI should assume this is an expense intent.
-
-                ACTION 'create_lead' RULES:
-                - ALWAYS extract ContactPerson and RequirementDetails.
-                - NEVER require CompanyName. It is optional. Do not ask for it if it is missing.
-                - If the user has not provided a mobile number or email, do NOT include them in the parameters. Do not hallucinate or use default values for them.
-                - If the user specifies a follow-up date like 'next week' or 'tomorrow', YOU MUST calculate the actual date based on the current date provided in the prompt and output it in ISO format (YYYY-MM-DD HH:mm:ss or YYYY-MM-DD). If the user mentions a specific time, include it.
-                - If the user provides a name like John Doe, extract it as `ContactPerson`.
-                - If the user says Individual or Company, extract it as `ClientType`.
-                - IF the user mentions a source like 'Referral', 'Facebook', 'Other', etc., extract it into `OtherSources`.
-                - IF the user has NOT provided ContactPerson and RequirementDetails yet (check both current message and history), YOU MUST set `action: message` and ask for them (do not ask for CompanyName).
-                - NEVER use Required or Missing as a value in parameters. Use actual user data only.
-
-                ACTION 'create_task' RULES:
-                - Extract Title, DueDateTime, and TaskType.
-                - If the user says ""team task"", ""task for the team"", or mentions a team → TaskType: ""Team"".
-                - IF TaskType is not mentioned, set `errorMessage` to ask: ""Is this for personal use or for a team?"".
-                - IF TaskType is Team and TeamName is missing, set `errorMessage` to ask: ""Which team should I assign this to?"".
-                - IF DueDateTime is missing, set `errorMessage` to ask: ""When is this task due?"".
-
-                CONVERSATION CONTEXT:
-                {historyContext}
-                
-                LATEST USER MESSAGE: {userMessage}
-
-                Generate ONLY the JSON object. No explanation, no markdown.
-                ";
+            if (isCreate)
+            {
+                // ── SMALL FOCUSED CREATE PROMPT ──────────────────────────────────────
+                model = DefaultModel;
+                var createIntent = intents.First(i => i.StartsWith("create_"));
+                prompt = BuildCreatePrompt(userMessage, historyContext, allowedActionText, createIntent);
+            }
+            else
+            {
+                // ── FOCUSED QUERY PROMPT ─────────────────────────────────────────────
+                var targetedSchema = AISchema.GetContextForIntent(intents, allowedModules, isSuperAdmin);
+                var isComplex = intents.Count > 1 ||
+                                lowerMsg.Contains("revenue") || lowerMsg.Contains("trend") ||
+                                lowerMsg.Contains("compare") || lowerMsg.Contains("profit") ||
+                                lowerMsg.Contains("report") || lowerMsg.Contains("summary") ||
+                                lowerMsg.Contains("how many") || lowerMsg.Contains("top ");
+                model = isComplex ? SmartModel : DefaultModel;
+                prompt = BuildQueryPrompt(userMessage, targetedSchema, historyContext, allowedActionText);
+            }
 
             var groqResult = await CallGroqWithFallbackAsync(prompt, apiKey, model, GetFallbackModel(model), baseUrl);
 
@@ -375,6 +240,212 @@ namespace AvinyaAICRM.Infrastructure.Repositories
             {
                 return new AIResponse { Action = "message", ErrorMessage = "Error parsing Groq response." };
             }
+        }
+
+        // ── PROMPT BUILDERS ───────────────────────────────────────────────────────
+
+        private static string BuildQueryPrompt(string userMessage, string targetedSchema, string historyContext, string allowedActionText)
+        {
+            return $@"You are a CRM T-SQL Expert for Avinya CRM (a printing and design business).
+            Generate ONE SQL Server SELECT query for the user's question.
+
+            MANDATORY SECURITY:
+            - Every query MUST have: WHERE TenantId = @TenantId
+            - Every query MUST have: IsDeleted = 0 (only on tables that have this column)
+            - Tables without TenantId (LeadFollowups, OrderItems, QuotationItems, Payments, TaskSeries, TaskOccurrences, TeamMembers): JOIN parent table that has TenantId
+            - ONLY SELECT allowed. Never UPDATE/DELETE/INSERT/DROP/EXEC
+            - Use @TenantId and @UserId as parameters. Never hardcode GUIDs
+            - SELECT TOP 50 by default. If user says ""all"", use TOP 200. Never generate a SELECT without TOP — max allowed is 200
+            - Never select raw ID columns — always JOIN reference tables and show human-readable names
+
+            TIME: Today is {DateTime.Now:yyyy-MM-dd}, Time: {DateTime.Now:HH:mm} (Year {DateTime.Now.Year})
+
+            DATE PATTERNS (apply exactly):
+            ""today""       → CAST(DateCol AS DATE) = CAST(GETDATE() AS DATE)
+            ""this week""   → DATEPART(WEEK, DateCol) = DATEPART(WEEK, GETDATE()) AND YEAR(DateCol) = YEAR(GETDATE())
+            ""this month""  → MONTH(DateCol) = MONTH(GETDATE()) AND YEAR(DateCol) = YEAR(GETDATE())
+            ""last month""  → MONTH(DateCol) = MONTH(DATEADD(MONTH,-1,GETDATE())) AND YEAR(DateCol) = YEAR(DATEADD(MONTH,-1,GETDATE()))
+            ""this year""   → YEAR(DateCol) = YEAR(GETDATE())
+            ""last X days"" → DateCol >= DATEADD(DAY, -X, GETDATE())
+            ""overdue""     → DateCol < GETDATE()
+            ""upcoming""    → DateCol >= GETDATE()
+            IMPORTANT: ""last 5"" or ""last 7"" WITHOUT the word 'days/weeks' = SELECT TOP N, NOT DATEADD
+
+            REAL STATUS VALUES — use EXACTLY as written, no variations:
+            Lead Status (StatusName):    'New' | 'Quotation Sent' | 'Converted' | 'JobWork In Process' | 'Dispatched To Customer' | 'Delivered/Done' | 'Lost'
+            Lead Source (SourceName):    'Call' | 'Walk-in' | 'WhatsApp' | 'Referral' | 'Other Sources'
+            Order Status (StatusID int): 1=Pending | 2=In Progress | 3=Inward Done | 4=Ready | 5=Delivered
+            Design Status (int):         1=Pending | 2=In Progress | 3=Approved by Client | 4=Rejected
+            Quotation Status (StatusName): 'Sent' | 'Accepted' | 'Rejected'
+            Invoice Status (int):        1=Pending | 2=Partial | 3=Receive
+            Followup Status (int):       1=Pending | 2=In Progress | 3=Completed
+            Expense Category (CategoryName): 'Travel' | 'Food' | 'Office Supplies' | 'Utilities' | 'Software' | 'Miscellaneous' | 'Other'
+            Project Status (StatusID int): 1=Planning | 2=Active | 3=Completed
+            Project Priority (PriorityID int): 1=Low | 2=Medium | 3=High
+            Task Status (varchar):       'Pending' | 'Completed' | 'Skipped'
+
+            BUSINESS DEFINITIONS:
+            Revenue     = SUM(Invoices.GrandTotal) WHERE IsDeleted=0
+            Outstanding = SUM(Invoices.AmountAfterDiscount) WHERE IsDeleted=0  ← column is AmountAfterDiscount, NOT OutstandingAmount
+            Collected   = SUM(Payments.Amount)
+            Profit      = Revenue - SUM(Expenses.Amount) WHERE IsDeleted=0
+            NEVER use column names: OutstandingAmount, TotalRevenue, TotalAmount — these do not exist in the DB
+
+            QUERY RULES:
+            1. GLOBAL SEARCH: If user provides a name/ID without specifying column, search across ALL human-readable columns using LIKE '%term%' with OR
+            2. NEVER invent table names. Only use tables in the DATABASE CONTEXT below
+            3. Notes/requirements for leads are in Leads.Notes and Leads.RequirementDetails
+            4. For ""my leads"" / ""assigned to me"" → filter AssignedTo = @UserId or use the logged-in user name
+            5. Always JOIN reference tables to show names not IDs (CompanyName, StatusName, SourceName, CategoryName etc.)
+
+            PERMISSIONS: Use ONLY tables listed in DATABASE CONTEXT. If data not available, return action ""message"" explaining no permission.
+            ALLOWED WRITE ACTIONS: {allowedActionText}
+
+            DATABASE CONTEXT (JSON):
+            {targetedSchema}
+
+            CONVERSATION HISTORY:
+            {historyContext}
+
+            USER QUESTION: {userMessage}
+
+            Return ONLY this JSON — no extra text, no markdown:
+            {{
+              ""action"": ""get_summary"",
+              ""intent"": ""[query_leads|query_orders|query_invoices|query_expenses|query_clients|query_followups|query_tasks|query_projects|query_users|general_chat]"",
+              ""sql"": ""YOUR_SINGLE_LINE_SQL_HERE"",
+              ""parameters"": {{}},
+              ""successMessage"": """",
+              ""suggestions"": [""<3 short follow-up actions directly related to this query. RULES: Only suggest creating a Lead, Task, or Expense — these are the ONLY 3 things that can be created. Never suggest creating followups, orders, invoices, quotations, clients, or anything else. Prefer actionable next steps like 'Show converted leads', 'Add a new lead', 'Show pending tasks', 'Create a task', 'Show this month expenses', 'Add an expense'>""]
+            }}";
+        }
+
+        private static string BuildCreatePrompt(string userMessage, string historyContext, string allowedActionText, string createIntent)
+        {
+            var today = DateTime.Now.ToString("yyyy-MM-dd");
+            var now   = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+
+            if (createIntent == "create_lead")
+            {
+                return $@"Extract lead creation parameters. Today: {today}. Allowed: {allowedActionText}
+
+                RULES:
+                - Required: ContactPerson, RequirementDetails. Default LeadStatusID: 'New'
+                - Optional: CompanyName, Mobile, Email, ClientType (Individual|Company), LeadSourceID, NextFollowupDate, AssignedTo, Notes
+                - Source: 'Call'|'Walk-in'|'WhatsApp'|'Referral'|'Other Sources'
+                - Status: 'New'|'Quotation Sent'|'Converted'|'JobWork In Process'|'Dispatched To Customer'|'Delivered/Done'|'Lost'
+                - Dates: 'tomorrow'={DateTime.Now.AddDays(1):yyyy-MM-dd} 'next week'={DateTime.Now.AddDays(7):yyyy-MM-dd} '30 june'={DateTime.Now.Year}-06-30
+                - If user asks WHAT details are needed → action:""message"", errorMessage:""To create a lead I need: Contact person name and Requirement details. Optionally: company name, mobile, email, source, followup date, assigned to.""
+                - NEVER invent Mobile/Email. If ContactPerson OR RequirementDetails missing → action:""message"", ask for it.
+                - Check history for already-provided values and include them.
+                {(string.IsNullOrEmpty(historyContext) ? "" : $"\nHISTORY:\n{historyContext}")}
+                USER: {userMessage}
+
+                Return ONLY JSON:
+                {{""action"":""create_lead"",""intent"":""create_lead"",""sql"":"""",""parameters"":{{""ContactPerson"":"""",""RequirementDetails"":"""",""CompanyName"":"""",""Mobile"":"""",""Email"":"""",""ClientType"":"""",""LeadSourceID"":"""",""LeadStatusID"":""New"",""NextFollowupDate"":"""",""AssignedTo"":"""",""Notes"":""""}},""successMessage"":""Lead created for {{ContactPerson}}"",""errorMessage"":"""",""suggestions"":[""Show all my leads"",""Show today's followups"",""Add another lead""]}}";
+            }
+
+            if (createIntent == "create_task")
+            {
+                return $@"Extract task creation parameters. Today: {now}. Allowed: {allowedActionText}
+
+                RULES:
+                - Required: Title, DueDateTime (ISO), TaskType (Personal|Team)
+                - Optional: Description, Notes, ListName, TeamName, AssignToName, ProjectName, ReminderAt
+                - If user asks WHAT details are needed → action:""message"", errorMessage:""To create a task I need: Task title, Due date and time, Task type (Personal or Team). Optionally: team name, assign to someone, project name.""
+                - If TaskType missing → action:""message"", ask ""Is this personal or for a team?""
+                - If TaskType=Team and TeamName missing → action:""message"", ask which team
+                - If DueDateTime missing → action:""message"", ask when
+                - Check history for already-provided values.
+                {(string.IsNullOrEmpty(historyContext) ? "" : $"\nHISTORY:\n{historyContext}")}
+                USER: {userMessage}
+
+                Return ONLY JSON:
+                {{""action"":""create_task"",""intent"":""create_task"",""sql"":"""",""parameters"":{{""Title"":"""",""DueDateTime"":"""",""TaskType"":"""",""Description"":"""",""TeamName"":"""",""AssignToName"":"""",""ProjectName"":"""",""ReminderAt"":"""",""Notes"":""""}},""successMessage"":""Task '{{Title}}' scheduled"",""errorMessage"":"""",""suggestions"":[""Show my pending tasks"",""Show overdue tasks"",""Add another task""]}}";
+            }
+
+                // create_expense
+                return $@"Extract expense creation parameters. Today: {today}. Allowed: {allowedActionText}
+
+                RULES:
+                - Required: Amount (number), CategoryName
+                - Optional: ExpenseDate (default {today}), Description, PaymentMode, Status
+                - Category: 'Travel'|'Food'|'Office Supplies'|'Utilities'|'Software'|'Miscellaneous'|'Other'
+                - Status: 'Paid' if paid/spent, else 'Unpaid'
+                - PaymentMode: Cash|UPI|Card|Bank Transfer|GPay|PhonePe
+                - Extract Amount from any number in the message (e.g. ""2000"", ""₹500"", ""rs 1500"")
+                - Extract CategoryName from context: 'travel'→'Travel', 'food'→'Food', 'office'→'Office Supplies', 'utility'/'utilities'→'Utilities', 'software'→'Software', else→'Miscellaneous'
+                - If user asks WHAT details are needed → action:""message"", errorMessage:""To add an expense I need: Amount and Category (Travel, Food, Office Supplies, Utilities, Software, Miscellaneous, Other). Optionally: date, description, payment mode.""
+                - ONLY ask for missing fields AFTER trying to extract them from the message. If Amount AND CategoryName found → proceed with create_expense action.
+                - Check history for already-provided values.
+                {(string.IsNullOrEmpty(historyContext) ? "" : $"\nHISTORY:\n{historyContext}")}
+                USER: {userMessage}
+
+                Return ONLY JSON:
+                {{""action"":""create_expense"",""intent"":""create_expense"",""sql"":"""",""parameters"":{{""Amount"":"""",""CategoryName"":"""",""ExpenseDate"":""{today}"",""Description"":"""",""PaymentMode"":"""",""Status"":""Unpaid""}},""successMessage"":""Expense of ₹{{Amount}} recorded"",""errorMessage"":"""",""suggestions"":[""Show this month's expenses"",""Show total expenses by category"",""Add another expense""]}}";
+        }
+
+        // ── HUMAN RESPONSE FORMATTER ─────────────────────────────────────────────
+
+        public async Task<string> FormatHumanResponseAsync(string userMessage, List<Dictionary<string, object>> data, int count)
+        {
+            var apiKey = _config["Groq:FormatApiKey"] ?? _config["Groq:ApiKey"];
+            var baseUrl = GetBaseUrl();
+
+            var dataSummary = BuildDataSummary(data);
+
+            var prompt = $@"You are Avinya, a friendly assistant for a printing and design business CRM.
+
+                User asked: ""{userMessage}""
+                Records found: {count}
+                Sample data: {dataSummary}
+
+                Write a natural, warm 1-2 sentence response. Rules:
+                - Use actual names and numbers from the data (CompanyName, StatusName, amounts etc.)
+                - NEVER say ""I found X results"" or ""Here are the results"" or ""Based on the data""
+                - If 0 records: explain what was checked and suggest what the user could try instead
+                - If data exists: mention specific highlights (e.g. top name, total amount, who has most)
+                - End with ONE short follow-up question only if it adds value
+                - Plain conversational text only — no bullet points, no markdown, no lists
+
+                Response:";
+
+            var result = await CallGroqAsync(prompt, apiKey, DefaultModel, baseUrl);
+
+            if (string.IsNullOrWhiteSpace(result.Text))
+                return count == 0
+                    ? "No records found matching your request."
+                    : $"Found {count} records for your query.";
+
+            return result.Text.Trim();
+        }
+
+        private static string BuildDataSummary(List<Dictionary<string, object>> data)
+        {
+            if (data == null || !data.Any()) return "No records found.";
+
+            // If it's a JSON result (FOR JSON PATH query), just indicate count
+            if (data.Count == 1 && data[0].ContainsKey("JsonResult"))
+                return "Summary data returned (aggregated report).";
+
+            // Take first 5 rows, first 6 columns of each
+            var rows = data.Take(5).Select(row =>
+            {
+                var fields = row
+                    .Where(kv => kv.Value != null && !kv.Key.EndsWith("ID", StringComparison.OrdinalIgnoreCase))
+                    .Take(6)
+                    .Select(kv =>
+                    {
+                        var val = kv.Value?.ToString() ?? "";
+                        // Format dates nicely
+                        if (DateTime.TryParse(val, out var dt))
+                            val = dt.ToString("dd MMM yyyy");
+                        return $"{kv.Key}: {val}";
+                    });
+                return string.Join(", ", fields);
+            });
+
+            return string.Join(" | ", rows);
         }
 
         public async Task<AIResponse> RefineTemplateAsync(string userMessage, string templateSql, Guid tenantId, bool isSuperAdmin)
@@ -441,7 +512,7 @@ namespace AvinyaAICRM.Infrastructure.Repositories
 
    
 
-        public async Task<string> FixSqlAsync(string badSql, string errorMessage, string originalQuestion, Guid tenantId, string userId, bool isSuperAdmin, List<AIChatHistoryDto> history = null, List<string> allowedModules = null)
+        public async Task<string> FixSqlAsync(string badSql, string errorMessage, string originalQuestion, Guid tenantId, string userId, bool isSuperAdmin, List<AIChatHistoryDto>? history = null, List<string>? allowedModules = null)
         {
             var apiKey = _config["Groq:ApiKey"];
             var model = GetConfiguredModel();
