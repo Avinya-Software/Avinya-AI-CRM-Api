@@ -31,5 +31,6 @@ namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.User
         Task<string> GeneratePasswordResetTokenAsync(AppUser user);
         Task<IdentityResult> ResetPasswordAsync(AppUser user, string token, string newPassword);
         Task<bool> HasPasswordAsync(AppUser user);
+        Task AssignAllPermissionsToUserAsync(string userId);
     }
 }

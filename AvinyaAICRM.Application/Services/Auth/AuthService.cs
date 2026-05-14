@@ -49,7 +49,7 @@ namespace AvinyaAICRM.Application.Services.Auth
                 Email = request.Email,
                 PhoneNumber = request.CompanyPhone,
                 FullName = request.FullName,
-                IsActive = false,
+                IsActive = true,
                 CreatedAt = DateTime.Now
             };
 
@@ -68,13 +68,15 @@ namespace AvinyaAICRM.Application.Services.Auth
                 CompanyName = request.CompanyName,
                 CompanyEmail = request.Email,
                 CompanyPhone =request.CompanyPhone,
-                IsActive = false,
-                IsApproved = false
+                IsActive = true,
+                IsApproved = true
             });
 
             user.TenantId = tenant.TenantId;
 
             await _userRepo.UpdateAsync(user);
+
+            await _userRepo.AssignAllPermissionsToUserAsync(user.Id);
 
             // Send Welcome Email
             try

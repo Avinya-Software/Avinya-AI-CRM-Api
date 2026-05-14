@@ -5,6 +5,8 @@ using AvinyaAICRM.Infrastructure.Persistence;
 using AvinyaAICRM.Shared.Model;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using AvinyaAICRM.Domain.Entities.User;
+using AvinyaAICRM.Domain.Entities.Permission;
 
 namespace AvinyaAICRM.Infrastructure.Repositories.User
 {
@@ -226,6 +228,21 @@ namespace AvinyaAICRM.Infrastructure.Repositories.User
         public async Task<bool> HasPasswordAsync(AppUser user)
         {
             return await _userManager.HasPasswordAsync(user);
+        }
+
+        public async Task AssignAllPermissionsToUserAsync(string userId)
+        {
+            var permissionIds = await _context.Permissions.Select(p => p.PermissionId).ToListAsync();
+            var userPermissions = permissionIds.Select(pId => new UserPermission
+            {
+                UserId = userId,
+                PermissionId = pId,
+                GrantedByUserId = userId,
+                GrantedAt = DateTime.Now
+            }).ToList();
+
+            await _context.UserPermissions.AddRangeAsync(userPermissions);
+            await _context.SaveChangesAsync();
         }
     }
 }

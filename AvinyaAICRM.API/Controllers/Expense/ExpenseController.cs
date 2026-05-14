@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Expense;
+using AvinyaAICRM.Application.DTOs.Expense;
 using AvinyaAICRM.Application.Interfaces.ServiceInterface.Expense;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -61,6 +61,13 @@ namespace AvinyaAICRM.API.Controllers.Expense
         public async Task<IActionResult> Delete(Guid id)
         {
             var response = await _expenseService.DeleteAsync(id);
+            return new JsonResult(response) { StatusCode = response.StatusCode };
+        }
+
+        [HttpGet("get-ExpenseType-dropdown")]
+        public async Task<IActionResult> GetExpenseTypeDropdown()
+        {
+            var response = await _expenseService.GetCategoriesAsync();
             return new JsonResult(response) { StatusCode = response.StatusCode };
         }
     }

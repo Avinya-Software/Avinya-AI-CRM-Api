@@ -105,5 +105,12 @@ namespace AvinyaAICRM.Infrastructure.Repositories.Expenses
             _context.Expenses.Update(expense);
             return await _context.SaveChangesAsync() > 0;
         }
+
+        public async Task<List<ExpenseCategory>> GetCategoriesAsync()
+        {
+            return await _context.ExpenseCategories
+                .Where(x => x.IsActive && !x.IsDeleted)
+                .ToListAsync();
+        }
     }
 }

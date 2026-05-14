@@ -153,6 +153,13 @@ namespace AvinyaAICRM.Application.Services.Expense
             return CommonHelper.SuccessResponseMessage("Expense deleted successfully", null);
         }
 
+        public async Task<ResponseModel> GetCategoriesAsync()
+        {
+            var categories = await _repository.GetCategoriesAsync();
+            var dropdownData = categories.Select(c => new { id = c.CategoryId.ToString(), name = c.CategoryName }).ToList();
+            return CommonHelper.GetResponseMessage(dropdownData);
+        }
+
         // ── Private Helpers ────────────────────────────────────────────────────────
 
         private async Task<FileUploadResult> SaveReceiptFileAsync(IFormFile file, string tenantId)

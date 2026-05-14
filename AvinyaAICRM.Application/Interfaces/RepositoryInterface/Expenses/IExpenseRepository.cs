@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Domain.Entities.Expenses;
+using AvinyaAICRM.Domain.Entities.Expenses;
 using AvinyaAICRM.Shared.Model;
 using System;
 using System.Collections.Generic;
@@ -21,5 +21,6 @@ namespace AvinyaAICRM.Application.Interfaces.RepositoryInterface.Expenses
         Task<Expense?> GetByIdAsync(Guid id);
         Task<bool> CreateAsync(Expense expense);
         Task<bool> UpdateAsync(Expense expense);
+        Task<List<ExpenseCategory>> GetCategoriesAsync();
     }
 }

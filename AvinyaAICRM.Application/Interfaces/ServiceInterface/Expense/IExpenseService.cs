@@ -1,4 +1,4 @@
-﻿using AvinyaAICRM.Application.DTOs.Expense;
+using AvinyaAICRM.Application.DTOs.Expense;
 using AvinyaAICRM.Shared.Model;
 using System;
 using System.Collections.Generic;
@@ -22,5 +22,6 @@ namespace AvinyaAICRM.Application.Interfaces.ServiceInterface.Expense
         Task<ResponseModel> CreateAsync(CreateExpenseDto dto, string tenantId, Guid userId);
         Task<ResponseModel> UpdateAsync(UpdateExpenseDto dto, Guid userId);
         Task<ResponseModel> DeleteAsync(Guid id);
+        Task<ResponseModel> GetCategoriesAsync();
     }
 }
